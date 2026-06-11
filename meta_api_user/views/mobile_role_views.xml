@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Mobile User Permission Views -->
+    <record id="view_res_mobile_permission_search" model="ir.ui.view">
+        <field name="name">res.mobile.permission.search</field>
+        <field name="model">res.mobile.permission</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="category"/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Category" name="groupby_category" domain="[]" context="{'group_by': 'category'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_res_mobile_permission_list" model="ir.ui.view">
+        <field name="name">res.mobile.permission.list</field>
+        <field name="model">res.mobile.permission</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="category"/>
+                <field name="active" widget="boolean_toggle"/>
+                <field name="description"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_res_mobile_permission" model="ir.actions.act_window">
+        <field name="name">Mobile Permissions</field>
+        <field name="res_model">res.mobile.permission</field>
+        <field name="view_mode">list</field>
+        <field name="search_view_id" ref="meta_api_user.view_res_mobile_permission_search"/>
+    </record>
+
+    <!-- Mobile User Group Views -->
+    <record id="view_res_mobile_user_group_search" model="ir.ui.view">
+        <field name="name">res.mobile.user.group.search</field>
+        <field name="model">res.mobile.user.group</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="code"/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_res_mobile_user_group_list" model="ir.ui.view">
+        <field name="name">res.mobile.user.group.list</field>
+        <field name="model">res.mobile.user.group</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_res_mobile_user_group_form" model="ir.ui.view">
+        <field name="name">res.mobile.user.group.form</field>
+        <field name="model">res.mobile.user.group</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Group Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="e.g. tsm"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="implied_group_ids" widget="many2many_tags" placeholder="Implied Groups..."/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Direct Permissions">
+                            <field name="permission_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="code"/>
+                                    <field name="category"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Effective Permissions">
+                            <field name="effective_permission_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="code"/>
+                                    <field name="category"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Users">
+                            <field name="user_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="phone"/>
+                                    <field name="email"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_res_mobile_user_group" model="ir.actions.act_window">
+        <field name="name">Mobile User Groups</field>
+        <field name="res_model">res.mobile.user.group</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="meta_api_user.view_res_mobile_user_group_search"/>
+    </record>
+</odoo>

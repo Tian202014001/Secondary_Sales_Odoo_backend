@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_mobile_auth_dashboard" model="ir.actions.client">
+        <field name="name">Mobile API Dashboard</field>
+        <field name="tag">meta_api_user.mobile_auth_dashboard</field>
+    </record>
+</odoo>

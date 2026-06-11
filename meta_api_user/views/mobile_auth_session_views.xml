@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mobile_auth_session_search" model="ir.ui.view">
+        <field name="name">mobile.auth.session.search</field>
+        <field name="model">mobile.auth.session</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="mobile_user_id"/>
+                <field name="device_id"/>
+                <field name="device_info"/>
+                <field name="ip_address"/>
+                <filter name="active" string="Active" domain="[('state', '=', 'active')]"/>
+                <filter name="refresh_expired" string="Refresh Expired" domain="[('state', '=', 'refresh_expired')]"/>
+                <filter name="logged_out" string="Logged Out" domain="[('state', '=', 'logged_out')]"/>
+                <filter name="revoked" string="Revoked" domain="[('state', '=', 'revoked')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_mobile_user" string="Mobile User" context="{'group_by': 'mobile_user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_mobile_auth_session_list" model="ir.ui.view">
+        <field name="name">mobile.auth.session.list</field>
+        <field name="model">mobile.auth.session</field>
+        <field name="arch" type="xml">
+            <list create="0">
+                <field name="mobile_user_id"/>
+                <field name="state"/>
+                <field name="device_id"/>
+                <field name="device_info"/>
+                <field name="ip_address"/>
+                <field name="last_used_at"/>
+                <field name="refresh_token_expiry"/>
+                <field name="is_revoked"/>
+                <field name="revoke_reason"/>
+                <button name="action_revoke" type="object" string="Revoke" class="btn-secondary" invisible="is_revoked"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_mobile_auth_session_form" model="ir.ui.view">
+        <field name="name">mobile.auth.session.form</field>
+        <field name="model">mobile.auth.session</field>
+        <field name="arch" type="xml">
+            <form create="0">
+                <header>
+                    <button name="action_revoke" type="object" string="Revoke" class="btn-primary" invisible="is_revoked"/>
+                    <field name="state" widget="statusbar" statusbar_visible="active,refresh_expired,logged_out,revoked"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Session">
+                            <field name="mobile_user_id"/>
+                            <field name="is_revoked"/>
+                            <field name="revoke_reason"/>
+                            <field name="last_used_at"/>
+                        </group>
+                        <group string="Device">
+                            <field name="device_id"/>
+                            <field name="device_info"/>
+                            <field name="ip_address"/>
+                            <field name="user_agent"/>
+                        </group>
+                    </group>
+                    <group string="Refresh Token">
+                        <field name="refresh_token_expiry"/>
+                    </group>
+                    <group string="Stored Refresh Token Hash" groups="base.group_system">
+                        <field name="refresh_token_hash" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mobile_auth_session" model="ir.actions.act_window">
+        <field name="name">Mobile Sessions</field>
+        <field name="res_model">mobile.auth.session</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="meta_api_user.view_mobile_auth_session_search"/>
+    </record>
+</odoo>

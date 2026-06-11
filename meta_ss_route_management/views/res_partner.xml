@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_partner_form_inherit_meta_ss_contact" model="ir.ui.view">
+            <field name="name">res.partner.form.inherit.meta.ss.contact</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook" position="inside">
+                    <page string="Distributed Routes"
+                          name="distributed_routes"
+                          invisible='customer_type != "distributor"'>
+                        <field name="distributed_route_ids" readonly="1">
+                            <list>
+                                <field name="name"/>
+                                <field name="code"/>
+                                <field name="ss_employee_ids" widget="many2many_tags"/>
+                                <field name="active"/>
+                            </list>
+                        </field>
+                    </page>
+                    <page string="Sales Employees"
+                          name="sales_employees"
+                          invisible='customer_type != "distributor"'>
+                        <field name="so_employee_ids" readonly="1">
+                            <list>
+                                <field name="name"/>
+                                <field name="work_email"/>
+                                <field name="work_phone"/>
+                            </list>
+                        </field>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

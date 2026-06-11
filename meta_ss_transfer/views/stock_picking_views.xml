@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_picking_form_inherit_meta_ss_transfer" model="ir.ui.view">
+            <field name="name">stock.picking.form.inherit.meta.ss.transfer</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='partner_id']" position="after">
+                    <field name="ss_is_virtual_location_transfer" invisible="1"/>
+                    <field name="ss_distributor_id"
+                           invisible="not ss_is_virtual_location_transfer"
+                           required="ss_is_virtual_location_transfer"/>
+                    <field name="ss_destination_location_id"
+                           invisible="not ss_is_virtual_location_transfer"
+                           required="ss_is_virtual_location_transfer"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="action_virtual_location_transfer" model="ir.actions.act_window">
+            <field name="name">Virtual Location Transfer</field>
+            <field name="res_model">stock.picking</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain" eval="[('picking_type_id', '=', ref('picking_type_virtual_location_transfer'))]"/>
+            <field name="context" eval="{
+                'default_picking_type_id': ref('picking_type_virtual_location_transfer'),
+                'search_default_picking_type_id': ref('picking_type_virtual_location_transfer'),
+            }"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a virtual location transfer.
+                </p>
+            </field>
+        </record>
+
+        <menuitem id="menu_virtual_location_transfer"
+                  name="Virtual Location Transfer"
+                  parent="stock.menu_stock_transfers"
+                  action="action_virtual_location_transfer"
+                  sequence="30"/>
+    </data>
+</odoo>

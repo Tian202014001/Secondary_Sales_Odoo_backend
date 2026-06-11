@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_location_form_inherit_meta_ss_transfer" model="ir.ui.view">
+            <field name="name">stock.location.form.inherit.meta.ss.transfer</field>
+            <field name="model">stock.location</field>
+            <field name="inherit_id" ref="stock.view_location_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='usage']" position="after">
+                    <field name="ss_location_type"/>
+                    <field name="ss_employee_id" 
+                           invisible="ss_location_type != 'van_loading'" 
+                           required="ss_location_type == 'van_loading'"/>
+                    <field name="ss_distributor_id" 
+                           invisible="ss_location_type != 'van_loading'" 
+                           required="ss_location_type == 'van_loading'"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_location_tree_inherit_meta_ss_transfer" model="ir.ui.view">
+            <field name="name">stock.location.list.inherit.meta.ss.transfer</field>
+            <field name="model">stock.location</field>
+            <field name="inherit_id" ref="stock.view_location_tree2"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='usage']" position="after">
+                    <field name="ss_location_type"/>
+                    <field name="ss_employee_id" optional="show"/>
+                    <field name="ss_distributor_id" optional="show"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

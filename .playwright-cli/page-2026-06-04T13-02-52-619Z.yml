@@ -1,0 +1,18 @@
+- generic [ref=e8]:
+  - generic [ref=e9]:
+    - img [ref=e11]
+    - heading "SecondSales" [level=1] [ref=e15]
+    - paragraph [ref=e16]: Field Sales Management
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]: Login As
+      - generic [ref=e20]:
+        - button "TSM Manager" [ref=e21]:
+          - img [ref=e22]
+          - generic [ref=e26]: TSM
+          - generic [ref=e27]: Manager
+        - button "SO Officer" [active] [ref=e28]:
+          - img [ref=e29]
+          - generic [ref=e32]: SO
+          - generic [ref=e33]: Officer
+    - button "Continue" [ref=e34]

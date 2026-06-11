@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem
+        id="menu_meta_api_root"
+        name="Mobile API"
+        action="action_mobile_auth_dashboard"
+        sequence="80"
+        groups="meta_api_user.group_mobile_auth_user"/>
+
+    <menuitem
+        id="menu_meta_api_dashboard"
+        name="Dashboard"
+        parent="menu_meta_api_root"
+        action="action_mobile_auth_dashboard"
+        sequence="1"
+        groups="meta_api_user.group_mobile_auth_user"/>
+
+    <menuitem
+        id="menu_meta_api_users"
+        name="Users"
+        parent="menu_meta_api_root"
+        action="action_res_mobile_user"
+        sequence="10"
+        groups="meta_api_user.group_mobile_auth_user"/>
+
+    <menuitem
+        id="menu_meta_api_sessions"
+        name="Sessions"
+        parent="menu_meta_api_root"
+        action="action_mobile_auth_session"
+        sequence="20"
+        groups="meta_api_user.group_mobile_auth_user"/>
+
+    <menuitem
+        id="menu_meta_api_configuration"
+        name="Configuration"
+        parent="menu_meta_api_root"
+        sequence="90"
+        groups="meta_api_user.group_mobile_auth_manager"/>
+
+    <menuitem
+        id="menu_meta_api_roles"
+        name="User Groups"
+        parent="menu_meta_api_configuration"
+        action="action_res_mobile_user_group"
+        sequence="10"
+        groups="meta_api_user.group_mobile_auth_manager"/>
+
+    <menuitem
+        id="menu_meta_api_permissions"
+        name="Permissions"
+        parent="menu_meta_api_configuration"
+        action="action_res_mobile_permission"
+        sequence="20"
+        groups="meta_api_user.group_mobile_auth_manager"/>
+</odoo>

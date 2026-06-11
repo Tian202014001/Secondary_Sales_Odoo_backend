@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Tree (List) View -->
+        <record id="view_sale_route_tree" model="ir.ui.view">
+            <field name="name">sale.route.list</field>
+            <field name="model">sale.route</field>
+            <field name="arch" type="xml">
+                <list string="Routes">
+                    <field name="name"/>
+                    <field name="code"/>
+                    <field name="ss_employee_ids" widget="many2many_tags"/>
+                    <field name="distributor_contact_id"/>
+                    <field name="active"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Form View -->
+        <record id="view_sale_route_form" model="ir.ui.view">
+            <field name="name">sale.route.form</field>
+            <field name="model">sale.route</field>
+            <field name="arch" type="xml">
+                <form string="Route">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="code"/>
+                                <field name="ss_employee_ids" widget="many2many_tags"/>
+                            </group>
+                            <group>
+                                <field name="distributor_contact_id"/>
+                                <field name="active"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Route Outlets" name="route_outlets">
+                                <field name="route_line_ids">
+                                    <list editable="bottom">
+                                        <field name="sequence" widget="handle"/>
+                                        <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]"/>
+                                        <field name="expected_visit_time" widget="float_time"/>
+                                        <field name="active"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Route Visit Views -->
+        <record id="view_sale_route_visit_tree" model="ir.ui.view">
+            <field name="name">sale.route.visit.list</field>
+            <field name="model">sale.route.visit</field>
+            <field name="arch" type="xml">
+                <list string="Route Visits">
+                    <field name="visit_date"/>
+                    <field name="employee_id"/>
+                    <field name="route_id"/>
+                    <field name="source"/>
+                    <field name="state"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_sale_route_visit_form" model="ir.ui.view">
+            <field name="name">sale.route.visit.form</field>
+            <field name="model">sale.route.visit</field>
+            <field name="arch" type="xml">
+                <form string="Route Visit">
+                    <header>
+                        <button name="action_start" string="Start" type="object" class="oe_highlight" invisible="state != 'draft'"/>
+                        <button name="action_done" string="Done" type="object" class="oe_highlight" invisible="state != 'started'"/>
+                        <button name="action_cancel" string="Cancel" type="object" invisible="state in ('done', 'cancelled')"/>
+                        <button name="action_reset_draft" string="Reset to Draft" type="object" invisible="state not in ('started', 'cancelled')"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,started,done"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="employee_id"/>
+                                <field name="route_id" domain="[('active', '=', True), '|', ('ss_employee_ids', '=', False), ('ss_employee_ids', 'in', [employee_id])]"/>
+                                <field name="plan_id"/>
+                            </group>
+                            <group>
+                                <field name="visit_date"/>
+                                <field name="source"/>
+                                <field name="distributor_contact_id"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Outlet Visits" name="outlet_visits">
+                                <field name="visit_line_ids" context="{'default_customer_type': 'outlet'}">
+                                    <list editable="bottom">
+                                        <field name="sequence" widget="handle"/>
+                                        <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]" context="{'default_customer_type': 'outlet'}"/>
+                                        <field name="expected_visit_time" widget="float_time"/>
+                                        <field name="state"/>
+                                        <field name="note"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Visit Plan Views -->
+        <record id="view_sale_route_visit_plan_tree" model="ir.ui.view">
+            <field name="name">sale.route.visit.plan.list</field>
+            <field name="model">sale.route.visit.plan</field>
+            <field name="arch" type="xml">
+                <list string="Visit Plans">
+                    <field name="visit_date"/>
+                    <field name="employee_id"/>
+                    <field name="route_id"/>
+                    <field name="distributor_contact_id"/>
+                    <field name="state"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_sale_route_visit_plan_form" model="ir.ui.view">
+            <field name="name">sale.route.visit.plan.form</field>
+            <field name="model">sale.route.visit.plan</field>
+            <field name="arch" type="xml">
+                <form string="Visit Plan">
+                    <header>
+                        <button name="action_confirm" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft'"/>
+                        <button name="action_start" string="Start" type="object" class="oe_highlight" invisible="state != 'confirmed'"/>
+                        <button name="action_done" string="Done" type="object" class="oe_highlight" invisible="state != 'in_progress'"/>
+                        <button name="action_cancel" string="Cancel" type="object" invisible="state in ('done', 'cancelled')"/>
+                        <button name="action_reset_draft" string="Reset to Draft" type="object" invisible="state not in ('confirmed', 'cancelled')"/>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,in_progress,done"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="employee_id"/>
+                                <field name="route_id" domain="[('active', '=', True), '|', ('ss_employee_ids', '=', False), ('ss_employee_ids', 'in', [employee_id])]"/>
+                            </group>
+                            <group>
+                                <field name="visit_date"/>
+                                <field name="distributor_contact_id"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Planned Outlets" name="planned_outlets">
+                                <field name="plan_line_ids">
+                                    <list editable="bottom">
+                                        <field name="sequence" widget="handle"/>
+                                        <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]"/>
+                                        <field name="expected_visit_time" widget="float_time"/>
+                                        <field name="state"/>
+                                        <field name="note"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Window Action -->
+        <record id="action_sale_route" model="ir.actions.act_window">
+            <field name="name">Routes</field>
+            <field name="res_model">sale.route</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first route!
+                </p>
+            </field>
+        </record>
+
+        <record id="action_sale_route_visit_plan" model="ir.actions.act_window">
+            <field name="name">Visit Plans</field>
+            <field name="res_model">sale.route.visit.plan</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first visit plan!
+                </p>
+            </field>
+        </record>
+
+        <record id="action_sale_route_visit" model="ir.actions.act_window">
+            <field name="name">Route Visits</field>
+            <field name="res_model">sale.route.visit</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Start your first route visit!
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu Items -->
+        <menuitem id="menu_sale_route_root" name="Route Management" sequence="10"/>
+
+        <menuitem id="menu_sale_route" name="Routes" parent="menu_sale_route_root" action="action_sale_route" sequence="10"/>
+        <menuitem id="menu_sale_route_visit" name="Route Visits" parent="menu_sale_route_root" action="action_sale_route_visit" sequence="20"/>
+        <menuitem id="menu_sale_route_visit_plan" name="Visit Plans" parent="menu_sale_route_root" action="action_sale_route_visit_plan" sequence="30"/>
+    </data>
+</odoo>

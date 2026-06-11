@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_order_form_inherit_meta_ss_sales" model="ir.ui.view">
+           <field name="name">sale.order.form.inherit.meta.ss.sales</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='payment_term_id']" position="after">
+                    <field name="sale_type"/>
+                    <field name="so_employee_id"/>
+                    <field name="route_id" domain="[('active', '=', True), '|', ('ss_employee_ids', '=', False), ('ss_employee_ids', 'in', [so_employee_id])]"/>
+                    <field name="route_visit_id" domain="[('state', '=', 'started'), ('employee_id', '=', so_employee_id), ('route_id', '=', route_id)]"/>
+                    <field name="route_visit_line_id" domain="[('visit_id', '=', route_visit_id)]"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

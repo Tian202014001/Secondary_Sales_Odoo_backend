@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_employee_form_inherit_meta_ss_route_management" model="ir.ui.view">
+            <field name="name">hr.employee.form.inherit.meta.ss.route.management</field>
+            <field name="model">hr.employee</field>
+            <field name="inherit_id" ref="hr.view_employee_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='coach_id']" position="after">
+                    <field name="distributor_contact_id" domain="[('customer_type', '=', 'distributor')]"/>
+                </xpath>
+                <xpath expr="//notebook" position="inside">
+                    <page string="Assigned Routes" name="assigned_routes">
+                        <field name="assigned_route_ids">
+                            <list>
+                                <field name="name"/>
+                                <field name="code"/>
+                                <field name="distributor_contact_id"/>
+                                <field name="active"/>
+                            </list>
+                        </field>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

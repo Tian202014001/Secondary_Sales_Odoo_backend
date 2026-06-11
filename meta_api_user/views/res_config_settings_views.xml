@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_inherit_meta_api_user" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.meta.api.user</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="Mobile API" name="meta_api_user" groups="base.group_system">
+                    <block title="JWT Authentication">
+                        <setting>
+                            <label for="meta_api_jwt_secret"/>
+                            <div class="text-muted">
+                                Secret used to sign mobile JWT access tokens. Leave empty to auto-generate on first token creation.
+                            </div>
+                            <field name="meta_api_jwt_secret" password="True"/>
+                        </setting>
+                        <setting>
+                            <label for="meta_api_jwt_algorithm"/>
+                            <div class="text-muted">
+                                Signing algorithm for JWT access tokens.
+                            </div>
+                            <field name="meta_api_jwt_algorithm"/>
+                        </setting>
+                        <setting>
+                            <label for="meta_api_access_token_minutes"/>
+                            <div class="text-muted">
+                                Short-lived JWT access token duration in minutes.
+                            </div>
+                            <field name="meta_api_access_token_minutes"/>
+                        </setting>
+                        <setting>
+                            <label for="meta_api_refresh_token_days"/>
+                            <div class="text-muted">
+                                Opaque refresh token duration in days.
+                            </div>
+                            <field name="meta_api_refresh_token_days"/>
+                        </setting>
+                    </block>
+                    <block title="Backend Execution">
+                        <setting>
+                            <label for="meta_api_integration_user_id"/>
+                            <div class="text-muted">
+                                Internal Odoo user used for ORM operations after the mobile user is validated.
+                            </div>
+                            <field name="meta_api_integration_user_id"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

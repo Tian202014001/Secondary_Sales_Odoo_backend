@@ -1,0 +1,676 @@
+Odoo Mobile Authentication Solution
+Using Existing Odoo.sh Packages: passlib + bcrypt + PyJWT
+
+============================================================
+1. Goal
+============================================================
+
+This document describes a mobile authentication architecture for Odoo.sh using packages already available in your Odoo.sh environment.
+
+Your Odoo.sh package list includes:
+
+- passlib 1.7.4
+- bcrypt 3.2.2
+- PyJWT 2.7.0
+
+Because these packages already exist in the environment, you do not need to add these lines to requirements.txt:
+
+- passlib[bcrypt]==1.7.4
+- bcrypt==4.1.2
+- PyJWT==2.8.0
+
+Recommended approach:
+
+- Password hashing: passlib + bcrypt
+- Access token: JWT using PyJWT
+- Refresh token: opaque random token using Python secrets
+- Refresh token storage: store only SHA256 hash in Odoo database
+- Mobile user model: res.mobile.user
+- Backend execution: one dedicated Odoo integration user
+
+This approach is suitable when mobile users are stored in a custom Odoo model such as res.mobile.user and do not need direct Odoo backend access.
+
+
+============================================================
+2. High-Level Architecture
+============================================================
+
+Odoo Admin Panel
+    ↓
+Admin creates records in res.mobile.user
+    ↓
+Password is hashed before saving
+    ↓
+Flutter app calls /api/mobile/login
+    ↓
+Odoo checks res.mobile.user credentials
+    ↓
+Odoo returns JWT access token + refresh token
+    ↓
+Flutter uses JWT access token for future API calls
+    ↓
+Odoo validates JWT on protected API endpoints
+    ↓
+Odoo performs ORM operations using one dedicated integration user
+    ↓
+Odoo stores mobile_user_id for audit tracking
+
+
+============================================================
+3. Existing Packages Available in Odoo.sh
+============================================================
+
+From your Odoo.sh package list, the required packages are already installed:
+
+passlib 1.7.4
+bcrypt 3.2.2
+PyJWT 2.7.0
+
+Therefore, you can use:
+
+from passlib.context import CryptContext
+import jwt
+
+You do not need to install extra packages unless you specifically want different versions.
+
+Important recommendation:
+
+Use the versions already available in Odoo.sh. Do not force bcrypt==4.1.2 unless you have a specific reason, because bcrypt 3.2.2 is already available and is compatible with passlib 1.7.4 in many Odoo environments.
+
+
+============================================================
+4. Main Models
+============================================================
+
+A. res.mobile.user
+
+This model stores mobile app users.
+
+Suggested fields:
+
+- name
+- phone
+- email
+- password_hash
+- role_id
+- company_id
+- is_active
+- partner_id
+- last_login
+
+Example:
+
+class ResMobileUser(models.Model):
+    _name = "res.mobile.user"
+    _description = "Mobile App User"
+
+    name = fields.Char(required=True)
+    phone = fields.Char(index=True)
+    email = fields.Char(index=True)
+    password_hash = fields.Char(required=True)
+    is_active = fields.Boolean(default=True)
+    role_id = fields.Many2one("res.mobile.role")
+    company_id = fields.Many2one("res.company")
+    partner_id = fields.Many2one("res.partner")
+    last_login = fields.Datetime()
+
+
+B. mobile.auth.session
+
+This model stores refresh token hashes and session/device information.
+
+Suggested fields:
+
+- mobile_user_id
+- refresh_token_hash
+- refresh_token_expiry
+- is_revoked
+- device_info
+- ip_address
+- user_agent
+- last_used_at
+
+Example:
+
+class MobileAuthSession(models.Model):
+    _name = "mobile.auth.session"
+    _description = "Mobile Authentication Session"
+
+    mobile_user_id = fields.Many2one("res.mobile.user", required=True, ondelete="cascade")
+    refresh_token_hash = fields.Char(required=True, index=True)
+    refresh_token_expiry = fields.Datetime(required=True)
+    is_revoked = fields.Boolean(default=False)
+    device_info = fields.Char()
+    ip_address = fields.Char()
+    user_agent = fields.Char()
+    last_used_at = fields.Datetime()
+
+
+Why not store access token in database?
+
+Because the access token is a JWT. It is signed and contains its own expiry. Odoo can validate it using the JWT secret key.
+
+However, the refresh token should be stored in the database as a hash so it can be revoked, rotated, and used to control long-term sessions.
+
+
+============================================================
+5. Password Hashing with passlib + bcrypt
+============================================================
+
+Use passlib's CryptContext with bcrypt.
+
+Example:
+
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+)
+
+
+def hash_password(password):
+    return pwd_context.hash(password)
+
+
+def verify_password(password, password_hash):
+    return pwd_context.verify(password, password_hash)
+
+
+Important rules:
+
+- Never store plain passwords
+- Never return password_hash through API
+- Always hash password before saving
+- Always verify input password against the stored hash
+
+
+============================================================
+6. Hash Password in create() and write()
+============================================================
+
+When the admin creates a new res.mobile.user record and types a password, the password should be hashed before saving to the database.
+
+The plain password should not be stored.
+
+Recommended approach:
+
+- Use a temporary password field in the form
+- Convert it to password_hash in create()
+- Convert it to password_hash in write() when password is changed
+- Clear the temporary password field before saving
+
+Example:
+
+from odoo import models, fields, api
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+)
+
+
+class ResMobileUser(models.Model):
+    _name = "res.mobile.user"
+    _description = "Mobile App User"
+
+    name = fields.Char(required=True)
+    phone = fields.Char(index=True)
+    email = fields.Char(index=True)
+    password = fields.Char(string="Password")
+    password_hash = fields.Char(string="Password Hash", readonly=True)
+    is_active = fields.Boolean(default=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            plain_password = vals.get("password")
+            if plain_password:
+                vals["password_hash"] = pwd_context.hash(plain_password)
+                vals["password"] = False
+        return super().create(vals_list)
+
+    def write(self, vals):
+        plain_password = vals.get("password")
+        if plain_password:
+            vals["password_hash"] = pwd_context.hash(plain_password)
+            vals["password"] = False
+        return super().write(vals)
+
+    def check_password(self, plain_password):
+        self.ensure_one()
+        if not self.password_hash:
+            return False
+        return pwd_context.verify(plain_password, self.password_hash)
+
+
+Odoo form XML example:
+
+<field name="password" password="True" placeholder="Set password"/>
+
+
+Important:
+
+The database should store only password_hash, not the typed password.
+
+
+============================================================
+7. JWT Access Token with PyJWT
+============================================================
+
+Use PyJWT for the access token.
+
+Example:
+
+import jwt
+from datetime import datetime, timedelta, timezone
+
+JWT_SECRET = "use-a-secure-secret-from-system-parameter"
+JWT_ALGORITHM = "HS256"
+ACCESS_TOKEN_MINUTES = 15
+
+
+def create_access_token(mobile_user):
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(mobile_user.id),
+        "mobile_user_id": mobile_user.id,
+        "role_id": mobile_user.role_id.id if mobile_user.role_id else False,
+        "company_id": mobile_user.company_id.id if mobile_user.company_id else False,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=ACCESS_TOKEN_MINUTES)).timestamp()),
+        "type": "access",
+    }
+
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+Do not put sensitive data in JWT.
+
+Avoid putting:
+
+- password
+- password_hash
+- Odoo backend credentials
+- private keys
+- full permission lists
+- confidential customer data
+
+
+============================================================
+8. JWT Validation
+============================================================
+
+Flutter sends future API requests like this:
+
+Authorization: Bearer <jwt_access_token>
+
+Odoo should:
+
+1. Read Authorization header
+2. Extract Bearer token
+3. Decode JWT
+4. Verify signature
+5. Verify expiry
+6. Read mobile_user_id from payload
+7. Check res.mobile.user still exists
+8. Check mobile user is still active
+9. Apply role/permission checks
+10. Allow or reject request
+
+Example:
+
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
+
+
+def decode_access_token(token):
+    try:
+        payload = jwt.decode(
+            token,
+            JWT_SECRET,
+            algorithms=[JWT_ALGORITHM],
+        )
+    except ExpiredSignatureError:
+        raise Exception("Access token expired")
+    except InvalidTokenError:
+        raise Exception("Invalid access token")
+
+    if payload.get("type") != "access":
+        raise Exception("Invalid token type")
+
+    return payload
+
+
+Important:
+
+Even if the JWT is valid, always check mobile_user.is_active in the database. This allows you to block/deactivate a mobile user immediately.
+
+
+============================================================
+9. Refresh Token with secrets + hashlib
+============================================================
+
+Use an opaque refresh token, not JWT.
+
+Reason:
+
+- Refresh tokens should be revocable
+- Refresh tokens should be rotated
+- Refresh tokens should be stored securely
+- Admin should be able to force logout a device/session
+
+Example:
+
+import secrets
+import hashlib
+import hmac
+
+
+def generate_refresh_token():
+    return secrets.token_urlsafe(48)
+
+
+def hash_token(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def secure_compare(value_1, value_2):
+    return hmac.compare_digest(value_1, value_2)
+
+
+Important rule:
+
+Never store the raw refresh token in the database.
+Store only the SHA256 hash of the refresh token.
+
+The raw refresh token is returned to Flutter only once.
+
+
+============================================================
+10. Login API Flow
+============================================================
+
+Endpoint:
+
+POST /api/mobile/login
+
+Flutter request example:
+
+{
+    "login": "017xxxxxxxx",
+    "password": "user_password",
+    "device_info": "Android App v1.0"
+}
+
+Odoo should:
+
+1. Find res.mobile.user by phone or email
+2. Check user exists
+3. Check user is active
+4. Verify password using passlib/bcrypt
+5. Generate JWT access token
+6. Generate opaque refresh token
+7. Store refresh token hash in mobile.auth.session
+8. Return JWT access token and raw refresh token to Flutter
+
+Response example:
+
+{
+    "access_token": "jwt_access_token_here",
+    "refresh_token": "raw_refresh_token_here",
+    "token_type": "Bearer",
+    "expires_in": 900,
+    "user": {
+        "id": 12,
+        "name": "Rahim",
+        "role": "salesman"
+    }
+}
+
+Recommended expiry:
+
+- Access token: 15 minutes
+- Refresh token: 7 to 30 days
+
+
+============================================================
+11. Refresh Token Flow
+============================================================
+
+Endpoint:
+
+POST /api/mobile/refresh
+
+Flutter request example:
+
+{
+    "refresh_token": "raw_refresh_token_here"
+}
+
+Odoo should:
+
+1. Hash received refresh token
+2. Find mobile.auth.session by refresh_token_hash
+3. Check refresh token is not expired
+4. Check session is not revoked
+5. Check mobile user is active
+6. Generate new JWT access token
+7. Generate new refresh token
+8. Store new refresh token hash
+9. Return new JWT access token and new raw refresh token
+
+Recommended response:
+
+{
+    "access_token": "new_jwt_access_token",
+    "refresh_token": "new_raw_refresh_token",
+    "token_type": "Bearer",
+    "expires_in": 900
+}
+
+Best practice:
+
+Rotate refresh token on every refresh request.
+
+This means each refresh token can only be used once.
+
+
+============================================================
+12. Logout Flow
+============================================================
+
+Endpoint:
+
+POST /api/mobile/logout
+
+Odoo should:
+
+1. Validate JWT access token
+2. Identify the mobile user/session
+3. Revoke the related mobile.auth.session
+
+After logout, the refresh token should no longer work.
+
+Note:
+
+A JWT access token is stateless. If you do not store access tokens in the database, a JWT may remain valid until it expires. This is why access token expiry should be short, for example 15 minutes.
+
+If you need instant access-token revocation, store a JWT session ID/jti in the JWT and check the session on every request.
+
+
+============================================================
+13. Dedicated Odoo Integration User
+============================================================
+
+All mobile users are custom res.mobile.user records.
+
+They do not log in to the Odoo backend.
+
+Actual Odoo ORM operations should be executed through one dedicated backend user, for example:
+
+mobile.integration@yourcompany.com
+
+Recommended rule:
+
+- Do not use Odoo admin user
+- Do not use superuser unless absolutely necessary
+- Give the integration user only the permissions needed by the mobile app
+
+Example:
+
+Mobile user Rahim creates a sale order from Flutter.
+
+Odoo creates sale.order using:
+
+create_uid = mobile.integration@yourcompany.com
+
+But the sale order should also store:
+
+mobile_user_id = Rahim
+
+
+============================================================
+14. Audit Tracking
+============================================================
+
+Because all backend operations use one Odoo integration user, Odoo's normal create_uid and write_uid will show the integration user.
+
+Therefore, add custom audit fields to important business records.
+
+Suggested fields:
+
+- mobile_user_id
+- mobile_created_by_id
+- mobile_updated_by_id
+- mobile_source
+- mobile_device_info
+
+Example:
+
+class SaleOrder(models.Model):
+    _inherit = "sale.order"
+
+    mobile_user_id = fields.Many2one("res.mobile.user")
+    mobile_created_by_id = fields.Many2one("res.mobile.user")
+    mobile_updated_by_id = fields.Many2one("res.mobile.user")
+    mobile_source = fields.Char(default="flutter_app")
+
+
+============================================================
+15. Permission Checks
+============================================================
+
+Since all Odoo operations use one backend integration user, Odoo record rules alone will not separate mobile users.
+
+You must check permissions manually in your API/service layer.
+
+Examples:
+
+- Can this mobile user create sale orders?
+- Can this mobile user see this customer?
+- Can this mobile user access this warehouse?
+- Can this mobile user approve discounts?
+- Can this mobile user see only own records?
+
+Do not trust mobile_user_id sent from Flutter request body.
+
+Always get mobile user identity from the validated JWT.
+
+Bad:
+
+{
+    "mobile_user_id": 12,
+    "order_lines": []
+}
+
+Good:
+
+- Get mobile_user_id from JWT access token
+- Ignore user identity from request body
+
+
+============================================================
+16. Security Checklist
+============================================================
+
+Required:
+
+- Use HTTPS only
+- Never store plain passwords
+- Never store raw refresh tokens in database
+- Store only hashed refresh tokens
+- Use short access token expiry
+- Use refresh token rotation
+- Allow logout by revoking session
+- Check mobile_user.is_active on every request
+- Add rate limiting for login endpoint
+- Add login attempt logging
+- Add audit fields for important records
+- Use one restricted integration user
+- Never trust identity fields from Flutter request body
+- Store JWT secret securely, for example in ir.config_parameter or environment configuration
+
+Recommended:
+
+- Store device information
+- Store IP address and user agent
+- Allow admin to revoke sessions
+- Add password reset flow
+- Add account lock after repeated failed attempts
+- Add last_login and last_used_at tracking
+- Add jti/session_id in JWT if you need stronger session control
+
+
+============================================================
+17. Final Recommended Flow
+============================================================
+
+Odoo Admin Panel
+    ↓
+Admin creates res.mobile.user
+    ↓
+create() hashes password using passlib + bcrypt
+    ↓
+Flutter app calls /api/mobile/login
+    ↓
+Odoo validates password
+    ↓
+Odoo creates JWT access token using PyJWT
+    ↓
+Odoo creates opaque refresh token using secrets.token_urlsafe()
+    ↓
+Odoo stores SHA256 refresh token hash in mobile.auth.session
+    ↓
+Flutter stores tokens securely
+    ↓
+Flutter sends Authorization: Bearer <jwt_access_token>
+    ↓
+Odoo validates JWT
+    ↓
+Odoo checks mobile user is still active
+    ↓
+Odoo checks mobile user permissions
+    ↓
+Odoo performs business operation using dedicated integration user
+    ↓
+Odoo stores mobile_user_id for audit tracking
+
+
+============================================================
+18. Summary
+============================================================
+
+Since your Odoo.sh environment already includes passlib, bcrypt, and PyJWT, the recommended solution is:
+
+- Use passlib + bcrypt for password hashing
+- Hash password inside create() and write()
+- Use PyJWT for short-lived access tokens
+- Use secrets.token_urlsafe() for long-lived refresh tokens
+- Store only refresh token hashes in Odoo
+- Rotate refresh tokens
+- Use a restricted dedicated integration user for backend ORM operations
+- Add custom mobile audit fields because create_uid/write_uid will show the integration user
+
+This design gives you a practical and secure Flutter + Odoo.sh mobile login system without adding new Python packages to requirements.txt.

@@ -1,0 +1,19 @@
+- generic [ref=e7]:
+  - banner [ref=e35]:
+    - generic [ref=e37]:
+      - button [ref=e131]:
+        - img [ref=e132]
+      - generic [ref=e134]:
+        - heading "New Order" [level=1] [ref=e135]
+        - paragraph [ref=e136]: Create sales order
+  - main [ref=e44]:
+    - generic [ref=e45]:
+      - generic [ref=e157]:
+        - generic [ref=e158]:
+          - generic [ref=e159]: Hasan Store
+          - generic [ref=e160]: Mirpur-10, Dhaka
+        - button [ref=e161]:
+          - img [ref=e162]
+      - button "Add Products" [ref=e165]:
+        - img [ref=e166]
+        - text: Add Products

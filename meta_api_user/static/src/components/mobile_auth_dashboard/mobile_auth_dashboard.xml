@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="meta_api_user.MobileAuthDashboard">
+        <div class="o_meta_api_dashboard h-100 overflow-auto">
+            <div class="o_meta_api_dashboard__header">
+                <div>
+                    <h1>Mobile API</h1>
+                    <p>JWT access token and refresh session operations.</p>
+                </div>
+                <div class="o_meta_api_dashboard__actions">
+                    <button class="btn btn-light" t-on-click="refresh" t-att-disabled="state.isLoading">
+                        <i class="fa fa-refresh me-2"/>
+                        Refresh
+                    </button>
+                    <button class="btn btn-primary" t-on-click="() => this.openNamedAction('users')">
+                        <i class="fa fa-users me-2"/>
+                        Users
+                    </button>
+                </div>
+            </div>
+
+            <t t-if="state.isLoading">
+                <div class="o_meta_api_dashboard__loading">
+                    <i class="fa fa-circle-o-notch fa-spin me-2"/>
+                    Loading dashboard
+                </div>
+            </t>
+
+            <t t-else="">
+                <div class="o_meta_api_dashboard__grid">
+                    <button class="o_meta_api_metric" t-on-click="() => this.openNamedAction('users')">
+                        <span class="o_meta_api_metric__label">Total Users</span>
+                        <strong t-esc="state.stats.total_users || 0"/>
+                        <small>All mobile accounts</small>
+                    </button>
+                    <button class="o_meta_api_metric is-success" t-on-click="() => this.openNamedAction('active_users')">
+                        <span class="o_meta_api_metric__label">Active Users</span>
+                        <strong t-esc="state.stats.active_users || 0"/>
+                        <small>Allowed to authenticate</small>
+                    </button>
+                    <button class="o_meta_api_metric is-muted" t-on-click="() => this.openNamedAction('inactive_users')">
+                        <span class="o_meta_api_metric__label">Inactive Users</span>
+                        <strong t-esc="state.stats.inactive_users || 0"/>
+                        <small>Blocked from mobile access</small>
+                    </button>
+                    <button class="o_meta_api_metric is-info" t-on-click="() => this.openNamedAction('groups')">
+                        <span class="o_meta_api_metric__label">User Groups</span>
+                        <strong t-esc="state.stats.groups || 0"/>
+                        <small>Mobile user groups</small>
+                    </button>
+                </div>
+
+                <div class="o_meta_api_dashboard__content">
+                    <section class="o_meta_api_panel">
+                        <div class="o_meta_api_panel__header">
+                            <div>
+                                <h2>Refresh Sessions</h2>
+                                <p>JWT access tokens are stateless; revocation is controlled through refresh sessions.</p>
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm" t-on-click="() => this.openNamedAction('sessions')">
+                                Open Sessions
+                            </button>
+                        </div>
+
+                        <div class="o_meta_api_session_stats">
+                            <button class="o_meta_api_session_stat is-success" t-on-click="() => this.openNamedAction('active_sessions')">
+                                <span>Active</span>
+                                <strong t-esc="state.stats.active_sessions || 0"/>
+                            </button>
+                            <button class="o_meta_api_session_stat is-warning" t-on-click="() => this.openNamedAction('expired_sessions')">
+                                <span>Expired</span>
+                                <strong t-esc="state.stats.expired_sessions || 0"/>
+                            </button>
+                            <button class="o_meta_api_session_stat is-muted" t-on-click="() => this.openNamedAction('logged_out_sessions')">
+                                <span>Logged Out</span>
+                                <strong t-esc="state.stats.logged_out_sessions || 0"/>
+                            </button>
+                            <button class="o_meta_api_session_stat is-danger" t-on-click="() => this.openNamedAction('revoked_sessions')">
+                                <span>Revoked</span>
+                                <strong t-esc="state.stats.revoked_sessions || 0"/>
+                            </button>
+                        </div>
+
+                        <div class="o_meta_api_recent">
+                            <div class="o_meta_api_recent__head">
+                                <span>User</span>
+                                <span>State</span>
+                                <span>Device</span>
+                                <span>Last Used</span>
+                                <span>Refresh Expires</span>
+                            </div>
+                            <t t-if="!state.recentSessions.length">
+                                <div class="o_meta_api_empty">No mobile sessions found.</div>
+                            </t>
+                            <t t-foreach="state.recentSessions" t-as="session" t-key="session.id">
+                                <button class="o_meta_api_recent__row" t-on-click="() => this.openSession(session.id)">
+                                    <span t-esc="this.sessionUserName(session)"/>
+                                    <span>
+                                        <span t-attf-class="o_meta_api_badge is-#{session.state}" t-esc="this.formatState(session.state)"/>
+                                    </span>
+                                    <span t-esc="session.device_info || session.device_id || '-'"/>
+                                    <span t-esc="session.last_used_at || '-'"/>
+                                    <span t-esc="session.refresh_token_expiry || '-'"/>
+                                </button>
+                            </t>
+                        </div>
+                    </section>
+
+                    <aside class="o_meta_api_panel o_meta_api_settings">
+                        <div class="o_meta_api_panel__header">
+                            <div>
+                                <h2>JWT Settings</h2>
+                                <p>Current server-side token configuration.</p>
+                            </div>
+                        </div>
+                        <dl>
+                            <div>
+                                <dt>Algorithm</dt>
+                                <dd t-esc="state.settings.jwt_algorithm || 'HS256'"/>
+                            </div>
+                            <div>
+                                <dt>Access TTL</dt>
+                                <dd><t t-esc="state.settings.access_token_minutes || 15"/> minutes</dd>
+                            </div>
+                            <div>
+                                <dt>Refresh TTL</dt>
+                                <dd><t t-esc="state.settings.refresh_token_days || 30"/> days</dd>
+                            </div>
+                            <div>
+                                <dt>JWT Secret</dt>
+                                <dd>
+                                    <t t-if="state.settings.has_jwt_secret">Configured</t>
+                                    <t t-else="">Auto-generated on first token</t>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>Backend User</dt>
+                                <dd>
+                                    <t t-if="state.settings.has_integration_user" t-esc="state.settings.integration_user"/>
+                                    <t t-else="">Not configured</t>
+                                </dd>
+                            </div>
+                        </dl>
+                        <button class="btn btn-outline-secondary w-100" t-on-click="openSettings">
+                            Open Settings
+                        </button>
+                    </aside>
+                </div>
+            </t>
+        </div>
+    </t>
+</templates>

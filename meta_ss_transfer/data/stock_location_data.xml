@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="stock_location_van_loading_parent" model="stock.location">
+        <field name="name">Secondary Sales Virtual Locations</field>
+        <field name="usage">view</field>
+        <field name="location_id" ref="stock.stock_location_customers"/>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>
