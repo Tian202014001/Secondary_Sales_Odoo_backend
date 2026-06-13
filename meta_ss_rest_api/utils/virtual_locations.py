@@ -26,7 +26,7 @@ def build_virtual_location_domain(env, payload):
             raise ValidationError("'distributor_id' must be a valid integer id.") from exc
         domain = expression.AND([domain, [("ss_distributor_id", "=", distributor_id)]])
     elif payload.get("employee_id"):
-        employee = _get_employee(env, payload.get("employee_id"), "employee_id")
+        employee = _get_employee(env, payload.get("employee_id"))
         if employee.distributor_contact_id:
             domain = expression.AND([
                 domain,
@@ -35,7 +35,7 @@ def build_virtual_location_domain(env, payload):
 
     assigned_employee_id = payload.get("assigned_employee_id")
     if assigned_employee_id:
-        assigned_employee = _get_employee(env, assigned_employee_id, "assigned_employee_id")
+        assigned_employee = _get_employee(env, assigned_employee_id)
         domain = expression.AND([domain, [("ss_employee_id", "=", assigned_employee.id)]])
 
     search = (payload.get("search") or "").strip()
@@ -91,7 +91,7 @@ def prepare_virtual_location_vals(env, payload):
     assigned_employee_id = payload.get("assigned_employee_id")
     if not assigned_employee_id:
         raise ValidationError("'assigned_employee_id' is required for Van Loading locations.")
-    employee = _get_employee(env, assigned_employee_id, "assigned_employee_id")
+    employee = _get_employee(env, assigned_employee_id)
 
     # Validate assigned distributor
     assigned_distributor_id = payload.get("assigned_distributor_id")
