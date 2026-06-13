@@ -94,12 +94,16 @@ def serialize_transfer_products(env, products, source_location):
 def serialize_product_lots(env, payload, product_id):
     _employee, _distributor, source_location = get_employee_transfer_context(env, payload)
     product = _get_product(env, product_id)
-    quants = env["stock.quant"].sudo().search([
+    domain = [
         ("product_id", "=", product.id),
         ("location_id", "child_of", source_location.id),
         ("available_quantity", ">", 0),
         ("lot_id", "!=", False),
-    ], order="lot_id")
+    ]
+    if source_location.ss_location_type != "van_loading":
+        domain.append(("location_id.ss_location_type", "!=", "van_loading"))
+
+    quants = env["stock.quant"].sudo().search(domain, order="lot_id")
     return {
         "product": _serialize_product(product),
         "source_location": _serialize_location(source_location),
@@ -451,29 +455,41 @@ def _apply_move_lines(env, picking, move, item):
 
 
 def _get_available_product_ids(env, source_location):
-    quants = env["stock.quant"].sudo().search([
+    domain = [
         ("location_id", "child_of", source_location.id),
         ("available_quantity", ">", 0),
-    ])
+    ]
+    if source_location.ss_location_type != "van_loading":
+        domain.append(("location_id.ss_location_type", "!=", "van_loading"))
+
+    quants = env["stock.quant"].sudo().search(domain)
     return list(set(quants.mapped("product_id").ids))
 
 
 def _get_available_qty(env, product, source_location):
-    quants = env["stock.quant"].sudo().search([
+    domain = [
         ("product_id", "=", product.id),
         ("location_id", "child_of", source_location.id),
         ("available_quantity", ">", 0),
-    ])
+    ]
+    if source_location.ss_location_type != "van_loading":
+        domain.append(("location_id.ss_location_type", "!=", "van_loading"))
+
+    quants = env["stock.quant"].sudo().search(domain)
     return sum(quants.mapped("available_quantity"))
 
 
 def _get_lot_available_qty(env, product, lot, source_location):
-    quants = env["stock.quant"].sudo().search([
+    domain = [
         ("product_id", "=", product.id),
         ("lot_id", "=", lot.id),
         ("location_id", "child_of", source_location.id),
         ("available_quantity", ">", 0),
-    ])
+    ]
+    if source_location.ss_location_type != "van_loading":
+        domain.append(("location_id.ss_location_type", "!=", "van_loading"))
+
+    quants = env["stock.quant"].sudo().search(domain)
     return sum(quants.mapped("available_quantity"))
 
 
