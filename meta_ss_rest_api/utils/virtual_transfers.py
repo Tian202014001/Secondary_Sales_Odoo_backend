@@ -354,6 +354,7 @@ def _get_employee_van_locations(env, employee, distributor):
         ("ss_location_type", "=", "van_loading"),
         ("ss_employee_id", "=", employee.id),
         ("ss_distributor_id", "=", distributor.id),
+        ("scrap_location", "=", False),
         ("active", "=", True),
     ], order="name")
 
