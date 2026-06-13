@@ -340,6 +340,7 @@ def _get_destination_location_from_payload(env, payload):
 def _get_prepare_van_locations(env, employee, distributor):
     domain = [
         ("ss_location_type", "=", "van_loading"),
+        ("scrap_location", "=", False),
         ("active", "=", True),
     ]
     if distributor:
