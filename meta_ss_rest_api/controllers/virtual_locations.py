@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import logging
 from odoo import http
 from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
@@ -96,7 +97,6 @@ class MetaSSVirtualLocationController(http.Controller):
             return error_response("validation_error", str(exc))
         except Exception as exc:
             request.env.cr.rollback()
-            import logging
             logging.getLogger(__name__).exception("create_virtual_location failed")
             return error_response(
                 "server_error",

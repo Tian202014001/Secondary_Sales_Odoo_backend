@@ -8,8 +8,6 @@ from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, e
 from odoo.addons.meta_ss_rest_api.utils.routes import (
     build_employee_route_domain,
     get_pagination,
-    has_route_create_payload,
-    has_route_update_payload,
     prepare_route_outlet_line_values,
     prepare_route_values,
     serialize_route_detail,

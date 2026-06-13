@@ -14,6 +14,7 @@ from odoo.addons.meta_ss_rest_api.utils.sales import (
     get_distributor,
     _prepare_sale_order_line_commands,
     update_sale_order_lines,
+    _get_int,
 )
 
 
@@ -108,7 +109,7 @@ class MetaSSSalesController(http.Controller):
                 
                 # Check distributor/customer change restriction
                 if "distributor_id" in payload:
-                    new_dist_id = int(payload.get("distributor_id"))
+                    new_dist_id = _get_int(payload.get("distributor_id"), "distributor_id")
                     if new_dist_id != order.partner_id.id:
                         raise ValidationError("Cannot edit customer on confirmed sales order.")
 
@@ -125,7 +126,7 @@ class MetaSSSalesController(http.Controller):
                 vals["partner_shipping_id"] = distributor.id
 
             if "warehouse_id" in payload:
-                vals["warehouse_id"] = int(payload["warehouse_id"])
+                vals["warehouse_id"] = _get_int(payload["warehouse_id"], "warehouse_id")
 
             if "expected_delivery_date" in payload:
                 vals["commitment_date"] = payload["expected_delivery_date"]

@@ -987,6 +987,107 @@ Response:
 }
 ```
 
+### Delivery Product Lots
+
+`POST /api/v1/deliveries/products/<product_id>/lots`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "sale_order_id": 20,
+    "picking_id": 12,
+    "location_id": 10
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Delivery product lots fetched successfully.",
+  "product": {
+    "id": 25,
+    "name": "Eggs",
+    "tracking": "lot"
+  },
+  "source_location": {
+    "id": 10,
+    "name": "Warehouse/Stock",
+    "usage": "internal"
+  },
+  "data": [
+    {
+      "lot_id": 7,
+      "lot_name": "LOT-001",
+      "available_qty": 5.0,
+      "quantity": 5.0,
+      "reserved_quantity": 0.0,
+      "uom": {
+        "id": 1,
+        "name": "Units"
+      },
+      "location": {
+        "id": 8,
+        "name": "WH/Stock",
+        "usage": "internal"
+      }
+    }
+  ]
+}
+```
+
+### Delivery Product Auto-Assign Lots
+
+`POST /api/v1/deliveries/products/<product_id>/auto-assign-lots`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "sale_order_id": 20,
+    "picking_id": 12,
+    "location_id": 10,
+    "quantity": 7.0
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Lots auto-assigned successfully.",
+  "data": [
+    {
+      "lot_id": 7,
+      "lot_name": "LOT-001",
+      "quantity": 5.0
+    },
+    {
+      "lot_id": 8,
+      "lot_name": "LOT-002",
+      "quantity": 2.0
+    }
+  ]
+}
+```
+
 ### Validate Delivery
 
 `POST /api/v1/deliveries/<picking_id>/action`
@@ -1641,6 +1742,46 @@ Response:
       "available_qty": 5.0,
       "quantity": 5.0,
       "reserved_quantity": 0.0
+    }
+  ]
+}
+```
+
+### Transfer Product Auto-Assign Lots
+
+`POST /api/v1/virtual-transfers/products/<product_id>/auto-assign-lots`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "quantity": 7.0
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Lots auto-assigned successfully.",
+  "data": [
+    {
+      "lot_id": 7,
+      "lot_name": "LOT-001",
+      "quantity": 5.0
+    },
+    {
+      "lot_id": 8,
+      "lot_name": "LOT-002",
+      "quantity": 2.0
     }
   ]
 }

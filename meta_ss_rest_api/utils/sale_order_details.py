@@ -43,7 +43,7 @@ def get_sale_order_for_employee(env, order_id, payload):
     sale_type = payload.get("sale_type")
     if sale_type and sale_type != "all" and order.sale_type != sale_type:
         raise ValidationError("The requested order does not match 'sale_type'.")
-    if order.so_employee_id != employee:
+    if order.so_employee_id and order.so_employee_id != employee:
         raise ValidationError("This sale order does not belong to the requested employee.")
     return order
 

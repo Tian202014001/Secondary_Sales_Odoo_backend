@@ -202,10 +202,11 @@ def create_virtual_transfer(env, payload):
 
     for move in picking.move_ids.filtered(lambda item: item.state not in ("cancel", "done")):
         item = next(
-            prepared
-            for prepared in prepared_lines
-            if prepared["product"].id == move.product_id.id
+            (p for p in prepared_lines if p["product"].id == move.product_id.id),
+            None
         )
+        if not item:
+            continue
         _apply_move_lines(env, picking, move, item)
 
     return picking

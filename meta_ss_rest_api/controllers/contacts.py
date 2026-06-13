@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import logging
 from odoo import http
 from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
@@ -103,11 +104,10 @@ class MetaSSContactController(http.Controller):
             return error_response("validation_error", str(exc))
         except Exception as exc:
             request.env.cr.rollback()
-            import logging
             logging.getLogger(__name__).exception("create_contact failed")
             return error_response(
                 "server_error",
-                "An unexpected error occurred while creating contact: %s" % str(exc),
+                "An unexpected error occurred while creating contact. Please contact support.",
             )
 
     @http.route(f"{API_PREFIX}/contacts/<int:contact_id>", type="json", auth="public", methods=["POST"])

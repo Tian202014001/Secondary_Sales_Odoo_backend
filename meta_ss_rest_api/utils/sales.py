@@ -1,3 +1,4 @@
+from odoo.addons.meta_ss_rest_api.utils.helpers import _get_float, _get_positive_float
 # -*- coding: utf-8 -*-
 
 from odoo.exceptions import ValidationError
@@ -267,7 +268,6 @@ def _get_product_uom(env, uom_id, product):
     return uom
 
 
-from odoo.addons.meta_ss_rest_api.utils.helpers import _get_float, _get_positive_float
 
 def _get_int(value, field_name):
     """Return an integer value or raise a validation error."""

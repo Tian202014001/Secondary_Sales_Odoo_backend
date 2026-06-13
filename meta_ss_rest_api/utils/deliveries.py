@@ -12,6 +12,33 @@ from odoo.addons.meta_ss_rest_api.utils.sales import parse_bool
 from odoo.addons.meta_ss_rest_api.utils.warehouses import get_warehouse
 
 
+def resolve_delivery_location(env, payload):
+    """Resolve source location from payload without requiring sale_order_id.
+
+    Returns the location if resolvable from payload alone, or None so the caller
+    can fall back to picking.location_id.
+    """
+    location_id = payload.get("location_id") or payload.get("source_location_id")
+    if location_id:
+        try:
+            location_id = int(location_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("'location_id' must be a valid integer id.") from exc
+        location = env["stock.location"].sudo().browse(location_id).exists()
+        if not location:
+            raise ValidationError("Source location not found.")
+        return location
+
+    warehouse_id = payload.get("warehouse_id")
+    if warehouse_id:
+        warehouse = get_warehouse(env, warehouse_id)
+        if not warehouse.lot_stock_id:
+            raise ValidationError("The selected warehouse has no stock location.")
+        return warehouse.lot_stock_id
+
+    return None
+
+
 def get_order_delivery_context(env, order_id, payload):
     order = get_primary_sale_order_for_employee(env, order_id, payload)
     picking = _get_active_delivery_picking(order, payload.get("picking_id"))

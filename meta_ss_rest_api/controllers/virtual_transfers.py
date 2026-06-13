@@ -163,6 +163,38 @@ class MetaSSVirtualTransferController(http.Controller):
                 "An unexpected error occurred while fetching transfer product lots.",
             )
 
+    @http.route(
+        f"{API_PREFIX}/virtual-transfers/products/<int:product_id>/auto-assign-lots",
+        type="json",
+        auth="public",
+        methods=["POST"],
+    )
+    def get_virtual_transfer_auto_assign_lots(self, product_id, **payload):
+        """Return auto-assigned (FIFO) lot lines for a given quantity in the distributor location."""
+        try:
+            from odoo.addons.meta_ss_rest_api.utils.helpers import _auto_assign_lots, _get_positive_float
+            from odoo.addons.meta_ss_rest_api.utils.virtual_transfers import get_employee_transfer_context, _get_product
+
+            _employee, _distributor, source_location = get_employee_transfer_context(request.env, payload)
+            product = _get_product(request.env, product_id)
+            quantity = _get_positive_float(payload.get("quantity"), "quantity")
+            
+            lot_lines = _auto_assign_lots(request.env, product, quantity, source_location)
+            return {
+                "success": True,
+                "api_version": API_VERSION,
+                "message": "Lots auto-assigned successfully.",
+                "data": lot_lines,
+            }
+        except (AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response(
+                "server_error",
+                "An unexpected error occurred while auto-assigning lots.",
+            )
+
     @http.route(f"{API_PREFIX}/virtual-transfers/create", type="json", auth="public", methods=["POST"])
     def create_van_loading_transfer(self, **payload):
         """Create a Virtual Location Transfer into an assigned Van Loading Location.
