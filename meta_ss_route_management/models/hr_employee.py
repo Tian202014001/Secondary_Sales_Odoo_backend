@@ -21,6 +21,14 @@ class HrEmployee(models.Model):
         string="Assigned Routes",
         help="Routes assigned to this employee"
     )
+    
+    default_route_id = fields.Many2one(
+        "sale.route",
+        string="Default Route",
+        domain="[('active', '=', True)]",
+        help="The recommended default route for this employee."
+    )
+
 
     @api.constrains("distributor_contact_id")
     def _check_distributor_contact_id(self):
