@@ -66,7 +66,7 @@ class MetaSSDeliveryController(http.Controller):
         when no location is provided, to derive the picking's source location.
         """
         try:
-            from odoo.addons.meta_ss_rest_api.utils.virtual_transfers import _get_product, _serialize_product, _serialize_location
+            from odoo.addons.meta_ss_transfer.utils.virtual_transfers import _get_product, _serialize_product, _serialize_location
 
             location = resolve_delivery_location(request.env, payload)
             if location is None:
@@ -130,7 +130,7 @@ class MetaSSDeliveryController(http.Controller):
         """
         try:
             from odoo.addons.meta_ss_rest_api.utils.helpers import _auto_assign_lots, _get_positive_float
-            from odoo.addons.meta_ss_rest_api.utils.virtual_transfers import _get_product
+            from odoo.addons.meta_ss_transfer.utils.virtual_transfers import _get_product
 
             # Always resolve the picking so its reservations can be treated as
             # available for re-allocation during FIFO (reservation-aware FIFO).

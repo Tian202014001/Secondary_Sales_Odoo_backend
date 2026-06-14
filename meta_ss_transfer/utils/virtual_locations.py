@@ -4,7 +4,7 @@ from odoo.exceptions import ValidationError
 from odoo.addons.meta_ss_rest_api.utils.helpers import _get_employee
 from odoo.osv import expression
 
-from odoo.addons.meta_ss_rest_api.utils.contacts import ensure_distributor_locations
+from odoo.addons.meta_ss_contact.utils.contacts import ensure_distributor_locations
 from odoo.addons.meta_ss_rest_api.utils.routes import get_pagination
 
 
