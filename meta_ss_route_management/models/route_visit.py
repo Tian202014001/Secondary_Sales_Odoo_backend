@@ -82,7 +82,6 @@ class SSRouteVisit(models.Model):
         self.employee_id = self.plan_id.employee_id
         self.route_id = self.plan_id.route_id
         self.visit_date = self.plan_id.visit_date
-        self.visit_line_ids = self._prepare_visit_line_commands_from_plan(self.plan_id)
 
     @api.onchange("route_id")
     def _onchange_route_id(self):
@@ -90,7 +89,6 @@ class SSRouteVisit(models.Model):
             return
         if len(self.route_id.ss_employee_ids) == 1 and not self.employee_id:
             self.employee_id = self.route_id.ss_employee_ids.id
-        self.visit_line_ids = self._prepare_visit_line_commands_from_route(self.route_id)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -101,11 +99,8 @@ class SSRouteVisit(models.Model):
                 vals.setdefault("employee_id", plan.employee_id.id)
                 vals.setdefault("route_id", plan.route_id.id)
                 vals.setdefault("visit_date", plan.visit_date)
-                if not vals.get("visit_line_ids"):
-                    vals["visit_line_ids"] = self._prepare_visit_line_commands_from_plan(plan, clear=False)
-            elif vals.get("route_id") and not vals.get("visit_line_ids"):
+            elif vals.get("route_id"):
                 route = self.env["sale.route"].browse(vals["route_id"])
-                vals["visit_line_ids"] = self._prepare_visit_line_commands_from_route(route, clear=False)
                 if not vals.get("employee_id") and len(route.ss_employee_ids) == 1:
                     vals["employee_id"] = route.ss_employee_ids.id
         return super().create(vals_list)
@@ -138,32 +133,12 @@ class SSRouteVisit(models.Model):
                 }
             )
 
-    def _prepare_visit_line_commands_from_route(self, route, clear=True):
-        commands = [(5, 0, 0)] if clear else []
-        for route_line in route.route_line_ids.filtered("active"):
-            commands.append((0, 0, {
-                "sequence": route_line.sequence,
-                "outlet_id": route_line.outlet_id.id,
-                "expected_visit_time": route_line.expected_visit_time,
-            }))
-        return commands
-
-    def _prepare_visit_line_commands_from_plan(self, plan, clear=True):
-        commands = [(5, 0, 0)] if clear else []
-        for plan_line in plan.plan_line_ids:
-            commands.append((0, 0, {
-                "sequence": plan_line.sequence,
-                "outlet_id": plan_line.outlet_id.id,
-                "expected_visit_time": plan_line.expected_visit_time,
-            }))
-        return commands
+    # Methods for line generation have been removed to support Action-Log architecture
 
     def action_start(self):
         for visit in self:
             if visit.state != "draft":
                 raise ValidationError(_("Only draft route visits can be started."))
-            if not visit.visit_line_ids:
-                raise ValidationError(_("Please add at least one outlet before starting the visit."))
             visit._ensure_route_not_already_started()
         self.write({
             "state": "started",
@@ -174,8 +149,8 @@ class SSRouteVisit(models.Model):
         for visit in self:
             if visit.state != "started":
                 raise ValidationError(_("Only started route visits can be completed."))
-            if any(line.state == "pending" for line in visit.visit_line_ids):
-                raise ValidationError(_("Please mark all outlets as visited or skipped before completing."))
+            if any(line.state == "checked_in" for line in visit.visit_line_ids):
+                raise ValidationError(_("Please check-out of all outlets before completing the route."))
         self.write({
             "state": "done",
             "end_time": fields.Datetime.now(),

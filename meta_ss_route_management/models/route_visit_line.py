@@ -29,12 +29,11 @@ class SSRouteVisitLine(models.Model):
     expected_visit_time = fields.Float(string="Expected Visit Time")
     state = fields.Selection(
         selection=[
-            ("pending", "Pending"),
             ("checked_in", "Checked-In"),
-            ("visited", "Visited"),
+            ("checked_out", "Checked-Out"),
             ("skipped", "Skipped"),
         ],
-        default="pending",
+        default="checked_in",
         required=True,
     )
     note = fields.Char()
@@ -95,9 +94,6 @@ class SSRouteVisitLine(models.Model):
             })
 
     def action_check_in(self):
-        for line in self:
-            if line.state != "pending":
-                raise ValidationError(_("Only pending visits can be checked into."))
         self.write({
             "state": "checked_in",
             "check_in_time": fields.Datetime.now(),
@@ -108,21 +104,9 @@ class SSRouteVisitLine(models.Model):
             if line.state != "checked_in":
                 raise ValidationError(_("You must check-in before checking out."))
         self.write({
-            "state": "visited",
+            "state": "checked_out",
             "check_out_time": fields.Datetime.now(),
         })
 
     def action_mark_skipped(self):
         self.write({"state": "skipped"})
-
-    def action_reset_pending(self):
-        self.write({
-            "state": "pending",
-            "check_in_time": False,
-            "check_in_latitude": 0.0,
-            "check_in_longitude": 0.0,
-            "check_out_time": False,
-            "check_out_latitude": 0.0,
-            "check_out_longitude": 0.0,
-            "note": False,
-        })
