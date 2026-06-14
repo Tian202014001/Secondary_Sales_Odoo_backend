@@ -30,6 +30,7 @@ class SSRouteVisitLine(models.Model):
     state = fields.Selection(
         selection=[
             ("pending", "Pending"),
+            ("checked_in", "Checked-In"),
             ("visited", "Visited"),
             ("skipped", "Skipped"),
         ],
@@ -40,6 +41,9 @@ class SSRouteVisitLine(models.Model):
     check_in_time = fields.Datetime(string="Check-in Time", readonly=True)
     check_in_latitude = fields.Float(string="Check-in Latitude", digits=(10, 7), readonly=True)
     check_in_longitude = fields.Float(string="Check-in Longitude", digits=(10, 7), readonly=True)
+    check_out_time = fields.Datetime(string="Check-out Time", readonly=True)
+    check_out_latitude = fields.Float(string="Check-out Latitude", digits=(10, 7), readonly=True)
+    check_out_longitude = fields.Float(string="Check-out Longitude", digits=(10, 7), readonly=True)
 
     @api.constrains("outlet_id")
     def _check_outlet_id(self):
@@ -90,10 +94,22 @@ class SSRouteVisitLine(models.Model):
                 "expected_visit_time": line.expected_visit_time,
             })
 
-    def action_mark_visited(self):
+    def action_check_in(self):
+        for line in self:
+            if line.state != "pending":
+                raise ValidationError(_("Only pending visits can be checked into."))
+        self.write({
+            "state": "checked_in",
+            "check_in_time": fields.Datetime.now(),
+        })
+
+    def action_check_out(self):
+        for line in self:
+            if line.state != "checked_in":
+                raise ValidationError(_("You must check-in before checking out."))
         self.write({
             "state": "visited",
-            "check_in_time": fields.Datetime.now(),
+            "check_out_time": fields.Datetime.now(),
         })
 
     def action_mark_skipped(self):
@@ -105,5 +121,8 @@ class SSRouteVisitLine(models.Model):
             "check_in_time": False,
             "check_in_latitude": 0.0,
             "check_in_longitude": 0.0,
+            "check_out_time": False,
+            "check_out_latitude": 0.0,
+            "check_out_longitude": 0.0,
             "note": False,
         })
