@@ -41,7 +41,7 @@ def serialize_route_visit_details(visit):
 
 def perform_route_visit_action(env, visit_id, payload):
     """Handle state changes (check-in, check-out, skip, complete) for a route visit"""
-    visit = env["sale.route.visit"].browse(visit_id)
+    visit = env["sale.route.visit"].sudo().browse(visit_id)
     if not visit.exists():
         return {"error": "Route visit not found"}
         
@@ -64,20 +64,18 @@ def perform_route_visit_action(env, visit_id, payload):
             return {"error": "outlet_id is required for check-in"}
         
         # Check if they are already checked into this outlet on this visit
-        existing_line = env["sale.route.visit.line"].search([
+        existing_active_line = env["sale.route.visit.line"].sudo().search([
             ("visit_id", "=", visit.id),
             ("outlet_id", "=", outlet_id),
+            ("state", "=", "checked_in"),
         ], limit=1)
         
-        if existing_line:
-            if existing_line.state == "checked_in":
-                return {"error": "Already checked in at this outlet"}
-            if existing_line.state == "checked_out":
-                return {"error": "Already completed visit at this outlet"}
+        if existing_active_line:
+            return {"error": "Already actively checked in at this outlet. Please check out first."}
 
         # Create the new checked-in line
         try:
-            new_line = env["sale.route.visit.line"].create({
+            new_line = env["sale.route.visit.line"].sudo().create({
                 "visit_id": visit.id,
                 "outlet_id": outlet_id,
                 "state": "checked_in",
@@ -95,7 +93,7 @@ def perform_route_visit_action(env, visit_id, payload):
         if not line_id:
             return {"error": "line_id is required for check-out"}
             
-        line = env["sale.route.visit.line"].browse(line_id)
+        line = env["sale.route.visit.line"].sudo().browse(line_id)
         if not line.exists() or line.visit_id.id != visit.id:
             return {"error": "Visit line not found"}
             
@@ -118,7 +116,7 @@ def perform_route_visit_action(env, visit_id, payload):
             return {"error": "outlet_id is required to skip"}
             
         try:
-            new_line = env["sale.route.visit.line"].create({
+            new_line = env["sale.route.visit.line"].sudo().create({
                 "visit_id": visit.id,
                 "outlet_id": outlet_id,
                 "state": "skipped",

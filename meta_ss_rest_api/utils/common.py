@@ -10,6 +10,13 @@ API_VERSION = "v1"
 API_PREFIX = f"/api/{API_VERSION}"
 
 
+def format_date(value):
+    """Return an ISO-8601 date string from a date/datetime field, or None."""
+    if not value:
+        return None
+    return str(value) if not hasattr(value, "isoformat") else value.isoformat()
+
+
 def error_response(code, message, data=None):
     """Return a consistent JSON error payload."""
     response = {

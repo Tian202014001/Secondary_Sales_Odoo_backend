@@ -87,6 +87,8 @@
                             </group>
                             <group>
                                 <field name="visit_date"/>
+                                <field name="start_time"/>
+                                <field name="end_time"/>
                                 <field name="source"/>
                                 <field name="distributor_contact_id"/>
                             </group>
@@ -97,9 +99,15 @@
                                     <list editable="bottom">
                                         <field name="sequence" widget="handle"/>
                                         <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]" context="{'default_customer_type': 'outlet'}"/>
-                                        <field name="expected_visit_time" widget="float_time"/>
+                                        <field name="expected_visit_time" widget="float_time" column_invisible="1"/>
+                                        <field name="check_in_time"/>
+                                        <field name="check_out_time"/>
                                         <field name="state"/>
                                         <field name="note"/>
+                                        <field name="check_in_latitude" optional="hide"/>
+                                        <field name="check_in_longitude" optional="hide"/>
+                                        <field name="check_out_latitude" optional="hide"/>
+                                        <field name="check_out_longitude" optional="hide"/>
                                     </list>
                                 </field>
                             </page>

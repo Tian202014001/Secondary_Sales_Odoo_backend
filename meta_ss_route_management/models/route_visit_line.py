@@ -10,7 +10,6 @@ class SSRouteVisitLine(models.Model):
     _order = "visit_id, sequence, id"
 
     _sql_constraints = [
-        ("visit_outlet_unique", "unique(visit_id, outlet_id)", "An outlet can only appear once in the same route visit."),
     ]
 
     visit_id = fields.Many2one(
