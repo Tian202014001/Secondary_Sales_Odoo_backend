@@ -75,12 +75,25 @@ def perform_sale_order_action(env, order_id, payload):
 def serialize_sale_order_detail(order):
     """Serialize the order detail screen payload."""
     order = order.sudo()
+    
+    delivery_status = "no"
+    try:
+        delivery_status = order.delivery_status or "no"
+    except AttributeError:
+        if order.picking_ids:
+            states = [p.state for p in order.picking_ids]
+            if all(s == "done" for s in states):
+                delivery_status = "full"
+            elif any(s == "done" for s in states) or any(s in ("assigned", "confirmed") for s in states):
+                delivery_status = "partial"
+
     return {
         "id": order.id,
         "name": order.name,
         "sale_type": order.sale_type,
         "state": order.state,
         "state_label": dict(order._fields["state"].selection).get(order.state, order.state),
+        "delivery_status": delivery_status,
         "date_order": str(order.date_order) if order.date_order else None,
         "expected_delivery_date": str(order.commitment_date) if order.commitment_date else None,
         "client_order_ref": order.client_order_ref or None,
