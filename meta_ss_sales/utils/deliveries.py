@@ -4,11 +4,11 @@ from odoo.exceptions import ValidationError
 from odoo.addons.meta_ss_rest_api.utils.helpers import _create_move_line, _get_float, _get_lot
 from odoo.tools.float_utils import float_compare, float_is_zero
 
-from odoo.addons.meta_ss_rest_api.utils.sale_order_details import (
+from odoo.addons.meta_ss_sales.utils.sale_order_details import (
     get_primary_sale_order_for_employee,
     serialize_sale_order_detail,
 )
-from odoo.addons.meta_ss_rest_api.utils.sales import parse_bool
+from odoo.addons.meta_ss_sales.utils.sales import parse_bool
 from odoo.addons.meta_ss_rest_api.utils.warehouses import get_warehouse
 
 

@@ -10,7 +10,7 @@
     "category": "Inventory",
     "author": "Meta",
     "license": "LGPL-3",
-    "depends": ["stock", "meta_ss_contact", "hr"],
+    "depends": ["meta_ss_rest_api", "stock", "meta_ss_contact", "hr"],
     "data": [
         "data/stock_location_data.xml",
         "data/stock_picking_type_data.xml",

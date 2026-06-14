@@ -11,7 +11,7 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     check_api_permission,
     error_response,
 )
-from odoo.addons.meta_ss_rest_api.utils.contacts import (
+from odoo.addons.meta_ss_contact.utils.contacts import (
     build_contact_domain,
     ensure_distributor_locations,
     get_contact_pagination,

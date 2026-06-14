@@ -5,7 +5,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.http import request
 
 from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
-from odoo.addons.meta_ss_rest_api.utils.virtual_transfers import (
+from odoo.addons.meta_ss_transfer.utils.virtual_transfers import (
     build_virtual_transfer_domain,
     build_virtual_transfer_product_domain,
     cancel_virtual_transfer,
@@ -173,7 +173,7 @@ class MetaSSVirtualTransferController(http.Controller):
         """Return auto-assigned (FIFO) lot lines for a given quantity in the distributor location."""
         try:
             from odoo.addons.meta_ss_rest_api.utils.helpers import _auto_assign_lots, _get_positive_float
-            from odoo.addons.meta_ss_rest_api.utils.virtual_transfers import get_employee_transfer_context, _get_product
+            from odoo.addons.meta_ss_transfer.utils.virtual_transfers import get_employee_transfer_context, _get_product
 
             _employee, _distributor, source_location = get_employee_transfer_context(request.env, payload)
             product = _get_product(request.env, product_id)

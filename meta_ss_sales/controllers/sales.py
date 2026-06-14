@@ -5,7 +5,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.http import request
 
 from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response, check_api_permission
-from odoo.addons.meta_ss_rest_api.utils.sales import (
+from odoo.addons.meta_ss_sales.utils.sales import (
     build_sale_order_domain,
     get_sales_pagination,
     parse_bool,

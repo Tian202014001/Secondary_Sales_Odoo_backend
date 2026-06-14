@@ -5,7 +5,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.http import request
 
 from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
-from odoo.addons.meta_ss_rest_api.utils.routes import (
+from odoo.addons.meta_ss_route_management.utils.routes import (
     build_employee_route_domain,
     get_pagination,
     prepare_route_outlet_line_values,

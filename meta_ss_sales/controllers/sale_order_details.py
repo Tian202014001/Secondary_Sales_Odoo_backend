@@ -5,7 +5,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.http import request
 
 from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
-from odoo.addons.meta_ss_rest_api.utils.sale_order_details import (
+from odoo.addons.meta_ss_sales.utils.sale_order_details import (
     get_sale_order_for_employee,
     perform_sale_order_action,
     serialize_sale_order_detail,

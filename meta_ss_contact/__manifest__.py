@@ -10,7 +10,7 @@
     "category": "Contacts",
     "author": "Meta",
     "license": "LGPL-3",
-    "depends": ["base", "stock"],
+    "depends": ["meta_ss_rest_api", "base", "stock"],
     "data": [
         "views/res_contact.xml",
     ],

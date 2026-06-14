@@ -6,7 +6,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.http import request
 
 from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
-from odoo.addons.meta_ss_rest_api.utils.virtual_locations import (
+from odoo.addons.meta_ss_transfer.utils.virtual_locations import (
     build_virtual_location_domain,
     create_van_scrap_sibling,
     get_virtual_location_pagination,

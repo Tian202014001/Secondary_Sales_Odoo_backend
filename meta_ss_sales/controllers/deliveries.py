@@ -5,7 +5,7 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.http import request
 
 from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
-from odoo.addons.meta_ss_rest_api.utils.deliveries import (
+from odoo.addons.meta_ss_sales.utils.deliveries import (
     get_delivery_context_by_payload,
     perform_delivery_action,
     resolve_delivery_location,

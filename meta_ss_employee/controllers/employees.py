@@ -10,7 +10,7 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     check_api_permission,
     error_response,
 )
-from odoo.addons.meta_ss_rest_api.utils.employees import (
+from odoo.addons.meta_ss_employee.utils.employees import (
     build_employee_domain,
     get_employee_pagination,
     prepare_employee_update_values,
