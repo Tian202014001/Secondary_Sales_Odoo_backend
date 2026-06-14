@@ -37,6 +37,9 @@ class SSRouteVisitLine(models.Model):
         required=True,
     )
     note = fields.Char()
+    check_in_time = fields.Datetime(string="Check-in Time", readonly=True)
+    check_in_latitude = fields.Float(string="Check-in Latitude", digits=(10, 7), readonly=True)
+    check_in_longitude = fields.Float(string="Check-in Longitude", digits=(10, 7), readonly=True)
 
     @api.constrains("outlet_id")
     def _check_outlet_id(self):
@@ -88,10 +91,19 @@ class SSRouteVisitLine(models.Model):
             })
 
     def action_mark_visited(self):
-        self.write({"state": "visited"})
+        self.write({
+            "state": "visited",
+            "check_in_time": fields.Datetime.now(),
+        })
 
     def action_mark_skipped(self):
         self.write({"state": "skipped"})
 
     def action_reset_pending(self):
-        self.write({"state": "pending"})
+        self.write({
+            "state": "pending",
+            "check_in_time": False,
+            "check_in_latitude": 0.0,
+            "check_in_longitude": 0.0,
+            "note": False,
+        })

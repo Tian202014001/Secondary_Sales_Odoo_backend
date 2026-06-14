@@ -61,6 +61,8 @@ class SSRouteVisit(models.Model):
         "visit_id",
         string="Outlet Visits",
     )
+    start_time = fields.Datetime(string="Start Time", readonly=True)
+    end_time = fields.Datetime(string="End Time", readonly=True)
 
     @api.depends("employee_id", "route_id", "visit_date")
     def _compute_name(self):
@@ -163,7 +165,10 @@ class SSRouteVisit(models.Model):
             if not visit.visit_line_ids:
                 raise ValidationError(_("Please add at least one outlet before starting the visit."))
             visit._ensure_route_not_already_started()
-        self.write({"state": "started"})
+        self.write({
+            "state": "started",
+            "start_time": fields.Datetime.now(),
+        })
 
     def action_done(self):
         for visit in self:
@@ -171,7 +176,10 @@ class SSRouteVisit(models.Model):
                 raise ValidationError(_("Only started route visits can be completed."))
             if any(line.state == "pending" for line in visit.visit_line_ids):
                 raise ValidationError(_("Please mark all outlets as visited or skipped before completing."))
-        self.write({"state": "done"})
+        self.write({
+            "state": "done",
+            "end_time": fields.Datetime.now(),
+        })
 
     def action_cancel(self):
         for visit in self:
@@ -183,4 +191,8 @@ class SSRouteVisit(models.Model):
         for visit in self:
             if visit.state not in ("started", "cancelled"):
                 raise ValidationError(_("Only started or cancelled route visits can be reset."))
-        self.write({"state": "draft"})
+        self.write({
+            "state": "draft",
+            "start_time": False,
+            "end_time": False,
+        })
