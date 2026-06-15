@@ -11,8 +11,7 @@ class SaleOrder(models.Model):
             ('primary', 'Primary'),
             ('secondary', 'Secondary'),
         ],
-        string="Sale Type",
-        default="primary",
+        string="Sale Type"
     )
     
     so_employee_id = fields.Many2one(
@@ -113,28 +112,88 @@ class SaleOrder(models.Model):
         if visit_lines:
             visit_lines.write({"state": "visited"})
 
+    def _action_confirm(self):
+        result = super()._action_confirm()
+        for order in self:
+            if order.sale_type == 'secondary':
+                damaged_lines = order.order_line.filtered(lambda l: l.damaged_qty > 0)
+                if damaged_lines and order.so_employee_id:
+                    virtual_scrap = self.env['stock.location'].search([
+                        ('ss_employee_id', '=', order.so_employee_id.id),
+                        ('scrap_location', '=', True)
+                    ], limit=1)
+                    
+                    customer_loc = order.partner_shipping_id.property_stock_customer or self.env.ref('stock.stock_location_customers', raise_if_not_found=False)
+                    
+                    if virtual_scrap and customer_loc:
+                        picking_type_in = self.env['stock.picking.type'].search([
+                            ('code', '=', 'incoming'),
+                            ('company_id', '=', order.company_id.id)
+                        ], limit=1)
+                        
+                        if picking_type_in:
+                            receipt_picking = self.env['stock.picking'].create({
+                                'partner_id': order.partner_shipping_id.id or order.partner_id.id,
+                                'picking_type_id': picking_type_in.id,
+                                'location_id': customer_loc.id,
+                                'location_dest_id': virtual_scrap.id,
+                                'origin': f"{order.name} - Damaged Return",
+                                'company_id': order.company_id.id,
+                            })
+                            
+                            for line in damaged_lines:
+                                self.env['stock.move'].create({
+                                    'name': line.name or line.product_id.name,
+                                    'product_id': line.product_id.id,
+                                    'product_uom_qty': line.damaged_qty,
+                                    'product_uom': line.product_uom.id,
+                                    'picking_id': receipt_picking.id,
+                                    'location_id': customer_loc.id,
+                                    'location_dest_id': virtual_scrap.id,
+                                    'sale_line_id': line.id,
+                                    'company_id': order.company_id.id,
+                                })
+                            
+                            receipt_picking.action_confirm()
+                            
+                try:
+                    invoices = order.with_context(raise_if_nothing_to_invoice=False)._create_invoices(final=True)
+                    for invoice in invoices:
+                        invoice.action_post()
+                except Exception as e:
+                    pass
+                            
+        return result
 
-# class SaleOrderLine(models.Model):
-#     _inherit = "sale.order.line"
+class SaleOrderLine(models.Model):
+    _inherit = "sale.order.line"
 
-#     def _prepare_procurement_values(self, group_id=False):
-#         values = super()._prepare_procurement_values(group_id=group_id)
-#         self.ensure_one()
+    damaged_qty = fields.Float(string="Damaged Quantity", default=0.0)
 
-#         default_location = self.order_id.partner_shipping_id.default_location_id
-#         if default_location:
-#             values.update({
-#                 "location_dest_id": default_location.id,
-#                 "location_final_id": default_location.id,
-#             })
+    def _get_qty_procurement(self, previous_product_uom_qty=False):
+        qty = super()._get_qty_procurement(previous_product_uom_qty=previous_product_uom_qty)
+        if self.order_id.sale_type == 'secondary':
+            # Subtract damaged_qty from already procured quantity so the system generates MORE demand
+            qty -= self.damaged_qty
+        return qty
 
-#         return values
+    def _prepare_procurement_values(self, group_id=False):
+        values = super()._prepare_procurement_values(group_id=group_id)
+        if self.order_id.sale_type == 'secondary' and self.order_id.so_employee_id:
+            virtual_stock = self.env['stock.location'].search([
+                ('ss_employee_id', '=', self.order_id.so_employee_id.id),
+                ('scrap_location', '=', False),
+            ], limit=1)
+            if virtual_stock:
+                values.update({
+                    "location_id": virtual_stock.id,
+                })
+        return values
 
+class StockRule(models.Model):
+    _inherit = "stock.rule"
 
-# class StockRule(models.Model):
-#     _inherit = "stock.rule"
-
-#     def _get_custom_move_fields(self):
-#         fields = super()._get_custom_move_fields()
-#         fields += ["location_dest_id", "location_final_id"]
-#         return fields
+    def _get_custom_move_fields(self):
+        fields = super()._get_custom_move_fields()
+        fields += ["location_id"]
+        return fields

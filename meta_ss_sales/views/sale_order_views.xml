@@ -13,7 +13,51 @@
                     <field name="route_visit_id" domain="[('state', '=', 'started'), ('employee_id', '=', so_employee_id), ('route_id', '=', route_id)]"/>
                     <field name="route_visit_line_id" domain="[('visit_id', '=', route_visit_id)]"/>
                 </xpath>
+                <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
+                    <field name="damaged_qty" column_invisible="parent.sale_type != 'secondary'"/>
+                </xpath>
             </field>
         </record>
+
+        <!-- Primary Sales Action -->
+        <record id="action_primary_sales_order" model="ir.actions.act_window">
+            <field name="name">Primary Sales</field>
+            <field name="res_model">sale.order</field>
+            <field name="view_mode">list,form,kanban,calendar,pivot,graph,activity</field>
+            <field name="domain">[('sale_type', '=', 'primary')]</field>
+            <field name="context">{'default_sale_type': 'primary'}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new Primary Sales Order
+                </p>
+            </field>
+        </record>
+
+        <!-- Secondary Sales Action -->
+        <record id="action_secondary_sales_order" model="ir.actions.act_window">
+            <field name="name">Secondary Sales</field>
+            <field name="res_model">sale.order</field>
+            <field name="view_mode">list,form,kanban,calendar,pivot,graph,activity</field>
+            <field name="domain">[('sale_type', '=', 'secondary')]</field>
+            <field name="context">{'default_sale_type': 'secondary'}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new Secondary Sales Order
+                </p>
+            </field>
+        </record>
+
+        <!-- Menus -->
+        <menuitem id="menu_primary_sales_orders"
+                  name="Primary Sales"
+                  parent="sale.sale_order_menu"
+                  action="action_primary_sales_order"
+                  sequence="15"/>
+
+        <menuitem id="menu_secondary_sales_orders"
+                  name="Secondary Sales"
+                  parent="sale.sale_order_menu"
+                  action="action_secondary_sales_order"
+                  sequence="16"/>
     </data>
 </odoo>

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import math
 from datetime import datetime
 from odoo import fields
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT
@@ -57,11 +58,35 @@ def perform_route_visit_action(env, visit_id, payload):
         except Exception as e:
             return {"error": str(e)}
 
-    # Check-In
     if action == "check_in":
         outlet_id = payload.get("outlet_id")
         if not outlet_id:
             return {"error": "outlet_id is required for check-in"}
+        
+        outlet = env["res.partner"].sudo().browse(outlet_id)
+        if not outlet.exists():
+            return {"error": "Outlet not found"}
+
+        current_lat = payload.get("latitude")
+        current_lon = payload.get("longitude")
+        
+        if not current_lat or not current_lon:
+            return {"error": "Location coordinates are required for check-in."}
+            
+        outlet_lat = outlet.partner_latitude
+        outlet_lon = outlet.partner_longitude
+        
+        if outlet_lat and outlet_lon:
+            # Calculate distance using Haversine formula
+            lat1, lon1, lat2, lon2 = map(math.radians, [current_lat, current_lon, outlet_lat, outlet_lon])
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.asin(math.sqrt(a))
+            distance = c * 6371 * 1000 # Distance in meters
+            
+            if distance > 100:
+                return {"error": f"You are too far from the outlet. Please move within 100 meters. (Current distance: {int(distance)}m)"}
         
         # Check if they are already checked into this outlet on this visit
         existing_active_line = env["sale.route.visit.line"].sudo().search([
