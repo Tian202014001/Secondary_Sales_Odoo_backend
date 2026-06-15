@@ -23,6 +23,8 @@ CONTACT_CREATE_FIELDS = (
     "zip",
     "vat",
     "comment",
+    "partner_latitude",
+    "partner_longitude",
 )
 
 
@@ -219,6 +221,8 @@ def serialize_contacts(contacts):
             "city": contact.city or None,
             "zip": contact.zip or None,
             "vat": contact.vat or None,
+            "partner_latitude": contact.partner_latitude,
+            "partner_longitude": contact.partner_longitude,
             "active": contact.active,
             "customer_stock_location": {
                 "id": cust_loc.id,

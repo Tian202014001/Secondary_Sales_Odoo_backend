@@ -7,11 +7,11 @@
             <field name="model">sale.route</field>
             <field name="arch" type="xml">
                 <list string="Routes">
-                    <field name="name"/>
-                    <field name="code"/>
-                    <field name="ss_employee_ids" widget="many2many_tags"/>
-                    <field name="distributor_contact_id"/>
-                    <field name="active"/>
+                    <field name="name" />
+                    <field name="code" />
+                    <field name="ss_employee_ids" widget="many2many_tags" />
+                    <field name="distributor_contact_id" />
+                    <field name="active" />
                 </list>
             </field>
         </record>
@@ -25,23 +25,24 @@
                     <sheet>
                         <group>
                             <group>
-                                <field name="name"/>
-                                <field name="code"/>
-                                <field name="ss_employee_ids" widget="many2many_tags"/>
+                                <field name="name" />
+                                <field name="code" />
+                                <field name="ss_employee_ids" widget="many2many_tags" />
                             </group>
                             <group>
-                                <field name="distributor_contact_id"/>
-                                <field name="active"/>
+                                <field name="distributor_contact_id" />
+                                <field name="active" />
                             </group>
                         </group>
                         <notebook>
                             <page string="Route Outlets" name="route_outlets">
                                 <field name="route_line_ids">
                                     <list editable="bottom">
-                                        <field name="sequence" widget="handle"/>
-                                        <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]"/>
-                                        <field name="expected_visit_time" widget="float_time"/>
-                                        <field name="active"/>
+                                        <field name="sequence" widget="handle" />
+                                        <field name="outlet_id"
+                                            domain="[('customer_type', '=', 'outlet')]" />
+                                        <field name="expected_visit_time" widget="float_time" />
+                                        <field name="active" />
                                     </list>
                                 </field>
                             </page>
@@ -57,11 +58,11 @@
             <field name="model">sale.route.visit</field>
             <field name="arch" type="xml">
                 <list string="Route Visits">
-                    <field name="visit_date"/>
-                    <field name="employee_id"/>
-                    <field name="route_id"/>
-                    <field name="source"/>
-                    <field name="state"/>
+                    <field name="visit_date" />
+                    <field name="employee_id" />
+                    <field name="route_id" />
+                    <field name="source" />
+                    <field name="state" />
                 </list>
             </field>
         </record>
@@ -72,42 +73,52 @@
             <field name="arch" type="xml">
                 <form string="Route Visit">
                     <header>
-                        <button name="action_start" string="Start" type="object" class="oe_highlight" invisible="state != 'draft'"/>
-                        <button name="action_done" string="Done" type="object" class="oe_highlight" invisible="state != 'started'"/>
-                        <button name="action_cancel" string="Cancel" type="object" invisible="state in ('done', 'cancelled')"/>
-                        <button name="action_reset_draft" string="Reset to Draft" type="object" invisible="state not in ('started', 'cancelled')"/>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,started,done"/>
+                        <button name="action_start" string="Start" type="object"
+                            class="oe_highlight" invisible="state != 'draft'" />
+                        <button name="action_done" string="Done" type="object" class="oe_highlight"
+                            invisible="state != 'started'" />
+                        <button name="action_cancel" string="Cancel" type="object"
+                            invisible="state in ('done', 'cancelled')" />
+                        <button name="action_reset_draft" string="Reset to Draft" type="object"
+                            invisible="state not in ('started', 'cancelled')" />
+                        <field name="state" widget="statusbar"
+                            statusbar_visible="draft,started,done" />
                     </header>
                     <sheet>
                         <group>
                             <group>
-                                <field name="employee_id"/>
-                                <field name="route_id" domain="[('active', '=', True), '|', ('ss_employee_ids', '=', False), ('ss_employee_ids', 'in', [employee_id])]"/>
-                                <field name="plan_id"/>
+                                <field name="employee_id" />
+                                <field name="route_id"
+                                    domain="[('active', '=', True), '|', ('ss_employee_ids', '=', False), ('ss_employee_ids', 'in', [employee_id])]" />
+                                <field name="plan_id" />
                             </group>
                             <group>
-                                <field name="visit_date"/>
-                                <field name="start_time"/>
-                                <field name="end_time"/>
-                                <field name="source"/>
-                                <field name="distributor_contact_id"/>
+                                <field name="visit_date" />
+                                <field name="start_time" />
+                                <field name="end_time" />
+                                <field name="source" />
+                                <field name="distributor_contact_id" />
                             </group>
                         </group>
                         <notebook>
                             <page string="Outlet Visits" name="outlet_visits">
-                                <field name="visit_line_ids" context="{'default_customer_type': 'outlet'}">
+                                <field name="visit_line_ids"
+                                    context="{'default_customer_type': 'outlet'}">
                                     <list editable="bottom">
-                                        <field name="sequence" widget="handle"/>
-                                        <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]" context="{'default_customer_type': 'outlet'}"/>
-                                        <field name="expected_visit_time" widget="float_time" column_invisible="1"/>
-                                        <field name="check_in_time"/>
-                                        <field name="check_out_time"/>
-                                        <field name="state"/>
-                                        <field name="note"/>
-                                        <field name="check_in_latitude" optional="hide"/>
-                                        <field name="check_in_longitude" optional="hide"/>
-                                        <field name="check_out_latitude" optional="hide"/>
-                                        <field name="check_out_longitude" optional="hide"/>
+                                        <field name="sequence" widget="handle" />
+                                        <field name="outlet_id"
+                                            domain="[('customer_type', '=', 'outlet')]"
+                                            context="{'default_customer_type': 'outlet'}" />
+                                        <field name="expected_visit_time" widget="float_time"
+                                            column_invisible="1" />
+                                        <field name="check_in_time" />
+                                        <field name="check_out_time" />
+                                        <field name="state" />
+                                        <field name="note" />
+                                        <field name="check_in_latitude" optional="hide" />
+                                        <field name="check_in_longitude" optional="hide" />
+                                        <field name="check_out_latitude" optional="hide" />
+                                        <field name="check_out_longitude" optional="hide" />
                                     </list>
                                 </field>
                             </page>
@@ -123,11 +134,11 @@
             <field name="model">sale.route.visit.plan</field>
             <field name="arch" type="xml">
                 <list string="Visit Plans">
-                    <field name="visit_date"/>
-                    <field name="employee_id"/>
-                    <field name="route_id"/>
-                    <field name="distributor_contact_id"/>
-                    <field name="state"/>
+                    <field name="visit_date" />
+                    <field name="employee_id" />
+                    <field name="route_id" />
+                    <field name="distributor_contact_id" />
+                    <field name="state" />
                 </list>
             </field>
         </record>
@@ -138,33 +149,41 @@
             <field name="arch" type="xml">
                 <form string="Visit Plan">
                     <header>
-                        <button name="action_confirm" string="Confirm" type="object" class="oe_highlight" invisible="state != 'draft'"/>
-                        <button name="action_start" string="Start" type="object" class="oe_highlight" invisible="state != 'confirmed'"/>
-                        <button name="action_done" string="Done" type="object" class="oe_highlight" invisible="state != 'in_progress'"/>
-                        <button name="action_cancel" string="Cancel" type="object" invisible="state in ('done', 'cancelled')"/>
-                        <button name="action_reset_draft" string="Reset to Draft" type="object" invisible="state not in ('confirmed', 'cancelled')"/>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,in_progress,done"/>
+                        <button name="action_confirm" string="Confirm" type="object"
+                            class="oe_highlight" invisible="state != 'draft'" />
+                        <button name="action_start" string="Start" type="object"
+                            class="oe_highlight" invisible="state != 'confirmed'" />
+                        <button name="action_done" string="Done" type="object" class="oe_highlight"
+                            invisible="state != 'in_progress'" />
+                        <button name="action_cancel" string="Cancel" type="object"
+                            invisible="state in ('done', 'cancelled')" />
+                        <button name="action_reset_draft" string="Reset to Draft" type="object"
+                            invisible="state not in ('confirmed', 'cancelled')" />
+                        <field name="state" widget="statusbar"
+                            statusbar_visible="draft,confirmed,in_progress,done" />
                     </header>
                     <sheet>
                         <group>
                             <group>
-                                <field name="employee_id"/>
-                                <field name="route_id" domain="[('active', '=', True), '|', ('ss_employee_ids', '=', False), ('ss_employee_ids', 'in', [employee_id])]"/>
+                                <field name="employee_id" />
+                                <field name="route_id"
+                                    domain="[('active', '=', True), '|', ('ss_employee_ids', '=', False), ('ss_employee_ids', 'in', [employee_id])]" />
                             </group>
                             <group>
-                                <field name="visit_date"/>
-                                <field name="distributor_contact_id"/>
+                                <field name="visit_date" />
+                                <field name="distributor_contact_id" />
                             </group>
                         </group>
                         <notebook>
                             <page string="Planned Outlets" name="planned_outlets">
                                 <field name="plan_line_ids">
                                     <list editable="bottom">
-                                        <field name="sequence" widget="handle"/>
-                                        <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]"/>
-                                        <field name="expected_visit_time" widget="float_time"/>
-                                        <field name="state"/>
-                                        <field name="note"/>
+                                        <field name="sequence" widget="handle" />
+                                        <field name="outlet_id"
+                                            domain="[('customer_type', '=', 'outlet')]" />
+                                        <field name="expected_visit_time" widget="float_time" />
+                                        <field name="state" />
+                                        <field name="note" />
                                     </list>
                                 </field>
                             </page>
@@ -209,10 +228,13 @@
         </record>
 
         <!-- Menu Items -->
-        <menuitem id="menu_sale_route_root" name="Route Management" sequence="10"/>
+        <menuitem id="menu_sale_route_root" name="Route Management" sequence="10" />
 
-        <menuitem id="menu_sale_route" name="Routes" parent="menu_sale_route_root" action="action_sale_route" sequence="10"/>
-        <menuitem id="menu_sale_route_visit" name="Route Visits" parent="menu_sale_route_root" action="action_sale_route_visit" sequence="20"/>
-        <menuitem id="menu_sale_route_visit_plan" name="Visit Plans" parent="menu_sale_route_root" action="action_sale_route_visit_plan" sequence="30"/>
+        <menuitem id="menu_sale_route" name="Routes" parent="menu_sale_route_root"
+            action="action_sale_route" sequence="10" />
+        <menuitem id="menu_sale_route_visit" name="Route Visits" parent="menu_sale_route_root"
+            action="action_sale_route_visit" sequence="20" />
+        <menuitem id="menu_sale_route_visit_plan" name="Visit Plans" parent="menu_sale_route_root"
+            action="action_sale_route_visit_plan" sequence="30" />
     </data>
 </odoo>

@@ -24,6 +24,8 @@ OUTLET_CREATE_FIELDS = (
     "zip",
     "vat",
     "comment",
+    "partner_latitude",
+    "partner_longitude",
 )
 
 
@@ -298,6 +300,8 @@ def serialize_route_outlet_line(route_line):
         "city": route_line.outlet_id.city or None,
         "zip": route_line.outlet_id.zip or None,
         "vat": route_line.outlet_id.vat or None,
+        "partner_latitude": route_line.outlet_id.partner_latitude,
+        "partner_longitude": route_line.outlet_id.partner_longitude,
         "active": route_line.active,
     }
 
