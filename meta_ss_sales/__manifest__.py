@@ -10,7 +10,7 @@
     "category": "Sales",
     "author": "Meta",
     "license": "LGPL-3",
-    "depends": ["meta_ss_rest_api", "sale_stock", "meta_ss_contact", "meta_ss_route_management"],
+    "depends": ["meta_ss_rest_api", "sale_stock", "meta_ss_contact", "meta_ss_route_management", "meta_ss_transfer"],
     "data": [
         "views/sale_order_views.xml",
     ],

@@ -493,6 +493,94 @@ Response:
 }
 ```
 
+
+### Update Contact
+
+`POST /api/v1/contacts/<contact_id>/update`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "name": "Hasan Store Updated",
+    "phone": "01711-000000"
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Contact updated successfully.",
+  "data": {
+    "id": 70,
+    "name": "Hasan Store Updated",
+    "customer_type": "distributor",
+    "phone": "01711-000000",
+    "street": "Mirpur-10",
+    "city": "Dhaka"
+  }
+}
+```
+
+### Contact Visit History
+
+`POST /api/v1/contacts/<contact_id>/visits`
+
+Returns combined visit logs (check-in/check-out) and past secondary sale orders for a specific outlet/contact.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {},
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Visit history fetched successfully.",
+  "data": {
+    "contact_id": 45,
+    "contact_name": "Global Retail Solutions Inc.",
+    "visit_logs": [
+      {
+        "id": 102,
+        "visit_id": 14,
+        "visit_date": "2026-10-24",
+        "state": "checked_out",
+        "check_in_time": "2026-10-24 10:45:00",
+        "check_out_time": "2026-10-24 11:15:00",
+        "note": false
+      }
+    ],
+    "past_orders": [
+      {
+        "id": 88,
+        "name": "S00031",
+        "date_order": "2026-10-24 11:00:00",
+        "amount_total": 450.0,
+        "state": "sale"
+      }
+    ]
+  }
+}
+```
+
 ## Products and Stock
 
 ### Product List
@@ -834,6 +922,40 @@ Response:
         "state": "assigned"
       }
     ]
+  }
+}
+```
+
+
+### Update Sale Order
+
+`POST /api/v1/sale-orders/<order_id>/update`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "expected_delivery_date": "2026-06-09"
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Sale order updated successfully.",
+  "data": {
+    "id": 20,
+    "name": "S00020",
+    "state": "draft"
   }
 }
 ```
@@ -1381,6 +1503,108 @@ Response:
 Outlet list/search is handled by `POST /api/v1/contacts` with
 `customer_type: "outlet"` and optional `employee_id`, `route_id`,
 `distributor_id`, `assigned`, and `search` filters.
+
+
+### Remove Outlet from Route
+
+`POST /api/v1/ss/routes/<route_id>/outlets/<outlet_id>/remove`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {},
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Outlet removed from route.",
+  "data": {}
+}
+```
+
+### Route Visits (Daily Tracking)
+
+`POST /api/v1/routes/<route_id>/visits`
+
+Fetch the daily visit session for a given route (or initialize it if it does not exist today).
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {},
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Route visits fetched successfully.",
+  "data": {
+    "id": 14,
+    "name": "RV/2026/10/001",
+    "route": {
+      "id": 10,
+      "name": "Route A"
+    },
+    "date": "2026-10-24",
+    "state": "in_progress",
+    "lines": []
+  }
+}
+```
+
+### Route Visit Action
+
+`POST /api/v1/route-visits/<visit_id>/action`
+
+Actions: `check_in`, `check_out`, `cancel`. Note that for `check_in` and `check_out`, the `params` must include `outlet_id`.
+
+Request (Check-in to an outlet):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "action": "check_in",
+    "outlet_id": 45
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Check-in successful.",
+  "data": {
+    "id": 102,
+    "visit_id": 14,
+    "outlet_id": 45,
+    "state": "checked_in",
+    "check_in_time": "2026-10-24 10:45:00"
+  }
+}
+```
 
 ## Virtual Locations
 

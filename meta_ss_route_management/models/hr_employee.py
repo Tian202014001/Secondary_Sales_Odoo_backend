@@ -6,11 +6,14 @@ from odoo.exceptions import ValidationError
 class HrEmployee(models.Model):
     _inherit = "hr.employee"
     
-    distributor_contact_id = fields.Many2one(
+    distributor_contact_ids = fields.Many2many(
         'res.partner',
-        string="Distributor Contact",
+        'hr_employee_distributor_rel',
+        'employee_id',
+        'partner_id',
+        string="Distributor Contacts",
         domain="[('customer_type', '=', 'distributor')]",
-        help="Distributor contact associated with this employee"
+        help="Distributor contacts associated with this employee"
     )
     
     assigned_route_ids = fields.Many2many(
@@ -30,8 +33,9 @@ class HrEmployee(models.Model):
     )
 
 
-    @api.constrains("distributor_contact_id")
-    def _check_distributor_contact_id(self):
+    @api.constrains("distributor_contact_ids")
+    def _check_distributor_contact_ids(self):
         for employee in self:
-            if employee.distributor_contact_id and employee.distributor_contact_id.customer_type != "distributor":
-                raise ValidationError(_("Distributor Contact must be a distributor contact."))
+            for distributor in employee.distributor_contact_ids:
+                if distributor.customer_type != "distributor":
+                    raise ValidationError(_("Distributor Contact must be a distributor contact."))

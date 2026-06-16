@@ -20,9 +20,11 @@ class ResPartner(models.Model):
         help="Routes where this contact is the distributor"
     )
     
-    so_employee_ids = fields.One2many(
+    so_employee_ids = fields.Many2many(
         'hr.employee',
-        'distributor_contact_id',
+        'hr_employee_distributor_rel',
+        'partner_id',
+        'employee_id',
         string="Sales Employees",
         help="Sales employees associated with this distributor contact"
     )

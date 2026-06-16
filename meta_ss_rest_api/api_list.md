@@ -36,6 +36,8 @@ Full request and response examples are in [api_documentation.md](api_documentati
 | `POST` | `/api/v1/contacts` | Contact list/search using `customer_type`, `employee_id`, `route_id`, `distributor_id`, `search`. |
 | `POST` | `/api/v1/contacts/create` | Create contact using `customer_type` (`distributor` or `outlet`). |
 | `POST` | `/api/v1/contacts/<contact_id>` | Contact detail, optionally validating `customer_type`. |
+| `POST` | `/api/v1/contacts/<contact_id>/update` | Update contact details. |
+| `POST` | `/api/v1/contacts/<contact_id>/visits` | Contact visit history and past orders. |
 
 ### 3.2 Products and Stock
 
@@ -56,6 +58,7 @@ Full request and response examples are in [api_documentation.md](api_documentati
 | `POST` | `/api/v1/sale-orders` | Sale order list/dashboard using `sale_type` (`primary` currently used by app). |
 | `POST` | `/api/v1/sale-orders/create` | Create sale order using `sale_type` (`primary` creation currently supported). |
 | `POST` | `/api/v1/sale-orders/<order_id>` | Sale order detail. |
+| `POST` | `/api/v1/sale-orders/<order_id>/update` | Update draft sale order. |
 | `POST` | `/api/v1/sale-orders/<order_id>/action` | Run sale order action: `confirm`, `cancel`. |
 | `POST` | `/api/v1/sale-orders/<order_id>/print` | Render the sale order QWeb PDF and return it in base64 format. |
 
@@ -79,6 +82,11 @@ Full request and response examples are in [api_documentation.md](api_documentati
 | `POST` | `/api/v1/ss/routes/<route_id>/outlets/add` | Add outlet to route. |
 | `POST` | `/api/v1/ss/routes/<route_id>` | Route detail. |
 | `POST` | `/api/v1/ss/routes/<route_id>/update` | Update route. |
+| `POST` | `/api/v1/ss/routes/<route_id>/outlets/<outlet_id>/remove` | Remove outlet from route. |
+| `POST` | `/api/v1/routes/<route_id>/visits` | Get/Initialize daily route visits tracking. |
+| `POST` | `/api/v1/route-visits` | List route visits. |
+| `POST` | `/api/v1/route-visits/<visit_id>` | Route visit detail. |
+| `POST` | `/api/v1/route-visits/<visit_id>/action` | Route visit actions (`check_in`, `check_out`, `cancel`). |
 
 ### 4.1 Virtual Locations
 

@@ -25,7 +25,17 @@ def get_employee_transfer_context(env, payload):
         employee = destination.ss_employee_id.sudo()
         distributor = destination.ss_distributor_id.sudo()
     else:
-        distributor = employee.distributor_contact_id.sudo()
+        dist_id = payload.get("distributor_id")
+        if dist_id:
+            distributor = env["res.partner"].sudo().browse(int(dist_id)).exists()
+        else:
+            distributors = employee.distributor_contact_ids.sudo()
+            if len(distributors) == 1:
+                distributor = distributors[0]
+            elif len(distributors) > 1:
+                raise ValidationError("Employee is assigned to multiple distributors. Please provide a destination_location_id or distributor_id.")
+            else:
+                distributor = env["res.partner"].sudo()
     if not distributor:
         raise ValidationError("Select a Van Loading Location before loading transfer stock.")
     if distributor.customer_type != "distributor":
@@ -38,7 +48,12 @@ def get_employee_transfer_context(env, payload):
 
 def serialize_virtual_transfer_prepare(env, payload):
     employee = _get_employee(env, payload.get("employee_id"))
-    distributor = employee.distributor_contact_id.sudo()
+    dist_id = payload.get("distributor_id")
+    if dist_id:
+        distributor = env["res.partner"].sudo().browse(int(dist_id)).exists()
+    else:
+        distributors = employee.distributor_contact_ids.sudo()
+        distributor = distributors[0] if distributors else env["res.partner"].sudo()
     source_location = distributor.property_stock_customer if distributor else False
     destinations = _get_prepare_van_locations(env, employee, distributor)
     return {
@@ -127,15 +142,21 @@ def serialize_product_lots(env, payload, product_id):
 
 def build_virtual_transfer_domain(env, payload):
     employee = _get_employee(env, payload.get("employee_id"))
-    distributor = employee.distributor_contact_id.sudo()
+    dist_id = payload.get("distributor_id")
     picking_type = get_virtual_transfer_picking_type(env)
     domain = [
         ("picking_type_id", "=", picking_type.id),
         ("ss_destination_location_id.ss_location_type", "=", "van_loading"),
     ]
-    if distributor:
+    if dist_id:
+        distributor = env["res.partner"].sudo().browse(int(dist_id)).exists()
         domain.append(("ss_distributor_id", "=", distributor.id))
         domain.append(("ss_destination_location_id.ss_employee_id", "=", employee.id))
+    else:
+        distributors = employee.distributor_contact_ids.sudo()
+        if distributors:
+            domain.append(("ss_distributor_id", "in", distributors.ids))
+            domain.append(("ss_destination_location_id.ss_employee_id", "=", employee.id))
 
     destination_id = payload.get("destination_location_id")
     if destination_id:
@@ -349,7 +370,7 @@ def _get_prepare_van_locations(env, employee, distributor):
     ]
     if distributor:
         domain.append(("ss_distributor_id", "=", distributor.id))
-        if employee.distributor_contact_id:
+        if employee.distributor_contact_ids:
             domain.append(("ss_employee_id", "=", employee.id))
     return env["stock.location"].sudo().search(domain, order="name")
 

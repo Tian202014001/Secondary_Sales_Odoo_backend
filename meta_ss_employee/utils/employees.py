@@ -18,7 +18,7 @@ def build_employee_domain(env, payload):
         distributor = env["res.partner"].sudo().browse(distributor_id).exists()
         if not distributor or distributor.customer_type != "distributor":
             raise ValidationError("Distributor not found.")
-        domain.append(("distributor_contact_id", "=", distributor.id))
+        domain.append(("distributor_contact_ids", "in", [distributor.id]))
 
     search = (payload.get("search") or "").strip()
     if search:
@@ -43,10 +43,13 @@ def serialize_employee(employee):
         "mobile_phone": employee.mobile_phone or None,
         "work_email": employee.work_email or None,
         "job_title": employee.job_title or None,
-        "distributor": {
-            "id": employee.distributor_contact_id.id,
-            "name": employee.distributor_contact_id.name,
-        } if employee.distributor_contact_id else None,
+        "distributors": [
+            {
+                "id": dist.id,
+                "name": dist.name,
+            }
+            for dist in employee.distributor_contact_ids
+        ],
         "assigned_routes": [
             {
                 "id": route.id,
@@ -67,24 +70,32 @@ def prepare_employee_values(env, payload):
     if not name:
         raise ValidationError("Name is required.")
 
-    distributor_id = payload.get("distributor_id") or payload.get("distributor_contact_id")
-    if not distributor_id:
-        raise ValidationError("Distributor ID is required.")
+    distributor_ids = payload.get("distributor_ids") or payload.get("distributor_contact_ids")
+    if not distributor_ids:
+        dist_id = payload.get("distributor_id") or payload.get("distributor_contact_id")
+        if dist_id:
+            distributor_ids = [dist_id]
+        else:
+            raise ValidationError("Distributor ID(s) required.")
+
+    if not isinstance(distributor_ids, list):
+        raise ValidationError("Distributor IDs must be a list.")
 
     try:
-        distributor_id = int(distributor_id)
+        distributor_ids = [int(did) for did in distributor_ids]
     except (TypeError, ValueError) as exc:
-        raise ValidationError("Distributor ID must be an integer.") from exc
+        raise ValidationError("Distributor IDs must be integers.") from exc
 
-    distributor = env["res.partner"].sudo().browse(distributor_id).exists()
-    if not distributor:
-        raise ValidationError("Distributor not found.")
-    if distributor.customer_type != "distributor":
-        raise ValidationError("The selected partner is not a distributor.")
+    distributors = env["res.partner"].sudo().search([("id", "in", distributor_ids)])
+    if len(distributors) != len(distributor_ids):
+        raise ValidationError("One or more distributors not found.")
+    for dist in distributors:
+        if dist.customer_type != "distributor":
+            raise ValidationError("One or more selected partners are not distributors.")
 
     vals = {
         "name": name,
-        "distributor_contact_id": distributor.id,
+        "distributor_contact_ids": [(6, 0, distributor_ids)],
         "work_email": (payload.get("work_email") or payload.get("email") or "").strip() or False,
         "mobile_phone": (payload.get("mobile_phone") or payload.get("phone") or "").strip() or False,
         "work_phone": (payload.get("work_phone") or "").strip() or False,
@@ -120,19 +131,28 @@ def prepare_employee_update_values(env, payload, employee):
             raise ValidationError("Name cannot be empty.")
         vals["name"] = name
 
-    distributor_id = payload.get("distributor_id") or payload.get("distributor_contact_id")
-    if distributor_id is not None:
-        try:
-            distributor_id = int(distributor_id)
-        except (TypeError, ValueError) as exc:
-            raise ValidationError("Distributor ID must be an integer.") from exc
+    distributor_ids = payload.get("distributor_ids") or payload.get("distributor_contact_ids")
+    if distributor_ids is None:
+        # Check single id fallback
+        dist_id = payload.get("distributor_id") or payload.get("distributor_contact_id")
+        if dist_id is not None:
+            distributor_ids = [dist_id]
 
-        distributor = env["res.partner"].sudo().browse(distributor_id).exists()
-        if not distributor:
-            raise ValidationError("Distributor not found.")
-        if distributor.customer_type != "distributor":
-            raise ValidationError("The selected partner is not a distributor.")
-        vals["distributor_contact_id"] = distributor.id
+    if distributor_ids is not None:
+        if not isinstance(distributor_ids, list):
+            raise ValidationError("Distributor IDs must be a list.")
+        try:
+            distributor_ids = [int(did) for did in distributor_ids]
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("Distributor IDs must be integers.") from exc
+
+        distributors = env["res.partner"].sudo().search([("id", "in", distributor_ids)])
+        if len(distributors) != len(distributor_ids):
+            raise ValidationError("One or more distributors not found.")
+        for dist in distributors:
+            if dist.customer_type != "distributor":
+                raise ValidationError("One or more selected partners are not distributors.")
+        vals["distributor_contact_ids"] = [(6, 0, distributor_ids)]
 
     if "work_email" in payload or "email" in payload:
         vals["work_email"] = (payload.get("work_email") or payload.get("email") or "").strip() or False

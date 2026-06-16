@@ -168,3 +168,63 @@ class MetaSSContactController(http.Controller):
                 "server_error",
                 "An unexpected error occurred while updating contact.",
             )
+
+    @http.route(f"{API_PREFIX}/contacts/<int:contact_id>/visits", type="json", auth="public", methods=["POST"])
+    def get_contact_visit_history(self, contact_id, **payload):
+        """Fetch past check-in/out logs and sales orders for a specific contact/outlet."""
+        try:
+            contact = request.env["res.partner"].sudo().browse(contact_id).exists()
+            if not contact:
+                return error_response("not_found", "No contact was found for the provided id.")
+
+            # Get past route visit lines for this outlet
+            visit_lines = request.env["sale.route.visit.line"].sudo().search([
+                ("outlet_id", "=", contact.id),
+                ("state", "in", ["checked_in", "checked_out", "skipped"]),
+            ], order="check_in_time desc", limit=20)
+
+            # Get past sales orders for this outlet
+            orders = request.env["sale.order"].sudo().search([
+                ("partner_id", "=", contact.id),
+                ("state", "in", ["sale", "done"]),
+            ], order="date_order desc", limit=20)
+
+            visit_logs_data = []
+            for line in visit_lines:
+                visit_logs_data.append({
+                    "id": line.id,
+                    "visit_id": line.visit_id.id,
+                    "visit_date": str(line.visit_id.visit_date),
+                    "state": line.state,
+                    "check_in_time": str(line.check_in_time) if line.check_in_time else None,
+                    "check_out_time": str(line.check_out_time) if line.check_out_time else None,
+                    "note": line.note or None,
+                })
+
+            past_orders_data = []
+            for order in orders:
+                past_orders_data.append({
+                    "id": order.id,
+                    "name": order.name,
+                    "date_order": str(order.date_order),
+                    "amount_total": order.amount_total,
+                    "state": order.state,
+                })
+
+            return {
+                "success": True,
+                "api_version": API_VERSION,
+                "message": "Visit history fetched successfully.",
+                "data": {
+                    "contact_id": contact.id,
+                    "contact_name": contact.name,
+                    "visit_logs": visit_logs_data,
+                    "past_orders": past_orders_data,
+                }
+            }
+        except Exception as exc:
+            request.env.cr.rollback()
+            return error_response(
+                "server_error",
+                "An unexpected error occurred while fetching visit history: " + str(exc),
+            )

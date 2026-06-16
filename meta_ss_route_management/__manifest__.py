@@ -9,7 +9,7 @@
     "category": "Sales",
     "author": "Meta",
     "license": "LGPL-3",
-    "depends": ["meta_ss_rest_api", "base", "hr", "meta_ss_contact"],
+    "depends": ["meta_ss_rest_api", "base", "hr", "meta_ss_contact", "meta_api_user"],
     "data": [
         "security/ir.model.access.csv",
         "views/route_management_views.xml",

@@ -39,8 +39,10 @@ class ResMobileUser(models.Model):
     is_active = fields.Boolean(related="active", readonly=False, string="Is Active")
     group_id = fields.Many2one(
         "res.mobile.user.group",
+        related="employee_id.mobile_user_group_id",
         string="Mobile User Group",
-        ondelete="restrict",
+        readonly=False,
+        store=True,
     )
     company_id = fields.Many2one(
         "res.company",

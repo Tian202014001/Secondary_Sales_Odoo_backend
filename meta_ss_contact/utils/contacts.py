@@ -139,44 +139,8 @@ def prepare_contact_update_values(payload, customer_type):
 
 
 def ensure_distributor_locations(env, distributor):
-    """Create and assign stock locations for a distributor.
-
-    Resulting hierarchy:
-        Partners/Customers/          (Odoo default)
-          <dealer name>/             (customer)
-            Stock                    (customer) → property_stock_customer
-            Scrap                    (customer, scrap=True) → scrap_location_id
-    """
-    if distributor.customer_type != "distributor":
-        return False
-
-    StockLocation = env["stock.location"].sudo()
-
-    # ── 1. Shared "Partners/Customers" root (Odoo default) ────────────────────
-    customer_parent = env.ref("stock.stock_location_customers")
-
-    # ── 2. Dealer folder: Partners/Customers/<dealer name>/ ───────────────────
-    dealer_folder = _find_or_create_location(
-        StockLocation, distributor.name, "customer", customer_parent.id
-    )
-
-    # ── 3. Stock child → property_stock_customer ──────────────────────────────
-    if (
-        not distributor.property_stock_customer
-        or distributor.property_stock_customer == customer_parent
-    ):
-        stock_loc = _find_or_create_location(StockLocation, "Stock", "customer", dealer_folder.id)
-        distributor.sudo().property_stock_customer = stock_loc
-
-    # ── 4. Scrap child → scrap_location_id ───────────────────────────────────
-    has_scrap_field = "scrap_location_id" in distributor._fields
-    if has_scrap_field and not distributor.scrap_location_id:
-        scrap_loc = _find_or_create_location(
-            StockLocation, "Scrap", "customer", dealer_folder.id, scrap_location=True
-        )
-        distributor.sudo().scrap_location_id = scrap_loc
-
-    return True
+    """Delegate to model method to ensure stock locations exist."""
+    return distributor._ensure_distributor_locations()
 
 
 def _find_or_create_location(StockLocation, name, usage, parent_id, scrap_location=False):

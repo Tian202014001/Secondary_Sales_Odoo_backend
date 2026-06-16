@@ -27,10 +27,10 @@ def build_virtual_location_domain(env, payload):
         domain = expression.AND([domain, [("ss_distributor_id", "=", distributor_id)]])
     elif payload.get("employee_id"):
         employee = _get_employee(env, payload.get("employee_id"))
-        if employee.distributor_contact_id:
+        if employee.distributor_contact_ids:
             domain = expression.AND([
                 domain,
-                [("ss_distributor_id", "=", employee.distributor_contact_id.id)],
+                [("ss_distributor_id", "in", employee.distributor_contact_ids.ids)],
             ])
 
     assigned_employee_id = payload.get("assigned_employee_id")
@@ -105,7 +105,7 @@ def prepare_virtual_location_vals(env, payload):
     distributor = env["res.partner"].sudo().browse(assigned_distributor_id).exists()
     if not distributor or distributor.customer_type != "distributor":
         raise ValidationError("Assigned distributor not found.")
-    if employee.distributor_contact_id and employee.distributor_contact_id != distributor:
+    if employee.distributor_contact_ids and distributor not in employee.distributor_contact_ids:
         raise ValidationError("Assigned employee does not belong to the selected distributor.")
 
     # Van name entered by the user
@@ -138,34 +138,9 @@ def prepare_virtual_location_vals(env, payload):
 
 
 def create_van_scrap_sibling(env, stock_location, distributor_name, van_name):
-    """Create the paired scrap location for a van under the same parent.
-
-    Result: Partners/<Dealer>/Stock/<van_name> - Scrap
-    """
-    StockLocation = env["stock.location"].sudo()
-    scrap_name = "%s - Scrap" % van_name
-
-    # Avoid duplicates
-    existing = StockLocation.search([
-        ("name", "=", scrap_name),
-        ("location_id", "=", stock_location.location_id.id),
-        ("active", "=", True),
-    ], limit=1)
-    if existing:
-        return existing
-
-    scrap_loc = StockLocation.create({
-        "name": scrap_name,
-        "location_id": stock_location.location_id.id,
-        "usage": "customer",
-        "scrap_location": True,
-        "ss_location_type": "van_loading",
-        "ss_employee_id": stock_location.ss_employee_id.id if stock_location.ss_employee_id else False,
-        "ss_distributor_id": stock_location.ss_distributor_id.id if stock_location.ss_distributor_id else False,
-    })
-    scrap_loc._compute_complete_name()
-    scrap_loc.flush_recordset(["complete_name"])
-    return scrap_loc
+    """Delegate to model method to ensure van scrap sibling exists."""
+    stock_location._ensure_van_scrap_sibling()
+    return _get_scrap_sibling(stock_location)
 
 
 def _get_scrap_sibling(stock_location):
