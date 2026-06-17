@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <delete model="ir.ui.menu" search="[('name', '=', 'Permissions'), ('parent_id.name', '=', 'Configuration'), ('parent_id.parent_id.name', '=', 'Mobile API')]"/>
+    <delete model="ir.actions.act_window" search="[('res_model', '=', 'res.mobile.permission')]"/>
+    <delete model="ir.ui.view" search="[('model', '=', 'res.mobile.permission')]"/>
+    <delete model="ir.model.access" search="[('model_id.model', '=', 'res.mobile.permission')]"/>
+    <delete model="ir.model.fields" search="[('model', '=', 'res.mobile.permission')]"/>
+    <delete model="ir.model.fields" search="[('model', '=', 'res.mobile.user.group'), ('name', 'in', ['permission_ids', 'effective_permission_ids'])]"/>
+    <delete model="ir.model" search="[('model', '=', 'res.mobile.permission')]"/>
+</odoo>

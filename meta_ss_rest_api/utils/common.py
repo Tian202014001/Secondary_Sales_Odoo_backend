@@ -29,8 +29,8 @@ def error_response(code, message, data=None):
     return response
 
 
-def check_api_permission(required_permission=None):
-    """Retrieves bearer token from headers, validates it, and checks the required permission if provided.
+def check_api_permission():
+    """Retrieve the bearer token from headers and validate it.
 
     Returns:
         res.mobile.user: The authenticated mobile user record.
@@ -43,19 +43,15 @@ def check_api_permission(required_permission=None):
     if not token:
         raise AccessDenied("Bearer token is empty.")
 
-    Session = request.env["mobile.auth.session"].sudo()
-    if required_permission:
-        mobile_user, _payload, _session = Session.validate_access_token_and_permission(
-            token, required_permission, check_session=True
-        )
-    else:
-        mobile_user, _payload, _session = Session.validate_access_token(
-            token, check_session=True
-        )
+    mobile_user, _payload, _session = (
+        request.env["mobile.auth.session"]
+        .sudo()
+        .validate_access_token(token, check_session=True)
+    )
     return mobile_user
 
 
-def get_mobile_api_context(payload=None, required_permission=None, require_employee=False):
+def get_mobile_api_context(payload=None, require_employee=False):
     """Validate the mobile JWT and return a trusted ORM context.
 
     Odoo's session selects the database and satisfies auth="user" routes. The
@@ -63,7 +59,7 @@ def get_mobile_api_context(payload=None, required_permission=None, require_emplo
     to an employee, any incoming employee_id is replaced with the trusted one
     from the token so API callers cannot impersonate another employee.
     """
-    mobile_user = check_api_permission(required_permission=required_permission)
+    mobile_user = check_api_permission()
     if require_employee and not mobile_user.employee_id:
         raise AccessDenied("The mobile user is not linked to an employee.")
 
@@ -73,3 +69,4 @@ def get_mobile_api_context(payload=None, required_permission=None, require_emplo
 
     api_env = request.env["mobile.auth.session"].sudo().get_integration_env()
     return mobile_user, api_env, trusted_payload
+

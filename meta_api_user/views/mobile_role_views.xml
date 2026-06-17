@@ -1,43 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Mobile User Permission Views -->
-    <record id="view_res_mobile_permission_search" model="ir.ui.view">
-        <field name="name">res.mobile.permission.search</field>
-        <field name="model">res.mobile.permission</field>
-        <field name="arch" type="xml">
-            <search>
-                <field name="name"/>
-                <field name="code"/>
-                <field name="category"/>
-                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
-                <group expand="0" string="Group By">
-                    <filter string="Category" name="groupby_category" domain="[]" context="{'group_by': 'category'}"/>
-                </group>
-            </search>
-        </field>
-    </record>
-
-    <record id="view_res_mobile_permission_list" model="ir.ui.view">
-        <field name="name">res.mobile.permission.list</field>
-        <field name="model">res.mobile.permission</field>
-        <field name="arch" type="xml">
-            <list editable="bottom">
-                <field name="name"/>
-                <field name="code"/>
-                <field name="category"/>
-                <field name="active" widget="boolean_toggle"/>
-                <field name="description"/>
-            </list>
-        </field>
-    </record>
-
-    <record id="action_res_mobile_permission" model="ir.actions.act_window">
-        <field name="name">Mobile Permissions</field>
-        <field name="res_model">res.mobile.permission</field>
-        <field name="view_mode">list</field>
-        <field name="search_view_id" ref="meta_api_user.view_res_mobile_permission_search"/>
-    </record>
-
     <!-- Mobile User Group Views -->
     <record id="view_res_mobile_user_group_search" model="ir.ui.view">
         <field name="name">res.mobile.user.group.search</field>
@@ -85,22 +47,29 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="Direct Permissions">
-                            <field name="permission_ids">
+                        <page string="Model Access">
+                            <field name="model_access_ids">
                                 <list>
                                     <field name="name"/>
-                                    <field name="code"/>
-                                    <field name="category"/>
-                                    <field name="active"/>
+                                    <field name="model_id"/>
+                                    <field name="group_id"/>
+                                    <field name="perm_read"/>
+                                    <field name="perm_create"/>
+                                    <field name="perm_write"/>
+                                    <field name="perm_unlink"/>
                                 </list>
                             </field>
                         </page>
-                        <page string="Effective Permissions">
-                            <field name="effective_permission_ids" readonly="1">
+                        <page string="Record Rules">
+                            <field name="rule_ids">
                                 <list>
                                     <field name="name"/>
-                                    <field name="code"/>
-                                    <field name="category"/>
+                                    <field name="model_id"/>
+                                    <field name="domain_force"/>
+                                    <field name="perm_read"/>
+                                    <field name="perm_create"/>
+                                    <field name="perm_write"/>
+                                    <field name="perm_unlink"/>
                                     <field name="active"/>
                                 </list>
                             </field>

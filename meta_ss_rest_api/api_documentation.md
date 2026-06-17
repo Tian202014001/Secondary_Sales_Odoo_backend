@@ -83,11 +83,6 @@ Response:
       "code": "tsm",
       "name": "Territory Sales Manager"
     },
-    "permissions": [
-      "dealer.view",
-      "dealer.create",
-      "primary_sale.create"
-    ],
     "employee_id": 7,
     "employee_name": "Anita Oliver"
   }
@@ -2192,3 +2187,124 @@ Response:
 ```
 
 Use `action: "cancel"` to cancel an eligible virtual transfer.
+
+### `POST /api/v1/visits/create`
+
+Creates a new outlet visit (Check-in).
+
+**Request (JSON-RPC):**
+```json
+{
+    "jsonrpc": "2.0",
+    "method": "call",
+    "params": {
+        "employee_id": 7,
+        "outlet_id": 14,
+        "visit_type": "standard",
+        "check_in_time": "2024-05-15 10:45:00"
+    },
+    "id": 1
+}
+```
+
+**Response (JSON-RPC):**
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+        "success": true,
+        "api_version": "1.0",
+        "message": "Visit created successfully.",
+        "data": {
+            "id": 42,
+            "employee_id": 7,
+            "outlet_id": 14,
+            "check_in_time": "2024-05-15 10:45:00",
+            "visit_type": "standard"
+        }
+    }
+}
+```
+
+---
+
+### `POST /api/v1/visits/<visit_id>/update`
+
+Updates an existing outlet visit (Check-out).
+
+**Request (JSON-RPC):**
+```json
+{
+    "jsonrpc": "2.0",
+    "method": "call",
+    "params": {
+        "check_out_time": "2024-05-15 11:30:00"
+    },
+    "id": 1
+}
+```
+
+**Response (JSON-RPC):**
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+        "success": true,
+        "api_version": "1.0",
+        "message": "Visit updated successfully.",
+        "data": {
+            "id": 42,
+            "employee_id": 7,
+            "outlet_id": 14,
+            "check_in_time": "2024-05-15 10:45:00",
+            "check_out_time": "2024-05-15 11:30:00",
+            "visit_type": "standard"
+        }
+    }
+}
+```
+
+---
+
+### `POST /api/v1/visits/today`
+
+Gets today's active visit and checked out outlet IDs for the logged-in employee to recover app state.
+
+**Request (JSON-RPC):**
+```json
+{
+    "jsonrpc": "2.0",
+    "method": "call",
+    "params": {
+        "employee_id": 7
+    },
+    "id": 1
+}
+```
+
+**Response (JSON-RPC):**
+```json
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+        "success": true,
+        "api_version": "1.0",
+        "message": "Today's visits fetched successfully.",
+        "data": {
+            "active_visit": {
+                "id": 42,
+                "employee_id": 7,
+                "outlet_id": 14,
+                "check_in_time": "2026-06-17 10:45:00",
+                "visit_type": "standard"
+            },
+            "checked_out_outlet_ids": [12, 13]
+        }
+    }
+}
+```
+
+

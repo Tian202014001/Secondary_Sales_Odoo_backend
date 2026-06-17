@@ -140,12 +140,6 @@ class ResMobileUser(models.Model):
     def check_password(self, plain_password):
         return self._verify_password(plain_password)
 
-    def has_permission(self, permission_code):
-        self.ensure_one()
-        if not self.active or not self.group_id:
-            return False
-        return permission_code in self.group_id.effective_permission_ids.mapped("code")
-
     @api.model
     def authenticate_mobile_user(self, login, password):
         login = (login or "").strip()

@@ -291,7 +291,6 @@ class MobileAuthSession(models.Model):
                 - name (str): Mobile user name.
                 - role (str/bool): Mobile user group name.
                 - group (dict/bool): Mobile user group details containing id, code, name.
-                - permissions (list): List of effective permission code strings.
                 - employee_id (int/bool): Associated employee ID.
                 - employee_name (str/bool): Associated employee name.
         """
@@ -319,7 +318,6 @@ class MobileAuthSession(models.Model):
                     "code": group.code,
                     "name": group.name,
                 } if group else False,
-                "permissions": group.effective_permission_ids.mapped("code") if group else [],
                 "employee_id": employee["id"] if employee else False,
                 "employee_name": employee["name"] if employee else False,
             },
@@ -377,13 +375,6 @@ class MobileAuthSession(models.Model):
                 if not session.last_used_at or (now - session.last_used_at).total_seconds() > 3600:
                     session.sudo().write({"last_used_at": now})
 
-        return mobile_user, payload, session
-
-    @api.model
-    def validate_access_token_and_permission(self, raw_token, required_permission, check_session=True):
-        mobile_user, payload, session = self.validate_access_token(raw_token, check_session=check_session)
-        if not mobile_user.has_permission(required_permission):
-            raise AccessDenied(f"Permission denied: required '{required_permission}'")
         return mobile_user, payload, session
 
     @api.model

@@ -16,6 +16,7 @@
     "data": [
         "security/meta_api_user_security.xml",
         "security/ir.model.access.csv",
+        "data/mobile_permission_cleanup.xml",
         "views/mobile_role_views.xml",
         "views/res_mobile_user_views.xml",
         "views/mobile_auth_session_views.xml",

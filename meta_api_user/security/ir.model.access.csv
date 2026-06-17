@@ -5,5 +5,3 @@ access_res_mobile_user_user,res.mobile.user user,model_res_mobile_user,meta_api_
 access_res_mobile_user_manager,res.mobile.user manager,model_res_mobile_user,meta_api_user.group_mobile_auth_manager,1,1,1,1
 access_mobile_auth_session_user,mobile.auth.session user,model_mobile_auth_session,meta_api_user.group_mobile_auth_user,1,0,0,0
 access_mobile_auth_session_manager,mobile.auth.session manager,model_mobile_auth_session,meta_api_user.group_mobile_auth_manager,1,1,1,0
-access_res_mobile_permission_user,res.mobile.permission user,model_res_mobile_permission,meta_api_user.group_mobile_auth_user,1,0,0,0
-access_res_mobile_permission_manager,res.mobile.permission manager,model_res_mobile_permission,meta_api_user.group_mobile_auth_manager,1,1,1,1

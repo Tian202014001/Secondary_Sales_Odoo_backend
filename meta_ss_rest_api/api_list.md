@@ -87,6 +87,9 @@ Full request and response examples are in [api_documentation.md](api_documentati
 | `POST` | `/api/v1/route-visits` | List route visits. |
 | `POST` | `/api/v1/route-visits/<visit_id>` | Route visit detail. |
 | `POST` | `/api/v1/route-visits/<visit_id>/action` | Route visit actions (`check_in`, `check_out`, `cancel`). |
+| `POST` | `/api/v1/visits/create` | Create outlet visit (Check-in). |
+| `POST` | `/api/v1/visits/<visit_id>/update` | Update outlet visit (Check-out). |
+| `POST` | `/api/v1/visits/today` | Fetch today's active visit and checked out outlet IDs for the logged-in employee. |
 
 ### 4.1 Virtual Locations
 

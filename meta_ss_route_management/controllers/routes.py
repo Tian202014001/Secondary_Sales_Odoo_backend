@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from datetime import datetime, timezone
+
 from odoo import http
 from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
@@ -19,6 +21,35 @@ from odoo.addons.meta_ss_route_management.utils.routes import (
     serialize_route_outlet_line,
     serialize_routes,
 )
+
+
+def _mobile_datetime_to_odoo(value):
+    """Accept mobile ISO timestamps and return an Odoo datetime value."""
+    if not value:
+        return value
+    if isinstance(value, datetime):
+        date_value = value
+    elif isinstance(value, str):
+        clean_value = value.strip()
+        if not clean_value:
+            return clean_value
+        if clean_value.endswith("Z"):
+            clean_value = f"{clean_value[:-1]}+00:00"
+        try:
+            date_value = datetime.fromisoformat(clean_value)
+        except ValueError:
+            from odoo import fields
+
+            return fields.Datetime.to_datetime(value)
+    else:
+        return value
+
+    if date_value.tzinfo:
+        date_value = date_value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    from odoo import fields
+
+    return fields.Datetime.to_string(date_value)
 
 
 class MetaSSRouteController(http.Controller):
@@ -312,7 +343,7 @@ class MetaSSRouteController(http.Controller):
             route = api_env["sale.route"].search([
                 ("id", "=", route_id),
                 ("active", "=", True),
-                ("ss_employee_id", "=", employee.id),
+                ("ss_employee_id", "child_of", employee.id),
             ], limit=1)
             if not route:
                 return error_response(
@@ -435,7 +466,7 @@ class MetaSSRouteController(http.Controller):
 
             route = api_env["sale.route"].search([
                 ("id", "=", route_id),
-                ("ss_employee_id", "=", employee.id),
+                ("ss_employee_id", "child_of", employee.id),
                 ("active", "=", True),
             ], limit=1)
             if not route:
@@ -537,7 +568,7 @@ class MetaSSRouteController(http.Controller):
 
             route = api_env["sale.route"].search([
                 ("id", "=", route_id),
-                ("ss_employee_id", "=", employee.id),
+                ("ss_employee_id", "child_of", employee.id),
             ], limit=1)
             if not route:
                 return error_response(
@@ -605,7 +636,7 @@ class MetaSSRouteController(http.Controller):
 
             route = api_env["sale.route"].search([
                 ("id", "=", route_id),
-                ("ss_employee_id", "=", employee.id),
+                ("ss_employee_id", "child_of", employee.id),
             ], limit=1)
             if not route:
                 return error_response(
@@ -642,3 +673,139 @@ class MetaSSRouteController(http.Controller):
                 "server_error",
                 "An unexpected error occurred while removing the outlet.",
             )
+
+    @http.route(f"{API_PREFIX}/visits/create", type="json", auth="user", methods=["POST"], csrf=False)
+    def create_visit(self, **payload):
+        """Create a new outlet.visit record."""
+        try:
+            from odoo import fields
+            _mobile_user, api_env, payload = get_mobile_api_context(payload)
+            
+            employee_id = payload.get("employee_id")
+            outlet_id = payload.get("outlet_id")
+            check_in_time = _mobile_datetime_to_odoo(payload.get("check_in_time")) or fields.Datetime.now()
+            
+            if not employee_id:
+                raise ValidationError("'employee_id' is required.")
+            if not outlet_id:
+                raise ValidationError("'outlet_id' is required.")
+                
+            visit = api_env["outlet.visit"].create({
+                "employee_id": int(employee_id),
+                "outlet_id": int(outlet_id),
+                "check_in_time": check_in_time,
+                "visit_type": payload.get("visit_type", "standard"),
+            })
+            
+            return {
+                "success": True,
+                "api_version": API_VERSION,
+                "message": "Visit created successfully.",
+                "data": {
+                    "id": visit.id,
+                    "employee_id": visit.employee_id.id,
+                    "outlet_id": visit.outlet_id.id,
+                    "check_in_time": str(visit.check_in_time) if visit.check_in_time else None,
+                    "visit_type": visit.visit_type,
+                }
+            }
+        except (AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception as exc:
+            request.env.cr.rollback()
+            return error_response("server_error", f"An unexpected error occurred: {str(exc)}")
+
+    @http.route(f"{API_PREFIX}/visits/<int:visit_id>/update", type="json", auth="user", methods=["POST"], csrf=False)
+    def update_visit(self, visit_id, **payload):
+        """Update an existing outlet.visit record (e.g., set check_out_time)."""
+        try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload)
+            
+            visit = api_env["outlet.visit"].browse(visit_id).exists()
+            if not visit:
+                raise ValidationError("No visit was found for the provided id.")
+                
+            vals = {}
+            if "check_out_time" in payload:
+                vals["check_out_time"] = _mobile_datetime_to_odoo(payload["check_out_time"])
+            if "visit_type" in payload:
+                vals["visit_type"] = payload["visit_type"]
+            if "visited_with_id" in payload:
+                vals["visited_with_id"] = int(payload["visited_with_id"])
+                
+            if vals:
+                visit.write(vals)
+                
+            return {
+                "success": True,
+                "api_version": API_VERSION,
+                "message": "Visit updated successfully.",
+                "data": {
+                    "id": visit.id,
+                    "employee_id": visit.employee_id.id,
+                    "outlet_id": visit.outlet_id.id,
+                    "check_in_time": str(visit.check_in_time) if visit.check_in_time else None,
+                    "check_out_time": str(visit.check_out_time) if visit.check_out_time else None,
+                    "visit_type": visit.visit_type,
+                }
+            }
+        except (AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception as exc:
+            request.env.cr.rollback()
+            return error_response("server_error", f"An unexpected error occurred: {str(exc)}")
+
+    @http.route(f"{API_PREFIX}/visits/today", type="json", auth="user", methods=["POST"], csrf=False)
+    def get_today_visits(self, **payload):
+        """Get today's visits (active and checked out) for the employee."""
+        try:
+            import datetime
+            import pytz
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            employee_id = payload.get("employee_id")
+            if not employee_id:
+                return error_response("missing_employee_id", "'employee_id' is required.")
+
+            user_tz = pytz.timezone(request.env.user.tz or 'UTC')
+            today_user = datetime.datetime.now(user_tz).date()
+            
+            start_dt = datetime.datetime.combine(today_user, datetime.time.min)
+            start_dt_utc = user_tz.localize(start_dt).astimezone(pytz.utc).replace(tzinfo=None)
+            
+            visits = api_env["outlet.visit"].search([
+                ("employee_id", "=", int(employee_id)),
+                "|",
+                ("check_in_time", ">=", start_dt_utc),
+                ("check_out_time", "=", False)
+            ])
+
+            active_visit = None
+            checked_out_outlet_ids = []
+
+            for visit in visits:
+                if not visit.check_out_time:
+                    if not active_visit or visit.check_in_time > active_visit.check_in_time:
+                        active_visit = visit
+                else:
+                    checked_out_outlet_ids.append(visit.outlet_id.id)
+
+            return {
+                "success": True,
+                "api_version": API_VERSION,
+                "message": "Today's visits fetched successfully.",
+                "data": {
+                    "active_visit": {
+                        "id": active_visit.id,
+                        "employee_id": active_visit.employee_id.id,
+                        "outlet_id": active_visit.outlet_id.id,
+                        "check_in_time": str(active_visit.check_in_time) if active_visit.check_in_time else None,
+                        "visit_type": active_visit.visit_type,
+                    } if active_visit else None,
+                    "checked_out_outlet_ids": checked_out_outlet_ids
+                }
+            }
+        except (AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception as exc:
+            request.env.cr.rollback()
+            return error_response("server_error", f"An unexpected error occurred: {str(exc)}")

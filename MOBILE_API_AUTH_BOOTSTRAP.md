@@ -32,7 +32,7 @@ Odoo session
     Purpose: selected DB + authenticated technical Odoo user for auth="user" routes.
 
 Custom mobile JWT
-    Purpose: real mobile identity, employee mapping, mobile permissions.
+    Purpose: real mobile identity and employee mapping.
 ```
 
 The mobile app does not call `/web/session/authenticate` anymore for this flow.
@@ -237,7 +237,6 @@ The JSON body returns the custom mobile tokens:
       "code": "so",
       "name": "Sales Officer"
     },
-    "permissions": [],
     "employee_id": 6,
     "employee_name": "Employee Name"
   }
@@ -315,13 +314,12 @@ because after login the mobile app should already have an Odoo session cookie.
 Added:
 
 ```python
-get_mobile_api_context(payload=None, required_permission=None, require_employee=False)
+get_mobile_api_context(payload=None, require_employee=False)
 ```
 
 This helper:
 
 - validates `Authorization: Bearer <token>`
-- checks optional mobile permission
 - requires a mapped employee when needed
 - replaces request `employee_id` with `mobile_user.employee_id.id`
 - returns the configured integration-user environment

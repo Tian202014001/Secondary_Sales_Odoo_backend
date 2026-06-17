@@ -46,11 +46,4 @@
         sequence="10"
         groups="meta_api_user.group_mobile_auth_manager"/>
 
-    <menuitem
-        id="menu_meta_api_permissions"
-        name="Permissions"
-        parent="menu_meta_api_configuration"
-        action="action_res_mobile_permission"
-        sequence="20"
-        groups="meta_api_user.group_mobile_auth_manager"/>
 </odoo>

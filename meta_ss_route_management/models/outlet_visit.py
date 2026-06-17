@@ -49,34 +49,62 @@ class OutletVisit(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         visits = super().create(vals_list)
-        for visit in visits:
-            if visit.visit_type == 'join':
-                visit._link_to_standard_visit()
+        visits.with_context(syncing_visit_links=True)._link_visits()
         return visits
 
     def write(self, vals):
+        if self.env.context.get('syncing_visit_links'):
+            return super().write(vals)
+
         res = super().write(vals)
-        for visit in self:
-            if visit.visit_type == 'join':
-                visit._link_to_standard_visit()
+        self.with_context(syncing_visit_links=True)._link_visits()
         return res
 
-    def _link_to_standard_visit(self):
-        """Automatically assigns this join visit to the matching standard visit's join_visit_id."""
-        self.ensure_one()
-        if not self.visited_with_id or not self.outlet_id or not self.check_in_time or not self.check_out_time:
-            return
-
-        domain = [
-            ('visit_type', '=', 'standard'),
-            ('employee_id', '=', self.visited_with_id.id),
-            ('outlet_id', '=', self.outlet_id.id),
-            ('check_in_time', '<=', self.check_out_time),
-            ('check_out_time', '>=', self.check_in_time),
-        ]
-        standard_visit = self.search(domain, order="check_in_time desc", limit=1)
-        if standard_visit:
-            standard_visit.join_visit_id = self.id
+    def _link_visits(self):
+        """Unified method to establish the link between joint visits and standard visits."""
+        for visit in self:
+            if visit.visit_type == 'join':
+                if not visit.visited_with_id or not visit.outlet_id or not visit.check_in_time:
+                    continue
+                candidates = self.search([
+                    ('visit_type', '=', 'standard'),
+                    ('employee_id', '=', visit.visited_with_id.id),
+                    ('outlet_id', '=', visit.outlet_id.id),
+                ])
+                matching_visit = False
+                for cand in candidates:
+                    overlap = True
+                    if visit.check_out_time and cand.check_in_time > visit.check_out_time:
+                        overlap = False
+                    if cand.check_out_time and cand.check_out_time < visit.check_in_time:
+                        overlap = False
+                    if overlap:
+                        matching_visit = cand
+                        break
+                if matching_visit:
+                    if matching_visit.join_visit_id != visit:
+                        matching_visit.with_context(syncing_visit_links=True).write({'join_visit_id': visit.id})
+            elif visit.visit_type == 'standard':
+                if not visit.employee_id or not visit.outlet_id or not visit.check_in_time:
+                    continue
+                candidates = self.search([
+                    ('visit_type', '=', 'join'),
+                    ('visited_with_id', '=', visit.employee_id.id),
+                    ('outlet_id', '=', visit.outlet_id.id),
+                ])
+                matching_visit = False
+                for cand in candidates:
+                    overlap = True
+                    if visit.check_out_time and cand.check_in_time > visit.check_out_time:
+                        overlap = False
+                    if cand.check_out_time and cand.check_out_time < visit.check_in_time:
+                        overlap = False
+                    if overlap:
+                        matching_visit = cand
+                        break
+                if matching_visit:
+                    if visit.join_visit_id != matching_visit:
+                        visit.with_context(syncing_visit_links=True).write({'join_visit_id': matching_visit.id})
 
     visited_with_id = fields.Many2one(
         'hr.employee',

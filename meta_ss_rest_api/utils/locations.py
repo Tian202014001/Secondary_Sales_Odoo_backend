@@ -36,7 +36,7 @@ def build_location_domain(env, payload):
             employee_id = int(employee_id)
         except (TypeError, ValueError) as exc:
             raise ValidationError("'employee_id' must be a valid integer id.") from exc
-        domain = expression.AND([domain, [("ss_employee_id", "=", employee_id)]])
+        domain = expression.AND([domain, [("ss_employee_id", "child_of", employee_id)]])
 
     # Filter by assigned distributor
     distributor_id = payload.get("distributor_id") or payload.get("ss_distributor_id")

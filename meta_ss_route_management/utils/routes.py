@@ -61,7 +61,7 @@ def build_employee_route_domain(employee, payload):
     """Build route search domain scoped to one employee."""
     domain = [
         ("active", "=", parse_active_filter(payload)),
-        ("ss_employee_id", "=", employee.id),
+        ("ss_employee_id", "child_of", employee.id),
     ]
 
     search = (payload.get("search") or "").strip()

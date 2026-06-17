@@ -190,7 +190,22 @@ class MetaSSContactController(http.Controller):
                 ("state", "in", ["sale", "done"]),
             ], order="date_order desc", limit=20)
 
+            # Get past visits for this outlet
+            visits = api_env["outlet.visit"].search([
+                ("outlet_id", "=", contact.id)
+            ], order="check_in_time desc", limit=20)
+
             visit_logs_data = []
+            for visit in visits:
+                visit_logs_data.append({
+                    "id": visit.id,
+                    "employee_id": visit.employee_id.id,
+                    "employee_name": visit.employee_id.name,
+                    "check_in_time": str(visit.check_in_time) if visit.check_in_time else None,
+                    "check_out_time": str(visit.check_out_time) if visit.check_out_time else None,
+                    "visit_type": visit.visit_type,
+                })
+
             past_orders_data = []
             for order in orders:
                 past_orders_data.append({

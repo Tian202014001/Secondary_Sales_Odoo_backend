@@ -20,6 +20,14 @@ def build_employee_domain(env, payload):
             raise ValidationError("Distributor not found.")
         domain.append(("distributor_contact_ids", "in", [distributor.id]))
 
+    manager_id = payload.get("manager_id") or payload.get("parent_id")
+    if manager_id:
+        try:
+            manager_id = int(manager_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("'manager_id' must be a valid integer id.") from exc
+        domain.append(("parent_id", "=", manager_id))
+
     search = (payload.get("search") or "").strip()
     if search:
         domain = expression.AND([
