@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from odoo import http
-from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
+from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+)
 from odoo.addons.meta_ss_rest_api.utils.locations import (
     build_location_domain,
     get_location_pagination,
@@ -14,7 +19,7 @@ from odoo.addons.meta_ss_rest_api.utils.locations import (
 
 class MetaSSLocationController(http.Controller):
 
-    @http.route(f"{API_PREFIX}/locations", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/locations", type="json", auth="user", methods=["POST"])
     def get_locations(self, **payload):
         """List and search stock locations.
 
@@ -63,10 +68,11 @@ class MetaSSLocationController(http.Controller):
             }
         """
         try:
-            domain = build_location_domain(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload)
+            domain = build_location_domain(api_env, payload)
             limit, offset, page, page_size = get_location_pagination(payload)
             
-            Location = request.env["stock.location"].sudo()
+            Location = api_env["stock.location"]
             locations = Location.search(domain, limit=limit, offset=offset, order="complete_name, id")
             total = Location.search_count(domain)
 
@@ -81,7 +87,7 @@ class MetaSSLocationController(http.Controller):
                     "total": total,
                 },
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()

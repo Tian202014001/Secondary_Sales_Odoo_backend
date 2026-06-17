@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Tree (List) View -->
+        <record id="view_outlet_visit_tree" model="ir.ui.view">
+            <field name="name">outlet.visit.list</field>
+            <field name="model">outlet.visit</field>
+            <field name="arch" type="xml">
+                <list string="Outlet Visits" default_order="check_in_time desc">
+                    <field name="employee_id" />
+                    <field name="outlet_id" />
+                    <field name="check_in_time" />
+                    <field name="check_out_time" />
+                </list>
+            </field>
+        </record>
+
+        <!-- Form View -->
+        <record id="view_outlet_visit_form" model="ir.ui.view">
+            <field name="name">outlet.visit.form</field>
+            <field name="model">outlet.visit</field>
+            <field name="arch" type="xml">
+                <form string="Outlet Visit">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="employee_id" />
+                                <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]" />
+                                <field name="join_visit_id" />
+                                <field name="visited_with_id" />
+                                <field name="role_id" />
+                                <field name="visit_type" />
+                            </group>
+                            <group>
+                                <field name="check_in_time" />
+                                <field name="check_out_time" />
+                            </group>
+                        </group>
+                    </sheet>
+                    <chatter />
+                </form>
+            </field>
+        </record>
+
+        <!-- Standard Visit Action -->
+        <record id="action_standard_visit" model="ir.actions.act_window">
+            <field name="name">Standard Visits</field>
+            <field name="res_model">outlet.visit</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[('visit_type', '=', 'standard')]</field>
+            <field name="context">{'default_visit_type': 'standard'}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Log your first Standard Visit!
+                </p>
+            </field>
+        </record>
+
+        <!-- join Visit Action -->
+        <record id="action_join_visit" model="ir.actions.act_window">
+            <field name="name">join Visits</field>
+            <field name="res_model">outlet.visit</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain">[('visit_type', '=', 'join')]</field>
+            <field name="context">{'default_visit_type': 'join'}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Log your first join Visit!
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu Items -->
+        <menuitem id="menu_visits_root" name="Visits"
+            parent="meta_ss_route_management.menu_sale_route_root" sequence="30" />
+
+        <menuitem id="menu_standard_visit" name="Standard Visits" parent="menu_visits_root"
+            action="action_standard_visit" sequence="10" />
+
+        <menuitem id="menu_join_visit" name="join Visits" parent="menu_visits_root"
+            action="action_join_visit" sequence="20" />
+    </data>
+</odoo>

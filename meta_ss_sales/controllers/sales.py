@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from odoo import http
-from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
+from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response, check_api_permission
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+)
 from odoo.addons.meta_ss_sales.utils.sales import (
     build_sale_order_domain,
     get_sales_pagination,
@@ -20,14 +25,15 @@ from odoo.addons.meta_ss_sales.utils.sales import (
 
 class MetaSSSalesController(http.Controller):
 
-    @http.route(f"{API_PREFIX}/sale-orders", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/sale-orders", type="json", auth="user", methods=["POST"])
     def get_sale_orders(self, **payload):
         """Return sale orders filtered by sale_type and common dashboard filters."""
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             domain = build_sale_order_domain(payload)
             limit, offset, page, page_size = get_sales_pagination(payload)
 
-            SaleOrder = request.env["sale.order"].sudo()
+            SaleOrder = api_env["sale.order"]
             orders = SaleOrder.search(domain, limit=limit, offset=offset, order="date_order desc, id desc")
             total = SaleOrder.search_count(domain)
 
@@ -42,7 +48,7 @@ class MetaSSSalesController(http.Controller):
                     "total": total,
                 },
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -51,20 +57,21 @@ class MetaSSSalesController(http.Controller):
                 "An unexpected error occurred while fetching sale orders.",
             )
 
-    @http.route(f"{API_PREFIX}/sale-orders/create", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/sale-orders/create", type="json", auth="user", methods=["POST"])
     def create_sale_order(self, **payload):
         """Create a sale order using sale_type.
 
         Currently only sale_type='primary' is supported for creation.
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             sale_type = (payload.get("sale_type") or "primary").strip()
             if sale_type != "primary":
                 # TODO: Implement secondary sale order creation
                 raise ValidationError("Only primary sale order creation is supported currently.")
 
-            order_values = prepare_sale_order_values(request.env, payload)
-            order = request.env["sale.order"].sudo().create(order_values)
+            order_values = prepare_sale_order_values(api_env, payload)
+            order = api_env["sale.order"].create(order_values)
 
             if parse_bool(payload.get("confirm")):
                 order.action_confirm()
@@ -75,7 +82,7 @@ class MetaSSSalesController(http.Controller):
                 "message": "Sale order created successfully.",
                 "data": serialize_sale_order(order),
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -84,14 +91,15 @@ class MetaSSSalesController(http.Controller):
                 "An unexpected error occurred while creating the sale order.",
             )
 
-    @http.route(f"{API_PREFIX}/sale-orders/<int:order_id>/update", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/sale-orders/<int:order_id>/update", type="json", auth="user", methods=["POST"])
     def update_sale_order(self, order_id, **payload):
         """Update a sale order with draft/sale restrictions."""
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             if not order_id:
                 raise ValidationError("'order_id' is required for updating.")
 
-            order = request.env["sale.order"].sudo().browse(int(order_id)).exists()
+            order = api_env["sale.order"].browse(int(order_id)).exists()
             if not order:
                 raise MissingError("No sale order found for the provided 'order_id'.")
 
@@ -116,12 +124,12 @@ class MetaSSSalesController(http.Controller):
             # Update lines if present in payload
             if "order_lines" in payload or "lines" in payload:
                 order_lines = payload.get("order_lines") or payload.get("lines") or []
-                update_sale_order_lines(request.env, order, order_lines, was_confirmed)
+                update_sale_order_lines(api_env, order, order_lines, was_confirmed)
 
             # Update general fields
             vals = {}
             if "distributor_id" in payload and not was_confirmed:
-                distributor = get_distributor(request.env, payload.get("distributor_id"))
+                distributor = get_distributor(api_env, payload.get("distributor_id"))
                 vals["partner_id"] = distributor.id
                 vals["partner_shipping_id"] = distributor.id
 
@@ -147,7 +155,7 @@ class MetaSSSalesController(http.Controller):
                 "message": "Sale order updated successfully.",
                 "data": serialize_sale_order(order),
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()

@@ -1,7 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_sale_route_user,sale.route.user,model_sale_route,base.group_user,1,1,1,0
 access_sale_route_line_user,sale.route.line.user,model_sale_route_line,base.group_user,1,1,1,1
-access_sale_route_visit_plan_user,sale.route.visit.plan.user,model_sale_route_visit_plan,base.group_user,1,1,1,0
-access_sale_route_visit_plan_line_user,sale.route.visit.plan.line.user,model_sale_route_visit_plan_line,base.group_user,1,1,1,1
-access_sale_route_visit_user,sale.route.visit.user,model_sale_route_visit,base.group_user,1,1,1,0
-access_sale_route_visit_line_user,sale.route.visit.line.user,model_sale_route_visit_line,base.group_user,1,1,1,1
+access_route_planner_user,route.planner.user,model_route_planner,base.group_user,1,1,1,1
+access_route_planner_line_user,route.planner.line.user,model_route_planner_line,base.group_user,1,1,1,1
+access_outlet_visit_user,outlet.visit.user,model_outlet_visit,base.group_user,1,1,1,1

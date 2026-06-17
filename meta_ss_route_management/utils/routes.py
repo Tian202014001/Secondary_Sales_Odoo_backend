@@ -61,7 +61,7 @@ def build_employee_route_domain(employee, payload):
     """Build route search domain scoped to one employee."""
     domain = [
         ("active", "=", parse_active_filter(payload)),
-        ("ss_employee_ids", "in", [employee.id]),
+        ("ss_employee_id", "=", employee.id),
     ]
 
     search = (payload.get("search") or "").strip()
@@ -132,9 +132,8 @@ def prepare_route_values(env, payload, employee, create=False):
             "distributor_id",
         ).id if distributor_id else False
 
-    if create or "employee_ids" in payload:
-        values["ss_employee_ids"] = [(6, 0, _get_employee_ids(env, payload, employee))]
-
+    if create or "employee_id" in payload or "employee_ids" in payload:
+        values["ss_employee_id"] = employee.id
     if "outlets" in payload:
         values["route_line_ids"] = _get_route_line_commands(
             env,
@@ -151,36 +150,15 @@ def prepare_route_outlet_line_values(env, payload):
 
     try:
         sequence = int(payload.get("sequence", 10))
-        expected_visit_time = float(payload.get("expected_visit_time", 0.0))
     except (TypeError, ValueError) as exc:
-        raise ValidationError("'sequence' and 'expected_visit_time' must be numeric.") from exc
+        raise ValidationError("'sequence' must be numeric.") from exc
 
     return {
         "outlet_id": outlet_partner.id,
         "sequence": sequence,
-        "expected_visit_time": expected_visit_time,
         "active": parse_active_filter(payload),
     }
 
-
-def _get_employee_ids(env, payload, current_employee):
-    """Return validated employee ids, always keeping the requesting employee assigned."""
-    employee_ids = payload.get("employee_ids") or [current_employee.id]
-    if not isinstance(employee_ids, list):
-        raise ValidationError("'employee_ids' must be a list of employee ids.")
-
-    try:
-        employee_ids = [int(employee_id) for employee_id in employee_ids]
-    except (TypeError, ValueError) as exc:
-        raise ValidationError("'employee_ids' must contain valid integer ids.") from exc
-    if current_employee.id not in employee_ids:
-        employee_ids.append(current_employee.id)
-
-    employees = env["hr.employee"].sudo().browse(employee_ids).exists()
-    if len(employees) != len(set(employee_ids)):
-        raise ValidationError("One or more employee ids are invalid.")
-
-    return list(dict.fromkeys(employee_ids))
 
 
 def _get_route_line_commands(env, outlets, replace_existing=True):
@@ -263,6 +241,8 @@ def serialize_routes(routes):
     """Serialize sale.route records for API response."""
     data = []
     for route in routes:
+        planner_lines = route.env["route.planner.line"].sudo().search([("route_ids", "in", route.id)])
+        planned_days = [line.day_of_week for line in planner_lines]
         data.append({
             "id": route.id,
             "name": route.name,
@@ -274,11 +254,11 @@ def serialize_routes(routes):
             } if route.distributor_contact_id else None,
             "employees": [
                 {
-                    "id": employee.id,
-                    "name": employee.name,
+                    "id": route.ss_employee_id.id,
+                    "name": route.ss_employee_id.name,
                 }
-                for employee in route.ss_employee_ids
-            ],
+            ] if route.ss_employee_id else [],
+            "planned_days": planned_days,
             "outlet_count": route.env["sale.route.line"].search_count([("route_id", "=", route.id), ("active", "=", True)]),
         })
     return data
@@ -291,7 +271,6 @@ def serialize_route_outlet_line(route_line):
         "id": route_line.outlet_id.id,
         "name": route_line.outlet_id.name,
         "sequence": route_line.sequence,
-        "expected_visit_time": route_line.expected_visit_time,
         "phone": route_line.outlet_id.phone or None,
         "mobile": route_line.outlet_id.mobile or None,
         "email": route_line.outlet_id.email or None,
@@ -322,13 +301,12 @@ def serialize_route_detail(route):
         } if route.distributor_contact_id else None,
         "employees": [
             {
-                "id": employee.id,
-                "name": employee.name,
-                "work_phone": employee.work_phone or None,
-                "work_email": employee.work_email or None,
+                "id": route.ss_employee_id.id,
+                "name": route.ss_employee_id.name,
+                "work_phone": route.ss_employee_id.work_phone or None,
+                "work_email": route.ss_employee_id.work_email or None,
             }
-            for employee in route.ss_employee_ids
-        ],
+        ] if route.ss_employee_id else [],
         "outlets": [
             serialize_route_outlet_line(route_line)
             for route_line in route.route_line_ids.sorted(lambda line: (line.sequence, line.id))

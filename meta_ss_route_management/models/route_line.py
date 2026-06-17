@@ -26,10 +26,7 @@ class SSRouteLine(models.Model):
         required=True,
         domain="[('customer_type', '=', 'outlet')]",
     )
-    expected_visit_time = fields.Float(
-        string="Expected Visit Time",
-        help="Expected visit time in hours.",
-    )
+    
     active = fields.Boolean(default=True)
 
     @api.constrains("outlet_id")

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Tree (List) View -->
+        <record id="view_route_planner_tree" model="ir.ui.view">
+            <field name="name">route.planner.list</field>
+            <field name="model">route.planner</field>
+            <field name="arch" type="xml">
+                <list string="Route Planners">
+                    <field name="name"/>
+                    <field name="distributor_id"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Form View -->
+        <record id="view_route_planner_form" model="ir.ui.view">
+            <field name="name">route.planner.form</field>
+            <field name="model">route.planner</field>
+            <field name="arch" type="xml">
+                <form string="Route Planner">
+                    <sheet>
+                        <div class="oe_title">
+                            <label for="name"/>
+                            <h1>
+                                <field class="text-break" name="name" placeholder="e.g. Route Plan for Dhaka North" default_focus="1"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="distributor_id" domain="[('customer_type', '=', 'distributor')]"/>
+                            </group>
+                            <group>
+                                <field name="active" widget="boolean_toggle"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Plan Lines" name="plan_lines">
+                                <field name="plan_line_ids">
+                                    <list editable="bottom">
+                                        <field name="sequence" widget="handle"/>
+                                        <field name="day_of_week"/>
+                                        <field name="route_ids" widget="many2many_tags" domain="[('distributor_contact_id', '=', parent.distributor_id)]"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Window Action -->
+        <record id="action_route_planner" model="ir.actions.act_window">
+            <field name="name">Route Plan</field>
+            <field name="res_model">route.planner</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first Route Plan!
+                </p>
+            </field>
+        </record>
+
+        <!-- Menu Items -->
+        <menuitem id="menu_route_planner" name="Route Planners" parent="meta_ss_route_management.menu_sale_route_root"
+            action="action_route_planner" sequence="20" />
+    </data>
+</odoo>

@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from odoo import http
-from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
+from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+)
 from odoo.addons.meta_ss_transfer.utils.virtual_transfers import (
     build_virtual_transfer_domain,
     build_virtual_transfer_product_domain,
@@ -22,10 +27,10 @@ from odoo.addons.meta_ss_transfer.utils.virtual_transfers import (
 
 class MetaSSVirtualTransferController(http.Controller):
 
-    def _run_virtual_transfer_action(self, transfer_id, payload):
+    def _run_virtual_transfer_action(self, api_env, transfer_id, payload):
         action = (payload.get("action") or "").strip().lower()
         if action == "validate":
-            picking, result = validate_virtual_transfer(request.env, transfer_id, payload)
+            picking, result = validate_virtual_transfer(api_env, transfer_id, payload)
             return {
                 "message": "Virtual transfer validated successfully.",
                 "data": {
@@ -34,14 +39,14 @@ class MetaSSVirtualTransferController(http.Controller):
                 },
             }
         if action == "cancel":
-            picking = cancel_virtual_transfer(request.env, transfer_id, payload)
+            picking = cancel_virtual_transfer(api_env, transfer_id, payload)
             return {
                 "message": "Virtual transfer cancelled successfully.",
                 "data": serialize_virtual_transfer(picking),
             }
         raise ValidationError("Unsupported virtual transfer action '%s'." % action)
 
-    @http.route(f"{API_PREFIX}/virtual-transfers/prepare", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/virtual-transfers/prepare", type="json", auth="user", methods=["POST"])
     def prepare_virtual_transfer(self, **payload):
         """Prepare distributor source and employee Van Loading destinations.
 
@@ -75,13 +80,14 @@ class MetaSSVirtualTransferController(http.Controller):
             }
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": "Virtual transfer data fetched successfully.",
-                "data": serialize_virtual_transfer_prepare(request.env, payload),
+                "data": serialize_virtual_transfer_prepare(api_env, payload),
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -90,7 +96,7 @@ class MetaSSVirtualTransferController(http.Controller):
                 "An unexpected error occurred while preparing virtual transfer data.",
             )
 
-    @http.route(f"{API_PREFIX}/virtual-transfers/products", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/virtual-transfers/products", type="json", auth="user", methods=["POST"])
     def get_virtual_transfer_products(self, **payload):
         """Search products available in the employee distributor customer location.
 
@@ -108,9 +114,10 @@ class MetaSSVirtualTransferController(http.Controller):
             }
         """
         try:
-            source_location, domain = build_virtual_transfer_product_domain(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            source_location, domain = build_virtual_transfer_product_domain(api_env, payload)
             limit, offset, page, page_size = get_virtual_transfer_pagination(payload)
-            Product = request.env["product.product"].sudo()
+            Product = api_env["product.product"]
             products = Product.search(domain, limit=limit, offset=offset, order="name")
             total = Product.search_count(domain)
             return {
@@ -122,14 +129,14 @@ class MetaSSVirtualTransferController(http.Controller):
                     "name": source_location.display_name,
                     "usage": source_location.usage,
                 },
-                "data": serialize_transfer_products(request.env, products, source_location),
+                "data": serialize_transfer_products(api_env, products, source_location),
                 "pagination": {
                     "page": page,
                     "page_size": page_size,
                     "total": total,
                 },
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -141,20 +148,21 @@ class MetaSSVirtualTransferController(http.Controller):
     @http.route(
         f"{API_PREFIX}/virtual-transfers/products/<int:product_id>/lots",
         type="json",
-        auth="public",
+        auth="user",
         methods=["POST"],
     )
     def get_virtual_transfer_product_lots(self, product_id, **payload):
         """Return lot-wise available stock in the distributor customer location."""
         try:
-            data = serialize_product_lots(request.env, payload, product_id)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            data = serialize_product_lots(api_env, payload, product_id)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": "Transfer product lots fetched successfully.",
                 **data,
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -166,7 +174,7 @@ class MetaSSVirtualTransferController(http.Controller):
     @http.route(
         f"{API_PREFIX}/virtual-transfers/products/<int:product_id>/auto-assign-lots",
         type="json",
-        auth="public",
+        auth="user",
         methods=["POST"],
     )
     def get_virtual_transfer_auto_assign_lots(self, product_id, **payload):
@@ -175,18 +183,19 @@ class MetaSSVirtualTransferController(http.Controller):
             from odoo.addons.meta_ss_rest_api.utils.helpers import _auto_assign_lots, _get_positive_float
             from odoo.addons.meta_ss_transfer.utils.virtual_transfers import get_employee_transfer_context, _get_product
 
-            _employee, _distributor, source_location = get_employee_transfer_context(request.env, payload)
-            product = _get_product(request.env, product_id)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            _employee, _distributor, source_location = get_employee_transfer_context(api_env, payload)
+            product = _get_product(api_env, product_id)
             quantity = _get_positive_float(payload.get("quantity"), "quantity")
             
-            lot_lines = _auto_assign_lots(request.env, product, quantity, source_location)
+            lot_lines = _auto_assign_lots(api_env, product, quantity, source_location)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": "Lots auto-assigned successfully.",
                 "data": lot_lines,
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -195,7 +204,7 @@ class MetaSSVirtualTransferController(http.Controller):
                 "An unexpected error occurred while auto-assigning lots.",
             )
 
-    @http.route(f"{API_PREFIX}/virtual-transfers/create", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/virtual-transfers/create", type="json", auth="user", methods=["POST"])
     def create_van_loading_transfer(self, **payload):
         """Create a Virtual Location Transfer into an assigned Van Loading Location.
 
@@ -214,14 +223,15 @@ class MetaSSVirtualTransferController(http.Controller):
             }
         """
         try:
-            picking = create_virtual_transfer(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = create_virtual_transfer(api_env, payload)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": "Virtual transfer created successfully.",
                 "data": serialize_virtual_transfer(picking),
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -230,13 +240,14 @@ class MetaSSVirtualTransferController(http.Controller):
                 "An unexpected error occurred while creating the virtual transfer.",
             )
 
-    @http.route(f"{API_PREFIX}/virtual-transfers", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/virtual-transfers", type="json", auth="user", methods=["POST"])
     def get_virtual_transfers(self, **payload):
         """List virtual transfers for the employee's assigned distributor."""
         try:
-            domain = build_virtual_transfer_domain(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            domain = build_virtual_transfer_domain(api_env, payload)
             limit, offset, page, page_size = get_virtual_transfer_pagination(payload)
-            Picking = request.env["stock.picking"].sudo()
+            Picking = api_env["stock.picking"]
             transfers = Picking.search(domain, limit=limit, offset=offset, order="scheduled_date desc, id desc")
             total = Picking.search_count(domain)
             return {
@@ -250,7 +261,7 @@ class MetaSSVirtualTransferController(http.Controller):
                     "total": total,
                 },
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -259,18 +270,19 @@ class MetaSSVirtualTransferController(http.Controller):
                 "An unexpected error occurred while fetching virtual transfers.",
             )
 
-    @http.route(f"{API_PREFIX}/virtual-transfers/<int:transfer_id>", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/virtual-transfers/<int:transfer_id>", type="json", auth="user", methods=["POST"])
     def get_virtual_transfer_detail(self, transfer_id, **payload):
         """Return one virtual transfer detail."""
         try:
-            picking = get_virtual_transfer_for_employee(request.env, transfer_id, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = get_virtual_transfer_for_employee(api_env, transfer_id, payload)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": "Virtual transfer fetched successfully.",
                 "data": serialize_virtual_transfer(picking),
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -279,18 +291,19 @@ class MetaSSVirtualTransferController(http.Controller):
                 "An unexpected error occurred while fetching the virtual transfer.",
             )
 
-    @http.route(f"{API_PREFIX}/virtual-transfers/<int:transfer_id>/action", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/virtual-transfers/<int:transfer_id>/action", type="json", auth="user", methods=["POST"])
     def virtual_transfer_action(self, transfer_id, **payload):
         """Run a virtual transfer action such as validate or cancel."""
         try:
-            result = self._run_virtual_transfer_action(transfer_id, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            result = self._run_virtual_transfer_action(api_env, transfer_id, payload)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": result["message"],
                 "data": result["data"],
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()

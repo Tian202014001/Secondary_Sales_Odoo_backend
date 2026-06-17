@@ -53,3 +53,23 @@ def check_api_permission(required_permission=None):
             token, check_session=True
         )
     return mobile_user
+
+
+def get_mobile_api_context(payload=None, required_permission=None, require_employee=False):
+    """Validate the mobile JWT and return a trusted ORM context.
+
+    Odoo's session selects the database and satisfies auth="user" routes. The
+    bearer token remains the real mobile identity. When a mobile user is linked
+    to an employee, any incoming employee_id is replaced with the trusted one
+    from the token so API callers cannot impersonate another employee.
+    """
+    mobile_user = check_api_permission(required_permission=required_permission)
+    if require_employee and not mobile_user.employee_id:
+        raise AccessDenied("The mobile user is not linked to an employee.")
+
+    trusted_payload = dict(payload or {})
+    if mobile_user.employee_id:
+        trusted_payload["employee_id"] = mobile_user.employee_id.id
+
+    api_env = request.env["mobile.auth.session"].sudo().get_integration_env()
+    return mobile_user, api_env, trusted_payload

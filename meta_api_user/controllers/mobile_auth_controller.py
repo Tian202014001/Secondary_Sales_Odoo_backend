@@ -5,7 +5,8 @@ import logging
 
 from werkzeug.exceptions import BadRequest
 
-from odoo import http
+import odoo
+from odoo import SUPERUSER_ID, api, http
 from odoo.exceptions import AccessDenied, UserError, ValidationError
 from odoo.http import request
 
@@ -31,6 +32,73 @@ class MobileAuthController(http.Controller):
         if not isinstance(payload, dict):
             raise BadRequest("Invalid JSON body.")
         return payload
+
+    def _request_db(self, payload):
+        db_name = (
+            payload.get("db")
+            or payload.get("database")
+            or request.httprequest.args.get("db")
+            or request.session.db
+        )
+        db_name = (db_name or "").strip()
+        if not db_name:
+            raise BadRequest("'db' is required.")
+        if not http.db_filter([db_name]):
+            raise BadRequest("Database not found.")
+        return db_name
+
+    def _login_with_mobile_user(self, db_name, payload):
+        registry = odoo.modules.registry.Registry(db_name)
+        with registry.cursor() as cr:
+            env = api.Environment(cr, SUPERUSER_ID, {})
+            Session = env["mobile.auth.session"].sudo()
+            integration_user = Session._get_integration_user()
+            data = Session.login_and_create_session(
+                login=payload.get("login"),
+                password=payload.get("password"),
+                device_id=payload.get("device_id"),
+                device_info=payload.get("device_info"),
+                ip_address=self._client_ip(),
+                user_agent=self._user_agent(),
+            )
+            self._bootstrap_odoo_session(db_name, integration_user)
+            cr.commit()
+            return data
+
+    def _bootstrap_with_integration_user(self, db_name):
+        registry = odoo.modules.registry.Registry(db_name)
+        with registry.cursor() as cr:
+            env = api.Environment(cr, SUPERUSER_ID, {})
+            integration_user = env["mobile.auth.session"].sudo()._get_integration_user()
+            self._bootstrap_odoo_session(db_name, integration_user)
+            cr.commit()
+            return {
+                "success": True,
+                "db": db_name,
+                "uid": integration_user.id,
+            }
+
+    def _bootstrap_odoo_session(self, db_name, user):
+        user = user.sudo()
+        user_context = dict(user.context_get())
+        request.session.should_rotate = True
+        request.session.update({
+            "db": db_name,
+            "login": user.login,
+            "uid": user.id,
+            "context": user_context,
+            "session_token": user._compute_session_token(request.session.sid),
+        })
+        request.session.db = db_name
+
+        env = user.env(user=user.id, context=user_context)
+        http.root.session_store.rotate(request.session, env)
+        request.future_response.set_cookie(
+            "session_id",
+            request.session.sid,
+            max_age=http.get_session_max_inactivity(env),
+            httponly=True,
+        )
 
     def _bearer_token(self):
         authorization = request.httprequest.headers.get("Authorization", "")
@@ -74,6 +142,28 @@ class MobileAuthController(http.Controller):
         }, status=500)
 
     @http.route(
+        "/api/v1/auth/bootstrap-session",
+        type="http",
+        auth="none",
+        methods=["POST"],
+        csrf=False,
+    )
+    def bootstrap_session(self):
+        try:
+            payload = self._parse_json_payload()
+            db_name = self._request_db(payload)
+            data = self._bootstrap_with_integration_user(db_name)
+            return self._json_response(data)
+        except BadRequest as exc:
+            return self._handle_bad_request(exc)
+        except AccessDenied:
+            return self._handle_access_denied()
+        except (UserError, ValidationError) as exc:
+            return self._handle_validation_error(exc)
+        except Exception:
+            return self._handle_unexpected_error()
+
+    @http.route(
         "/api/v1/auth/login",
         type="http",
         auth="none",
@@ -89,14 +179,8 @@ class MobileAuthController(http.Controller):
             if not login or not password:
                 raise BadRequest("Both 'login' and 'password' are required.")
 
-            data = request.env["mobile.auth.session"].sudo().login_and_create_session(
-                login=login,
-                password=password,
-                device_id=payload.get("device_id"),
-                device_info=payload.get("device_info"),
-                ip_address=self._client_ip(),
-                user_agent=self._user_agent(),
-            )
+            db_name = self._request_db(payload)
+            data = self._login_with_mobile_user(db_name, payload)
             return self._json_response(data)
         except BadRequest as exc:
             return self._handle_bad_request(exc)
@@ -110,7 +194,7 @@ class MobileAuthController(http.Controller):
     @http.route(
         "/api/v1/auth/refresh",
         type="http",
-        auth="none",
+        auth="user",
         methods=["POST"],
         csrf=False,
     )
@@ -135,7 +219,7 @@ class MobileAuthController(http.Controller):
     @http.route(
         "/api/v1/auth/logout",
         type="http",
-        auth="none",
+        auth="user",
         methods=["POST"],
         csrf=False,
     )

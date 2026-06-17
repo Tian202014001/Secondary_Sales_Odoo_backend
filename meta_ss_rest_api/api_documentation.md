@@ -36,10 +36,9 @@ Successful business API responses are returned inside Odoo's JSON-RPC `result`.
 
 Current security behavior:
 
-- Auth APIs return access and refresh tokens.
-- Business APIs are currently `auth="public"`.
-- Business APIs currently scope data using `employee_id` from request `params`.
-- Later, business APIs should validate `Authorization: Bearer <token>` and derive `employee_id` from the token.
+- `/api/v1/auth/login` accepts `db`, validates the custom mobile user, and creates the Odoo session as the configured Mobile API integration user.
+- Business APIs are `auth="user"` and require `Authorization: Bearer <token>`.
+- Employee-scoped APIs derive `employee_id` from the validated mobile user token instead of trusting request `params`.
 
 ## Endpoint Direction
 
@@ -59,6 +58,7 @@ Request:
 
 ```json
 {
+  "db": "secondary_sales",
   "login": "test@gmail.com",
   "password": "1234",
   "device_id": "pixel-5",

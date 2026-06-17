@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from typing import Required
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
@@ -15,12 +16,9 @@ class SSRoute(models.Model):
     name = fields.Char(string="Route Name", required=True)
     code = fields.Char(string="Route Code")
     active = fields.Boolean(default=True)
-    ss_employee_ids = fields.Many2many(
+    ss_employee_id = fields.Many2one(
         'hr.employee',
-        'sale_route_hr_employee_rel',
-        'route_id',
-        'employee_id',
-        string="Route Employees",
+        string="Route Employee",
         help="Employees responsible for this route"
     )
     
@@ -28,7 +26,7 @@ class SSRoute(models.Model):
         'res.partner',
         string="Distributor Contact",
         domain="[('customer_type', '=', 'distributor')]",
-        help="Distributor contact associated with this route"
+        help="Distributor contact associated with this route",
     )
     route_line_ids = fields.One2many(
         'sale.route.line',

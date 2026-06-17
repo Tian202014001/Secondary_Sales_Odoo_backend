@@ -14,7 +14,7 @@
                             <list>
                                 <field name="name"/>
                                 <field name="code"/>
-                                <field name="ss_employee_ids" widget="many2many_tags"/>
+                                <field name="ss_employee_id"/>
                                 <field name="active"/>
                             </list>
                         </field>

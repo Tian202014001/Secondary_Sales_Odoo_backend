@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from odoo import http
-from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
+from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+)
 from odoo.addons.meta_ss_route_management.utils.routes import (
     build_employee_route_domain,
     get_pagination,
@@ -18,7 +23,7 @@ from odoo.addons.meta_ss_route_management.utils.routes import (
 
 class MetaSSRouteController(http.Controller):
 
-    @http.route(f"{API_PREFIX}/ss/routes", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/ss/routes", type="json", auth="user", methods=["POST"])
     def get_employee_routes(self, **payload):
         """Return routes assigned to a requested employee.
 
@@ -88,6 +93,7 @@ class MetaSSRouteController(http.Controller):
             }
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             employee_id = payload.get("employee_id")
             if not employee_id:
                 return error_response(
@@ -95,14 +101,14 @@ class MetaSSRouteController(http.Controller):
                     "'employee_id' is required.",
                 )
 
-            employee = request.env["hr.employee"].sudo().browse(int(employee_id)).exists()
+            employee = api_env["hr.employee"].browse(int(employee_id)).exists()
             if not employee:
                 return error_response(
                     "employee_not_found",
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            Route = request.env["sale.route"].sudo()
+            Route = api_env["sale.route"]
             domain = build_employee_route_domain(employee, payload)
             limit, offset, page, page_size = get_pagination(payload)
             routes = Route.search(domain, limit=limit, offset=offset, order="name")
@@ -124,7 +130,7 @@ class MetaSSRouteController(http.Controller):
                 "invalid_employee_id",
                 "'employee_id' must be a valid integer.",
             )
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -133,7 +139,7 @@ class MetaSSRouteController(http.Controller):
                 "An unexpected error occurred while fetching routes.",
             )
 
-    @http.route(f"{API_PREFIX}/ss/routes/create", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/ss/routes/create", type="json", auth="user", methods=["POST"])
     def create_employee_route(self, **payload):
         """Create a route assigned to the requested employee.
 
@@ -186,6 +192,7 @@ class MetaSSRouteController(http.Controller):
             }
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             employee_id = payload.get("employee_id")
             if not employee_id:
                 return error_response(
@@ -193,15 +200,15 @@ class MetaSSRouteController(http.Controller):
                     "'employee_id' is required.",
                 )
 
-            employee = request.env["hr.employee"].sudo().browse(int(employee_id)).exists()
+            employee = api_env["hr.employee"].browse(int(employee_id)).exists()
             if not employee:
                 return error_response(
                     "employee_not_found",
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            route = request.env["sale.route"].sudo().create(prepare_route_values(
-                request.env,
+            route = api_env["sale.route"].create(prepare_route_values(
+                api_env,
                 payload,
                 employee,
                 create=True,
@@ -217,7 +224,7 @@ class MetaSSRouteController(http.Controller):
                 "invalid_employee_id",
                 "'employee_id' must be a valid integer.",
             )
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -226,7 +233,7 @@ class MetaSSRouteController(http.Controller):
                 "An unexpected error occurred while creating the route.",
             )
 
-    @http.route(f"{API_PREFIX}/ss/routes/<int:route_id>/outlets/add", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/ss/routes/<int:route_id>/outlets/add", type="json", auth="user", methods=["POST"])
     def add_employee_route_outlet(self, route_id, **payload):
         """Add an existing or newly created outlet to a selected route.
 
@@ -287,6 +294,7 @@ class MetaSSRouteController(http.Controller):
             }
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             employee_id = payload.get("employee_id")
             if not employee_id:
                 return error_response(
@@ -294,17 +302,17 @@ class MetaSSRouteController(http.Controller):
                     "'employee_id' is required.",
                 )
 
-            employee = request.env["hr.employee"].sudo().browse(int(employee_id)).exists()
+            employee = api_env["hr.employee"].browse(int(employee_id)).exists()
             if not employee:
                 return error_response(
                     "employee_not_found",
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            route = request.env["sale.route"].sudo().search([
+            route = api_env["sale.route"].search([
                 ("id", "=", route_id),
                 ("active", "=", True),
-                ("ss_employee_ids", "in", [employee.id]),
+                ("ss_employee_id", "=", employee.id),
             ], limit=1)
             if not route:
                 return error_response(
@@ -312,8 +320,8 @@ class MetaSSRouteController(http.Controller):
                     "No active route was found for the provided route and employee.",
                 )
 
-            line_values = prepare_route_outlet_line_values(request.env, payload)
-            existing_line = request.env["sale.route.line"].sudo().search([
+            line_values = prepare_route_outlet_line_values(api_env, payload)
+            existing_line = api_env["sale.route.line"].search([
                 ("route_id", "=", route.id),
                 ("outlet_id", "=", line_values["outlet_id"]),
             ], limit=1)
@@ -323,7 +331,7 @@ class MetaSSRouteController(http.Controller):
                 message = "Outlet already existed on route and was updated."
             else:
                 line_values["route_id"] = route.id
-                route_line = request.env["sale.route.line"].sudo().create(line_values)
+                route_line = api_env["sale.route.line"].create(line_values)
                 message = "Outlet added to route successfully."
 
             return {
@@ -337,7 +345,7 @@ class MetaSSRouteController(http.Controller):
                 "invalid_employee_id",
                 "'employee_id' must be a valid integer.",
             )
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -346,7 +354,7 @@ class MetaSSRouteController(http.Controller):
                 "An unexpected error occurred while adding the route outlet.",
             )
 
-    @http.route(f"{API_PREFIX}/ss/routes/<int:route_id>", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/ss/routes/<int:route_id>", type="json", auth="user", methods=["POST"])
     def get_employee_route_detail(self, route_id, **payload):
         """Return one route detail by route id for a requested employee.
 
@@ -410,6 +418,7 @@ class MetaSSRouteController(http.Controller):
             }
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             employee_id = payload.get("employee_id")
             if not employee_id:
                 return error_response(
@@ -417,16 +426,16 @@ class MetaSSRouteController(http.Controller):
                     "'employee_id' is required.",
                 )
 
-            employee = request.env["hr.employee"].sudo().browse(int(employee_id)).exists()
+            employee = api_env["hr.employee"].browse(int(employee_id)).exists()
             if not employee:
                 return error_response(
                     "employee_not_found",
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            route = request.env["sale.route"].sudo().search([
+            route = api_env["sale.route"].search([
                 ("id", "=", route_id),
-                ("ss_employee_ids", "in", [employee.id]),
+                ("ss_employee_id", "=", employee.id),
                 ("active", "=", True),
             ], limit=1)
             if not route:
@@ -446,7 +455,7 @@ class MetaSSRouteController(http.Controller):
                 "invalid_employee_id",
                 "'employee_id' must be a valid integer.",
             )
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -455,7 +464,7 @@ class MetaSSRouteController(http.Controller):
                 "An unexpected error occurred while fetching the route.",
             )
 
-    @http.route(f"{API_PREFIX}/ss/routes/<int:route_id>/update", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/ss/routes/<int:route_id>/update", type="json", auth="user", methods=["POST"])
     def update_employee_route(self, route_id, **payload):
         """Update a route assigned to the requested employee.
 
@@ -511,6 +520,7 @@ class MetaSSRouteController(http.Controller):
             }
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             employee_id = payload.get("employee_id")
             if not employee_id:
                 return error_response(
@@ -518,16 +528,16 @@ class MetaSSRouteController(http.Controller):
                     "'employee_id' is required.",
                 )
 
-            employee = request.env["hr.employee"].sudo().browse(int(employee_id)).exists()
+            employee = api_env["hr.employee"].browse(int(employee_id)).exists()
             if not employee:
                 return error_response(
                     "employee_not_found",
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            route = request.env["sale.route"].sudo().search([
+            route = api_env["sale.route"].search([
                 ("id", "=", route_id),
-                ("ss_employee_ids", "in", [employee.id]),
+                ("ss_employee_id", "=", employee.id),
             ], limit=1)
             if not route:
                 return error_response(
@@ -535,7 +545,7 @@ class MetaSSRouteController(http.Controller):
                     "No route was found for the provided route and employee.",
                 )
 
-            values = prepare_route_values(request.env, payload, employee)
+            values = prepare_route_values(api_env, payload, employee)
             if not values:
                 return error_response(
                     "missing_update_values",
@@ -554,7 +564,7 @@ class MetaSSRouteController(http.Controller):
                 "invalid_employee_id",
                 "'employee_id' must be a valid integer.",
             )
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -563,7 +573,7 @@ class MetaSSRouteController(http.Controller):
                 "An unexpected error occurred while updating the route.",
             )
 
-    @http.route(f"{API_PREFIX}/ss/routes/<int:route_id>/outlets/<int:outlet_id>/remove", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/ss/routes/<int:route_id>/outlets/<int:outlet_id>/remove", type="json", auth="user", methods=["POST"])
     def remove_employee_route_outlet(self, route_id, outlet_id, **payload):
         """Remove an outlet from a route.
 
@@ -578,6 +588,7 @@ class MetaSSRouteController(http.Controller):
             }
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             employee_id = payload.get("employee_id")
             if not employee_id:
                 return error_response(
@@ -585,16 +596,16 @@ class MetaSSRouteController(http.Controller):
                     "'employee_id' is required.",
                 )
 
-            employee = request.env["hr.employee"].sudo().browse(int(employee_id)).exists()
+            employee = api_env["hr.employee"].browse(int(employee_id)).exists()
             if not employee:
                 return error_response(
                     "employee_not_found",
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            route = request.env["sale.route"].sudo().search([
+            route = api_env["sale.route"].search([
                 ("id", "=", route_id),
-                ("ss_employee_ids", "in", [employee.id]),
+                ("ss_employee_id", "=", employee.id),
             ], limit=1)
             if not route:
                 return error_response(
@@ -602,7 +613,7 @@ class MetaSSRouteController(http.Controller):
                     "No route was found for the provided route and employee.",
                 )
 
-            route_line = request.env["sale.route.line"].sudo().search([
+            route_line = api_env["sale.route.line"].search([
                 ("route_id", "=", route.id),
                 ("outlet_id", "=", int(outlet_id)),
             ], limit=1)
@@ -623,7 +634,7 @@ class MetaSSRouteController(http.Controller):
                 "invalid_payload",
                 "Invalid data types in route parameters.",
             )
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()

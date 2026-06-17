@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from odoo import http
-from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
+from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+)
 from odoo.addons.meta_ss_rest_api.utils.warehouses import (
     build_available_lot_domain,
     build_warehouse_domain,
@@ -16,7 +21,7 @@ from odoo.addons.meta_ss_rest_api.utils.warehouses import (
 
 class MetaSSWarehouseController(http.Controller):
 
-    @http.route(f"{API_PREFIX}/warehouses", type="json", auth="public", methods=["POST"])
+    @http.route(f"{API_PREFIX}/warehouses", type="json", auth="user", methods=["POST"])
     def get_warehouses(self, **payload):
         """Return warehouses for delivery source selection.
 
@@ -57,9 +62,10 @@ class MetaSSWarehouseController(http.Controller):
             }
         """
         try:
-            domain = build_warehouse_domain(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload)
+            domain = build_warehouse_domain(api_env, payload)
             limit, offset, page, page_size = get_warehouse_pagination(payload)
-            Warehouse = request.env["stock.warehouse"].sudo()
+            Warehouse = api_env["stock.warehouse"]
             warehouses = Warehouse.search(domain, limit=limit, offset=offset, order="name")
             total = Warehouse.search_count(domain)
 
@@ -74,7 +80,7 @@ class MetaSSWarehouseController(http.Controller):
                     "total": total,
                 },
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -86,7 +92,7 @@ class MetaSSWarehouseController(http.Controller):
     @http.route(
         f"{API_PREFIX}/products/<int:product_id>/available-lots",
         type="json",
-        auth="public",
+        auth="user",
         methods=["POST"],
     )
     def get_product_available_lots(self, product_id, **payload):
@@ -143,10 +149,11 @@ class MetaSSWarehouseController(http.Controller):
             }
         """
         try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload)
             payload = dict(payload)
             payload["product_id"] = product_id
-            product, location, domain = build_available_lot_domain(request.env, payload)
-            Quant = request.env["stock.quant"].sudo()
+            product, location, domain = build_available_lot_domain(api_env, payload)
+            Quant = api_env["stock.quant"]
             quants = Quant.search(domain, order="location_id, lot_id")
 
             return {
@@ -164,7 +171,7 @@ class MetaSSWarehouseController(http.Controller):
                 },
                 "data": serialize_available_lots(quants),
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()

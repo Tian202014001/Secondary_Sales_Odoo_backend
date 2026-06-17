@@ -9,9 +9,8 @@
                 <xpath expr="//field[@name='payment_term_id']" position="after">
                     <field name="sale_type"/>
                     <field name="so_employee_id"/>
-                    <field name="route_id" domain="[('active', '=', True), '|', ('ss_employee_ids', '=', False), ('ss_employee_ids', 'in', [so_employee_id])]"/>
-                    <field name="route_visit_id" domain="[('state', '=', 'started'), ('employee_id', '=', so_employee_id), ('route_id', '=', route_id)]"/>
-                    <field name="route_visit_line_id" domain="[('visit_id', '=', route_visit_id)]"/>
+                    <field name="route_id" domain="[('active', '=', True), '|', ('ss_employee_id', '=', False), ('ss_employee_id', '=', so_employee_id)]" invisible="sale_type != 'secondary'"/>
+                    <field name="visit_id" domain="[('outlet_id', '=', partner_id)]" invisible="sale_type != 'secondary'"/>
                 </xpath>
                 <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
                     <field name="damaged_qty" column_invisible="parent.sale_type != 'secondary'"/>

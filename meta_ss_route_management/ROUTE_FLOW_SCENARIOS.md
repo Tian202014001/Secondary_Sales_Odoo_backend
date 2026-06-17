@@ -25,7 +25,7 @@ Goal: prepare distributor, outlets, employee, and route before any daily work.
 | 1 | `res.partner` | Create distributor | `name`, `customer_type = distributor` |
 | 2 | `res.partner` | Create outlet | `name`, `customer_type = outlet` |
 | 3 | `hr.employee` | Create/update employee | `name`, `distributor_contact_id` |
-| 4 | `sale.route` | Create route | `name`, `code`, `ss_employee_ids`, `distributor_contact_id` |
+| 4 | `sale.route` | Create route | `name`, `code`, `ss_employee_id`, `distributor_contact_id` |
 | 5 | `sale.route.line` | Add outlet under route | `route_id`, `outlet_id`, `sequence`, `expected_visit_time` |
 
 Result:
@@ -47,7 +47,7 @@ Goal: employee uses mobile app to select one of their assigned routes for the da
 System behavior:
 
 - `sale.route.visit` pulls active `sale.route.line` records into `sale.route.visit.line`.
-- If the selected route has `ss_employee_ids`, the visit employee must be one of them.
+- If the selected route has `ss_employee_id`, the visit employee must be one of them.
 
 Result:
 
@@ -180,7 +180,7 @@ Daily route execution is closed
 ```text
 1. Fetch employee assigned routes
    Model: sale.route
-   Filter: ss_employee_ids contains current employee
+   Filter: ss_employee_id contains current employee
 
 2. Employee selects route
    Create: sale.route.visit

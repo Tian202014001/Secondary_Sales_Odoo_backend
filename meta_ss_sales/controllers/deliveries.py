@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from odoo import http
-from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
+from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.meta_ss_rest_api.utils.common import API_PREFIX, API_VERSION, error_response
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+)
 from odoo.addons.meta_ss_sales.utils.deliveries import (
     get_delivery_context_by_payload,
     perform_delivery_action,
@@ -18,7 +23,7 @@ class MetaSSDeliveryController(http.Controller):
     @http.route(
         f"{API_PREFIX}/deliveries/prepare",
         type="json",
-        auth="public",
+        auth="user",
         methods=["POST"],
     )
     def prepare_delivery(self, **payload):
@@ -37,14 +42,15 @@ class MetaSSDeliveryController(http.Controller):
             }
         """
         try:
-            order, picking = get_delivery_context_by_payload(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            order, picking = get_delivery_context_by_payload(api_env, payload)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": "Delivery validation data fetched successfully.",
-                "data": serialize_delivery_prepare(request.env, order, picking),
+                "data": serialize_delivery_prepare(api_env, order, picking),
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -56,7 +62,7 @@ class MetaSSDeliveryController(http.Controller):
     @http.route(
         f"{API_PREFIX}/deliveries/products/<int:product_id>/lots",
         type="json",
-        auth="public",
+        auth="user",
         methods=["POST"],
     )
     def get_delivery_product_lots(self, product_id, **payload):
@@ -68,17 +74,18 @@ class MetaSSDeliveryController(http.Controller):
         try:
             from odoo.addons.meta_ss_transfer.utils.virtual_transfers import _get_product, _serialize_product, _serialize_location
 
-            location = resolve_delivery_location(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            location = resolve_delivery_location(api_env, payload)
             if location is None:
-                _, picking = get_delivery_context_by_payload(request.env, payload)
+                _, picking = get_delivery_context_by_payload(api_env, payload)
                 location = picking.location_id
 
             if not location:
                 raise ValidationError("Source location is missing. Provide 'location_id' or 'sale_order_id'.")
 
-            product = _get_product(request.env, product_id)
+            product = _get_product(api_env, product_id)
             
-            quants = request.env["stock.quant"].sudo().search([
+            quants = api_env["stock.quant"].search([
                 ("product_id", "=", product.id),
                 ("location_id", "child_of", location.id),
                 ("available_quantity", ">", 0),
@@ -107,7 +114,7 @@ class MetaSSDeliveryController(http.Controller):
                     for quant in quants
                 ],
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -119,7 +126,7 @@ class MetaSSDeliveryController(http.Controller):
     @http.route(
         f"{API_PREFIX}/deliveries/products/<int:product_id>/auto-assign-lots",
         type="json",
-        auth="public",
+        auth="user",
         methods=["POST"],
     )
     def get_delivery_auto_assign_lots(self, product_id, **payload):
@@ -132,39 +139,40 @@ class MetaSSDeliveryController(http.Controller):
             from odoo.addons.meta_ss_rest_api.utils.helpers import _auto_assign_lots, _get_positive_float
             from odoo.addons.meta_ss_transfer.utils.virtual_transfers import _get_product
 
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             # Always resolve the picking so its reservations can be treated as
             # available for re-allocation during FIFO (reservation-aware FIFO).
             picking = None
             raw_picking_id = payload.get("picking_id")
             if raw_picking_id:
                 try:
-                    picking = request.env["stock.picking"].sudo().browse(int(raw_picking_id)).exists() or None
+                    picking = api_env["stock.picking"].browse(int(raw_picking_id)).exists() or None
                 except (TypeError, ValueError):
                     pass
 
-            location = resolve_delivery_location(request.env, payload)
+            location = resolve_delivery_location(api_env, payload)
             if location is None:
                 if picking:
                     location = picking.location_id
                 else:
-                    _, ctx_picking = get_delivery_context_by_payload(request.env, payload)
+                    _, ctx_picking = get_delivery_context_by_payload(api_env, payload)
                     picking = ctx_picking
                     location = picking.location_id
 
             if not location:
                 raise ValidationError("Source location is missing. Provide 'location_id' or 'sale_order_id'.")
 
-            product = _get_product(request.env, product_id)
+            product = _get_product(api_env, product_id)
             quantity = _get_positive_float(payload.get("quantity"), "quantity")
 
-            lot_lines = _auto_assign_lots(request.env, product, quantity, location, picking=picking)
+            lot_lines = _auto_assign_lots(api_env, product, quantity, location, picking=picking)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": "Lots auto-assigned successfully.",
                 "data": lot_lines,
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()
@@ -176,20 +184,21 @@ class MetaSSDeliveryController(http.Controller):
     @http.route(
         f"{API_PREFIX}/deliveries/<int:picking_id>/action",
         type="json",
-        auth="public",
+        auth="user",
         methods=["POST"],
     )
     def delivery_action(self, picking_id, **payload):
         """Run a delivery action such as validate or cancel."""
         try:
-            data = perform_delivery_action(request.env, picking_id, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            data = perform_delivery_action(api_env, picking_id, payload)
             return {
                 "success": True,
                 "api_version": API_VERSION,
                 "message": "Delivery action completed successfully.",
                 "data": data,
             }
-        except (AccessError, MissingError, UserError, ValidationError) as exc:
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception:
             request.env.cr.rollback()

@@ -32,7 +32,7 @@ def get_employee_route(env, employee, route_id):
     route = env["sale.route"].sudo().search([
         ("id", "=", route_id),
         ("active", "=", True),
-        ("ss_employee_ids", "in", [employee.id]),
+        ("ss_employee_id", "=", employee.id),
     ], limit=1)
     if not route:
         raise ValidationError("No active route was found for the provided route and employee.")
@@ -54,7 +54,7 @@ def build_employee_outlet_domain(env, employee, payload):
 
     employee_routes = env["sale.route"].sudo().search([
         ("active", "=", True),
-        ("ss_employee_ids", "in", [employee.id]),
+        ("ss_employee_id", "=", employee.id),
     ])
     assigned = parse_assigned_filter(payload)
 
@@ -73,11 +73,7 @@ def build_employee_outlet_domain(env, employee, payload):
     elif assigned is False:
         visibility_domain = [("outlet_route_id", "=", False)]
     else:
-        visibility_domain = [
-            "|",
-            ("outlet_route_id", "=", False),
-            ("outlet_route_id", "in", employee_routes.ids),
-        ]
+        visibility_domain = [("outlet_route_id", "in", employee_routes.ids)]
 
     domain = expression.AND([domain, visibility_domain])
 

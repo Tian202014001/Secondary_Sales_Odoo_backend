@@ -16,11 +16,9 @@ class HrEmployee(models.Model):
         help="Distributor contacts associated with this employee"
     )
     
-    assigned_route_ids = fields.Many2many(
+    assigned_route_ids = fields.One2many(
         'sale.route',
-        'sale_route_hr_employee_rel',
-        'employee_id',
-        'route_id',
+        'ss_employee_id',
         string="Assigned Routes",
         help="Routes assigned to this employee"
     )
