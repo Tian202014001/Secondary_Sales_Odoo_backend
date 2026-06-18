@@ -8,6 +8,9 @@
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='partner_id']" position="after">
                     <field name="ss_is_virtual_location_transfer" invisible="1"/>
+                    <field name="ss_transfer_type"
+                           invisible="not ss_is_virtual_location_transfer"
+                           required="ss_is_virtual_location_transfer"/>
                     <field name="ss_distributor_id"
                            invisible="not ss_is_virtual_location_transfer"
                            required="ss_is_virtual_location_transfer"/>

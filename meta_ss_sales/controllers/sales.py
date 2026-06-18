@@ -33,7 +33,7 @@ class MetaSSSalesController(http.Controller):
             domain = build_sale_order_domain(payload)
             limit, offset, page, page_size = get_sales_pagination(payload)
 
-            SaleOrder = api_env["sale.order"]
+            SaleOrder = api_env["sale.order"].sudo()
             orders = SaleOrder.search(domain, limit=limit, offset=offset, order="date_order desc, id desc")
             total = SaleOrder.search_count(domain)
 

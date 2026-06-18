@@ -218,8 +218,8 @@ def _serialize_move(move):
         } if move.product_id else None,
         "product_uom_qty": ordered_qty,
         "quantity_done": current_done_qty,
-        "remaining_qty": max(ordered_qty - current_done_qty, 0.0),
-        "default_delivery_qty": max(ordered_qty - current_done_qty, 0.0) or ordered_qty,
+        "remaining_qty": ordered_qty,
+        "default_delivery_qty": current_done_qty,
         "product_uom": {
             "id": move.product_uom.id,
             "name": move.product_uom.name,
@@ -356,3 +356,62 @@ def _create_tracked_move_lines(env, picking, move, quantity, lot_lines):
         raise ValidationError("Total lot allocated quantity must match delivery quantity.")
 
 
+
+def get_delivery_pagination(payload):
+    try:
+        page = int(payload.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        page_size = int(payload.get("page_size", 20))
+    except (TypeError, ValueError):
+        page_size = 20
+    page = max(page, 1)
+    page_size = min(max(page_size, 1), 100)
+    limit = page_size
+    offset = (page - 1) * page_size
+    return limit, offset, page, page_size
+
+
+def build_delivery_domain(payload):
+    domain = [("picking_type_id.code", "=", "outgoing")]
+    
+    employee_id = payload.get("employee_id")
+    if employee_id:
+        domain.append(("sale_id.so_employee_id", "child_of", int(employee_id)))
+
+    state = payload.get("state")
+    if state and state != "all":
+        domain.append(("state", "=", str(state)))
+
+    search = (payload.get("search") or "").strip()
+    if search:
+        search_domain = [
+            "|", "|", "|",
+            ("name", "ilike", search),
+            ("origin", "ilike", search),
+            ("sale_id.name", "ilike", search),
+            ("partner_id.name", "ilike", search),
+        ]
+        from odoo.osv import expression
+        domain = expression.AND([domain, search_domain])
+
+    return domain
+
+
+def serialize_delivery_list_item(picking):
+    return {
+        "id": picking.id,
+        "name": picking.name,
+        "state": picking.state,
+        "partner": {
+            "id": picking.partner_id.id,
+            "name": picking.partner_id.name,
+        } if picking.partner_id else None,
+        "created_date": picking.create_date.isoformat() + "Z" if picking.create_date else None,
+        "scheduled_date": picking.scheduled_date.isoformat() + "Z" if picking.scheduled_date else None,
+        "date_done": picking.date_done.isoformat() + "Z" if picking.date_done else None,
+        "origin": picking.origin,
+        "sale_id": picking.sale_id.id if picking.sale_id else None,
+        "sale_name": picking.sale_id.name if picking.sale_id else None,
+    }

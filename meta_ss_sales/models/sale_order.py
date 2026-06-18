@@ -71,6 +71,8 @@ class SaleOrder(models.Model):
         result = super()._action_confirm()
         for order in self.filtered(lambda o: o.sale_type == "secondary"):
             order._ss_build_secondary_documents()
+        for order in self.filtered(lambda o: o.sale_type == "primary"):
+            order._ss_create_demand_invoice()
         return result
 
     def _ss_build_secondary_documents(self):
@@ -83,9 +85,6 @@ class SaleOrder(models.Model):
         if delivery and damaged_lines:
             self._ss_add_damaged_to_delivery(delivery, damaged_lines)
             self._ss_create_damaged_receipt(delivery, damaged_lines)
-        # Accounting issues must never block a field confirmation, so invoicing is
-        # guarded separately inside the helper.
-        self._ss_create_demand_invoice()
 
     def _ss_employee_stock_location(self, scrap=False):
         """Return the SO employee's van stock (scrap=False) or van scrap (scrap=True)."""
@@ -192,25 +191,37 @@ class SaleOrder(models.Model):
         }).action_confirm()
 
     def _ss_create_demand_invoice(self):
-        """Create the demand invoice (draft) for a secondary order.
+        """Create a draft invoice for a sale order at confirmation.
 
-        Damaged units are not on the sale lines, so this bills the demand only. The
-        invoice is left in draft — no auto-posting. Idempotent and never blocks
-        confirmation. Assumes secondary products use the "ordered quantities"
-        invoicing policy so the invoice can be raised at confirm.
+        Temporarily overrides product invoice_policy to 'order' so that
+        qty_to_invoice is computed from the ordered quantity, allowing
+        invoicing at confirm regardless of the product-level setting.
+        The invoice is left in draft — no auto-posting. Idempotent and
+        never blocks confirmation.
         """
         self.ensure_one()
         if self.invoice_ids.filtered(lambda inv: inv.state != "cancel"):
             return
+
+        # Temporarily force 'order' invoice policy so lines are invoiceable
+        products = self.order_line.product_id
+        original_policies = {p.id: p.invoice_policy for p in products}
         try:
+            products.write({"invoice_policy": "order"})
+            self.order_line._compute_qty_to_invoice()
             self.with_context(
                 raise_if_nothing_to_invoice=False
             )._create_invoices(final=True)
         except Exception:
             _logger.exception(
-                "Secondary sale draft invoice creation failed for order %s",
+                "Draft invoice creation failed for order %s",
                 self.name or self.id,
             )
+        finally:
+            # Restore original invoice policies
+            for product in products:
+                if product.id in original_policies:
+                    product.invoice_policy = original_policies[product.id]
 
 
 class SaleOrderLine(models.Model):

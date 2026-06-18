@@ -27,6 +27,17 @@ def build_sale_order_domain(payload):
     """Build a sale.order search domain using sale_type and common filters."""
     sale_type = (payload.get("sale_type") or "primary").strip()
     domain = []
+    
+    employee_id = payload.get("employee_id")
+    if employee_id:
+        domain = expression.AND([
+            domain,
+            expression.OR([
+                [("so_employee_id", "child_of", int(employee_id))],
+                [("user_id.employee_id", "child_of", int(employee_id))]
+            ])
+        ])
+
     if sale_type and sale_type != "all":
         domain.append(("sale_type", "=", sale_type))
 
@@ -67,13 +78,7 @@ def build_sale_order_domain(payload):
             domain.append(("date_order", ">=", "%s 00:00:00" % order_date))
             domain.append(("date_order", "<=", "%s 23:59:59" % order_date))
 
-    employee_id = payload.get("employee_id")
-    if employee_id:
-        try:
-            employee_id = int(employee_id)
-        except (TypeError, ValueError) as exc:
-            raise ValidationError("'employee_id' must be a valid integer id.") from exc
-        domain.append(("so_employee_id", "=", employee_id))
+
 
     return domain
 
@@ -128,6 +133,8 @@ def prepare_sale_order_values(env, payload):
         "sale_type": sale_type,
         "order_line": _prepare_sale_order_line_commands(env, order_lines),
     }
+    if employee:
+        values["so_employee_id"] = employee.id
     warehouse_id = payload.get("warehouse_id")
     if warehouse_id:
         try:

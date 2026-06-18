@@ -76,19 +76,37 @@ class MetaSSSaleOrderDetailsController(http.Controller):
 
     @http.route(f"{API_PREFIX}/sale-orders/<int:order_id>/print", type="json", auth="user", methods=["POST"])
     def print_sale_order(self, order_id, **payload):
-        """Render the sale order PDF and return it in base64 format."""
+        """Render the invoice PDF for a sale order and return it in base64 format.
+
+        If no invoice exists for the sale order, falls back to the sale order PDF.
+        """
         try:
             import base64
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             order = get_sale_order_for_employee(api_env, order_id, payload)
-            pdf = request.env['ir.actions.report'].sudo()._render_qweb_pdf('sale.action_report_saleorder', [order.id])[0]
+
+            # Prefer the invoice PDF (with payment info)
+            invoices = order.invoice_ids.filtered(lambda inv: inv.state != "cancel")
+            if invoices:
+                invoice = invoices.sorted("id", reverse=True)[:1]
+                pdf = request.env['ir.actions.report'].sudo()._render_qweb_pdf(
+                    'account.account_invoices', [invoice.id]
+                )[0]
+                filename = f"{invoice.name or order.name}_invoice.pdf"
+            else:
+                # Fallback to sale order PDF
+                pdf = request.env['ir.actions.report'].sudo()._render_qweb_pdf(
+                    'sale.action_report_saleorder', [order.id]
+                )[0]
+                filename = f"{order.name}.pdf"
+
             pdf_base64 = base64.b64encode(pdf).decode('utf-8')
             return {
                 "success": True,
                 "api_version": API_VERSION,
-                "message": "Sale order PDF generated successfully.",
+                "message": "PDF generated successfully.",
                 "data": {
-                    "filename": f"{order.name}.pdf",
+                    "filename": filename,
                     "file_content": pdf_base64,
                 },
             }

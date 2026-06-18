@@ -23,6 +23,13 @@ class StockPicking(models.Model):
         help="Virtual destination location for this transfer.",
     )
 
+    ss_transfer_type = fields.Selection(
+        [("load", "Van Load"), ("unload", "Van Unload")],
+        string="Transfer Direction",
+        default="load",
+        required=True,
+    )
+
     def _get_virtual_location_transfer_picking_type(self):
         """Return the custom operation type used for virtual location transfers."""
         return self.env.ref(
@@ -45,30 +52,37 @@ class StockPicking(models.Model):
                 transfer_type and picking.picking_type_id == transfer_type
             )
 
-    @api.onchange("picking_type_id", "ss_distributor_id")
+    @api.onchange("picking_type_id", "ss_distributor_id", "ss_transfer_type")
     def _onchange_ss_distributor_id(self):
-        """Use the selected distributor customer location as transfer source."""
+        """Use the selected distributor customer location as transfer source or destination."""
         for picking in self:
             if (
                 picking._is_virtual_location_transfer_operation()
                 and picking.ss_distributor_id.property_stock_customer
             ):
-                picking.location_id = picking.ss_distributor_id.property_stock_customer
+                if picking.ss_transfer_type == "load":
+                    picking.location_id = picking.ss_distributor_id.property_stock_customer
+                else:
+                    picking.location_dest_id = picking.ss_distributor_id.property_stock_customer
 
-    @api.onchange("picking_type_id", "ss_destination_location_id")
+    @api.onchange("picking_type_id", "ss_destination_location_id", "ss_transfer_type")
     def _onchange_ss_destination_location_id(self):
-        """Use the selected virtual destination as transfer destination."""
+        """Use the selected virtual destination as transfer destination or source."""
         for picking in self:
             if (
                 picking._is_virtual_location_transfer_operation()
                 and picking.ss_destination_location_id
             ):
-                picking.location_dest_id = picking.ss_destination_location_id
+                if picking.ss_transfer_type == "load":
+                    picking.location_dest_id = picking.ss_destination_location_id
+                else:
+                    picking.location_id = picking.ss_destination_location_id
 
     @api.constrains(
         "picking_type_id",
         "ss_distributor_id",
         "ss_destination_location_id",
+        "ss_transfer_type",
     )
     def _check_virtual_location_transfer_locations(self):
         """Require source distributor and destination for virtual transfers."""
@@ -90,7 +104,7 @@ class StockPicking(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Set transfer source and destination when records are created."""
+        """Set transfer source and destination when records are created based on direction."""
         transfer_type = self._get_virtual_location_transfer_picking_type()
         if transfer_type:
             for vals in vals_list:
@@ -101,23 +115,28 @@ class StockPicking(models.Model):
                 if picking_type_id != transfer_type.id:
                     continue
 
-                if vals.get("ss_distributor_id") and not vals.get("location_id"):
-                    distributor = self.env["res.partner"].browse(
-                        vals["ss_distributor_id"]
-                    )
-                    if distributor.property_stock_customer:
-                        vals["location_id"] = distributor.property_stock_customer.id
+                direction = vals.get("ss_transfer_type", "load")
+                distributor_id = vals.get("ss_distributor_id")
+                distributor = False
+                if distributor_id:
+                    distributor = self.env["res.partner"].browse(distributor_id)
+                destination_id = vals.get("ss_destination_location_id")
 
-                if (
-                    vals.get("ss_destination_location_id")
-                    and not vals.get("location_dest_id")
-                ):
-                    vals["location_dest_id"] = vals["ss_destination_location_id"]
+                if direction == "load":
+                    if distributor and distributor.property_stock_customer and not vals.get("location_id"):
+                        vals["location_id"] = distributor.property_stock_customer.id
+                    if destination_id and not vals.get("location_dest_id"):
+                        vals["location_dest_id"] = destination_id
+                else:  # unload
+                    if destination_id and not vals.get("location_id"):
+                        vals["location_id"] = destination_id
+                    if distributor and distributor.property_stock_customer and not vals.get("location_dest_id"):
+                        vals["location_dest_id"] = distributor.property_stock_customer.id
 
         return super().create(vals_list)
 
     def write(self, vals):
-        """Keep stock locations synchronized after distributor/destination edits."""
+        """Keep stock locations synchronized after edits."""
         res = super().write(vals)
         if self.env.context.get("skip_ss_virtual_location_transfer_sync"):
             return res
@@ -126,6 +145,7 @@ class StockPicking(models.Model):
             "picking_type_id",
             "ss_distributor_id",
             "ss_destination_location_id",
+            "ss_transfer_type",
         }
         if not sync_fields & set(vals):
             return res
@@ -135,12 +155,20 @@ class StockPicking(models.Model):
             and p.state not in ("done", "cancel")
         ):
             sync_vals = {}
-            if picking.ss_distributor_id.property_stock_customer:
-                sync_vals["location_id"] = (
-                    picking.ss_distributor_id.property_stock_customer.id
-                )
-            if picking.ss_destination_location_id:
-                sync_vals["location_dest_id"] = picking.ss_destination_location_id.id
+            if picking.ss_transfer_type == "load":
+                if picking.ss_distributor_id.property_stock_customer:
+                    sync_vals["location_id"] = (
+                        picking.ss_distributor_id.property_stock_customer.id
+                    )
+                if picking.ss_destination_location_id:
+                    sync_vals["location_dest_id"] = picking.ss_destination_location_id.id
+            else:  # unload
+                if picking.ss_destination_location_id:
+                    sync_vals["location_id"] = picking.ss_destination_location_id.id
+                if picking.ss_distributor_id.property_stock_customer:
+                    sync_vals["location_dest_id"] = (
+                        picking.ss_distributor_id.property_stock_customer.id
+                    )
             if sync_vals:
                 picking.with_context(
                     skip_ss_virtual_location_transfer_sync=True
