@@ -47,6 +47,23 @@ def build_virtual_location_domain(env, payload):
     return domain
 
 
+def get_virtual_location_for_payload(env, location_id, payload):
+    """Return one van loading location through the list API visibility domain."""
+    try:
+        location_id = int(location_id)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("'location_id' must be a valid integer id.") from exc
+
+    domain = expression.AND([
+        build_virtual_location_domain(env, payload),
+        [("id", "=", location_id), ("scrap_location", "=", False)],
+    ])
+    location = env["stock.location"].search(domain, limit=1)
+    if not location:
+        raise ValidationError("Virtual location not found.")
+    return location
+
+
 def serialize_virtual_location(location):
     """Serialize a van-loading stock location with its paired scrap sibling."""
     scrap_sibling = _get_scrap_sibling(location)
@@ -155,5 +172,3 @@ def _get_scrap_sibling(stock_location):
 
 def get_virtual_location_pagination(payload):
     return get_pagination(payload)
-
-

@@ -679,7 +679,7 @@ class MetaSSRouteController(http.Controller):
         """Create a new outlet.visit record."""
         try:
             from odoo import fields
-            _mobile_user, api_env, payload = get_mobile_api_context(payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
             
             employee_id = payload.get("employee_id")
             outlet_id = payload.get("outlet_id")
@@ -719,9 +719,19 @@ class MetaSSRouteController(http.Controller):
     def update_visit(self, visit_id, **payload):
         """Update an existing outlet.visit record (e.g., set check_out_time)."""
         try:
-            _mobile_user, api_env, payload = get_mobile_api_context(payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            employee_id = payload.get("employee_id")
+            if not employee_id:
+                raise ValidationError("'employee_id' is required.")
+            try:
+                employee_id = int(employee_id)
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("'employee_id' must be a valid integer id.") from exc
             
-            visit = api_env["outlet.visit"].browse(visit_id).exists()
+            visit = api_env["outlet.visit"].search([
+                ("id", "=", visit_id),
+                ("employee_id", "child_of", employee_id),
+            ], limit=1)
             if not visit:
                 raise ValidationError("No visit was found for the provided id.")
                 

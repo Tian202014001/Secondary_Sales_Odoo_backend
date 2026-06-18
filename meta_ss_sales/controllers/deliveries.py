@@ -12,6 +12,7 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
 )
 from odoo.addons.meta_ss_sales.utils.deliveries import (
     get_delivery_context_by_payload,
+    get_delivery_context_by_picking,
     perform_delivery_action,
     resolve_delivery_location,
     serialize_delivery_prepare,
@@ -194,10 +195,7 @@ class MetaSSDeliveryController(http.Controller):
             picking = None
             raw_picking_id = payload.get("picking_id")
             if raw_picking_id:
-                try:
-                    picking = api_env["stock.picking"].browse(int(raw_picking_id)).exists() or None
-                except (TypeError, ValueError):
-                    pass
+                _order, picking = get_delivery_context_by_picking(api_env, raw_picking_id, payload)
 
             location = resolve_delivery_location(api_env, payload)
             if location is None:

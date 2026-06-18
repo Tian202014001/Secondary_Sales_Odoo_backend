@@ -96,6 +96,38 @@ def build_contact_domain(env, payload, customer_type=None):
     return domain
 
 
+def get_contact_for_payload(env, contact_id, payload, customer_type=None):
+    """Return one contact through the same visibility domain as the list API."""
+    customer_type = normalize_customer_type(payload, customer_type, required=False)
+    domain = build_contact_domain(env, payload, customer_type)
+    domain = expression.AND([domain, [("id", "=", _get_integer_id(contact_id, "contact_id"))]])
+    contact = env["res.partner"].search(domain, limit=1)
+    if not contact:
+        raise ValidationError("No contact was found for the provided id.")
+    return contact
+
+
+def build_contact_order_history_domain(contact, payload):
+    """Build a sale order history domain scoped to the requested outlet/contact."""
+    domain = [
+        ("partner_id", "=", contact.id),
+        ("state", "in", ["sale", "done"]),
+    ]
+    employee_id = payload.get("employee_id")
+    if employee_id:
+        domain.append(("so_employee_id", "child_of", _get_integer_id(employee_id, "employee_id")))
+    return domain
+
+
+def build_contact_visit_history_domain(contact, payload):
+    """Build an outlet visit history domain scoped to the requested outlet/contact."""
+    domain = [("outlet_id", "=", contact.id)]
+    employee_id = payload.get("employee_id")
+    if employee_id:
+        domain.append(("employee_id", "child_of", _get_integer_id(employee_id, "employee_id")))
+    return domain
+
+
 def prepare_contact_values(payload, customer_type):
     """Build validated res.partner values for distributor or outlet creation."""
     customer_type = normalize_customer_type(payload, customer_type)
@@ -206,5 +238,4 @@ def serialize_contacts(contacts):
 def get_contact_pagination(payload):
     """Return pagination values for contact list APIs."""
     return get_pagination(payload)
-
 

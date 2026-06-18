@@ -12,6 +12,7 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
 )
 from odoo.addons.meta_ss_employee.utils.employees import (
     build_employee_domain,
+    get_employee_for_payload,
     get_employee_pagination,
     prepare_employee_update_values,
     prepare_employee_values,
@@ -119,9 +120,7 @@ class MetaSSEmployeeController(http.Controller):
         """
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            employee = api_env["hr.employee"].browse(employee_id).exists()
-            if not employee:
-                raise ValidationError("Employee not found.")
+            employee = get_employee_for_payload(api_env, employee_id, payload)
 
             return {
                 "success": True,
@@ -155,9 +154,7 @@ class MetaSSEmployeeController(http.Controller):
         """
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            employee = api_env["hr.employee"].browse(employee_id).exists()
-            if not employee:
-                raise ValidationError("Employee not found.")
+            employee = get_employee_for_payload(api_env, employee_id, payload)
 
             vals = prepare_employee_update_values(api_env, payload, employee)
             if vals:

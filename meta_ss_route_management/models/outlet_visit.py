@@ -70,6 +70,7 @@ class OutletVisit(models.Model):
                     ('visit_type', '=', 'standard'),
                     ('employee_id', '=', visit.visited_with_id.id),
                     ('outlet_id', '=', visit.outlet_id.id),
+                    ('check_in_time', '!=', False),
                 ])
                 matching_visit = False
                 for cand in candidates:
@@ -91,6 +92,7 @@ class OutletVisit(models.Model):
                     ('visit_type', '=', 'join'),
                     ('visited_with_id', '=', visit.employee_id.id),
                     ('outlet_id', '=', visit.outlet_id.id),
+                    ('check_in_time', '!=', False),
                 ])
                 matching_visit = False
                 for cand in candidates:

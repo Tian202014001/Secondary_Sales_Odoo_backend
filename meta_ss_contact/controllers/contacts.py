@@ -12,9 +12,12 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     get_mobile_api_context,
 )
 from odoo.addons.meta_ss_contact.utils.contacts import (
+    build_contact_order_history_domain,
+    build_contact_visit_history_domain,
     build_contact_domain,
     ensure_distributor_locations,
     get_contact_pagination,
+    get_contact_for_payload,
     normalize_customer_type,
     prepare_contact_values,
     prepare_contact_update_values,
@@ -121,13 +124,8 @@ class MetaSSContactController(http.Controller):
         """Return one contact by id, optionally validating customer_type."""
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            contact = api_env["res.partner"].browse(contact_id).exists()
-            if not contact:
-                raise ValidationError("No contact was found for the provided id.")
-
             customer_type = normalize_customer_type(payload, required=False)
-            if customer_type and contact.customer_type != customer_type:
-                raise ValidationError("The requested contact does not match 'customer_type'.")
+            contact = get_contact_for_payload(api_env, contact_id, payload, customer_type)
 
             return {
                 "success": True,
@@ -152,9 +150,7 @@ class MetaSSContactController(http.Controller):
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload)
             customer_type = normalize_customer_type(payload)
-            contact = api_env["res.partner"].browse(contact_id).exists()
-            if not contact:
-                raise ValidationError("No contact was found for the provided id.")
+            contact = get_contact_for_payload(api_env, contact_id, payload, customer_type)
 
             vals = prepare_contact_update_values(payload, customer_type)
             if vals:
@@ -180,20 +176,18 @@ class MetaSSContactController(http.Controller):
         """Fetch past check-in/out logs and sales orders for a specific contact/outlet."""
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            contact = api_env["res.partner"].browse(contact_id).exists()
-            if not contact:
-                return error_response("not_found", "No contact was found for the provided id.")
+            contact = get_contact_for_payload(api_env, contact_id, payload, payload.get("customer_type"))
 
-            # Get past sales orders for this outlet
-            orders = api_env["sale.order"].search([
-                ("partner_id", "=", contact.id),
-                ("state", "in", ["sale", "done"]),
-            ], order="date_order desc", limit=20)
-
-            # Get past visits for this outlet
-            visits = api_env["outlet.visit"].search([
-                ("outlet_id", "=", contact.id)
-            ], order="check_in_time desc", limit=20)
+            orders = api_env["sale.order"].search(
+                build_contact_order_history_domain(contact, payload),
+                order="date_order desc",
+                limit=20,
+            )
+            visits = api_env["outlet.visit"].search(
+                build_contact_visit_history_domain(contact, payload),
+                order="check_in_time desc",
+                limit=20,
+            )
 
             visit_logs_data = []
             for visit in visits:
@@ -227,6 +221,8 @@ class MetaSSContactController(http.Controller):
                     "past_orders": past_orders_data,
                 }
             }
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
         except Exception as exc:
             request.env.cr.rollback()
             return error_response(

@@ -15,6 +15,7 @@ from odoo.addons.meta_ss_transfer.utils.virtual_locations import (
     build_virtual_location_domain,
     create_van_scrap_sibling,
     get_virtual_location_pagination,
+    get_virtual_location_for_payload,
     prepare_virtual_location_vals,
     serialize_virtual_location,
 )
@@ -115,9 +116,7 @@ class MetaSSVirtualLocationController(http.Controller):
         """Virtual location detail."""
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            location = api_env["stock.location"].browse(location_id).exists()
-            if not location or location.ss_location_type != "van_loading":
-                return error_response("not_found", "Virtual location not found.")
+            location = get_virtual_location_for_payload(api_env, location_id, payload)
 
             return {
                 "success": True,

@@ -43,6 +43,33 @@ def build_employee_domain(env, payload):
     return domain
 
 
+def get_employee_for_payload(env, employee_id, payload):
+    """Return an employee through the current request employee/team scope."""
+    try:
+        employee_id = int(employee_id)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("'employee_id' must be a valid integer id.") from exc
+
+    employee = env["hr.employee"].browse(employee_id).exists()
+    if not employee:
+        raise ValidationError("Employee not found.")
+
+    request_employee_id = payload.get("employee_id")
+    if request_employee_id:
+        try:
+            request_employee_id = int(request_employee_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("'employee_id' must be a valid integer id.") from exc
+        visible_employee = env["hr.employee"].search([
+            ("id", "=", employee.id),
+            ("id", "child_of", request_employee_id),
+        ], limit=1)
+        if not visible_employee:
+            raise ValidationError("Employee not found.")
+
+    return employee
+
+
 def serialize_employee(employee):
     return {
         "id": employee.id,

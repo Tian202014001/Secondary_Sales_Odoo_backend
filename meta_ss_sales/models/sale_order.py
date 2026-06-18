@@ -2,7 +2,7 @@
 
 import logging
 
-from odoo import _, api, fields, models
+from odoo import Command, _, api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.tools.float_utils import float_compare
 
@@ -193,35 +193,57 @@ class SaleOrder(models.Model):
     def _ss_create_demand_invoice(self):
         """Create a draft invoice for a sale order at confirmation.
 
-        Temporarily overrides product invoice_policy to 'order' so that
-        qty_to_invoice is computed from the ordered quantity, allowing
-        invoicing at confirm regardless of the product-level setting.
-        The invoice is left in draft — no auto-posting. Idempotent and
-        never blocks confirmation.
+        The invoice is left in draft and uses ordered demand quantity without
+        changing product invoice policies, which are shared master data.
         """
         self.ensure_one()
         if self.invoice_ids.filtered(lambda inv: inv.state != "cancel"):
             return
 
-        # Temporarily force 'order' invoice policy so lines are invoiceable
-        products = self.order_line.product_id
-        original_policies = {p.id: p.invoice_policy for p in products}
         try:
-            products.write({"invoice_policy": "order"})
-            self.order_line._compute_qty_to_invoice()
-            self.with_context(
-                raise_if_nothing_to_invoice=False
-            )._create_invoices(final=True)
+            invoice_line_commands = self._ss_prepare_demand_invoice_line_commands()
+            if not invoice_line_commands:
+                return
+
+            invoice_vals = self._prepare_invoice()
+            invoice_vals["invoice_line_ids"] = invoice_line_commands
+            self._create_account_invoices([invoice_vals], final=True)
         except Exception:
             _logger.exception(
                 "Draft invoice creation failed for order %s",
                 self.name or self.id,
             )
-        finally:
-            # Restore original invoice policies
-            for product in products:
-                if product.id in original_policies:
-                    product.invoice_policy = original_policies[product.id]
+
+    def _ss_prepare_demand_invoice_line_commands(self):
+        """Prepare invoice line commands for the sale order demand quantity."""
+        self.ensure_one()
+        commands = []
+        pending_section = False
+        sequence = 0
+        has_product_line = False
+
+        for line in self.order_line:
+            if line.display_type == "line_section":
+                pending_section = line
+                continue
+            if line.display_type == "line_note":
+                commands.append(Command.create(line._prepare_invoice_line(sequence=sequence, quantity=0.0)))
+                sequence += 1
+                continue
+            if line.product_uom_qty <= 0:
+                continue
+            if pending_section:
+                commands.append(Command.create(pending_section._prepare_invoice_line(sequence=sequence, quantity=0.0)))
+                sequence += 1
+                pending_section = False
+            commands.append(Command.create(line._prepare_invoice_line(
+                sequence=sequence,
+                quantity=line.product_uom_qty,
+            )))
+            sequence += 1
+            has_product_line = True
+
+        return commands if has_product_line else []
 
 
 class SaleOrderLine(models.Model):

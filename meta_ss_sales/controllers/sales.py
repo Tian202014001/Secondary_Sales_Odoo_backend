@@ -17,10 +17,10 @@ from odoo.addons.meta_ss_sales.utils.sales import (
     prepare_sale_order_values,
     serialize_sale_order,
     get_distributor,
-    _prepare_sale_order_line_commands,
     update_sale_order_lines,
     _get_int,
 )
+from odoo.addons.meta_ss_sales.utils.sale_order_details import get_sale_order_for_employee
 
 
 class MetaSSSalesController(http.Controller):
@@ -99,9 +99,7 @@ class MetaSSSalesController(http.Controller):
             if not order_id:
                 raise ValidationError("'order_id' is required for updating.")
 
-            order = api_env["sale.order"].browse(int(order_id)).exists()
-            if not order:
-                raise MissingError("No sale order found for the provided 'order_id'.")
+            order = get_sale_order_for_employee(api_env, order_id, payload)
 
             if order.state == "cancel":
                 raise ValidationError("Cannot edit cancelled sale order.")
