@@ -122,3 +122,31 @@ Full request and response examples are in [api_documentation.md](api_documentati
 | `POST` | `/api/v1/virtual-transfers/create` | Create draft virtual transfer. |
 | `POST` | `/api/v1/virtual-transfers/<transfer_id>` | Virtual transfer detail. |
 | `POST` | `/api/v1/virtual-transfers/<transfer_id>/action` | Run virtual transfer action: `validate`, `cancel`. |
+
+## 6. Return Delivery
+
+**Return stock from distributor customer location back to warehouse**
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/returns` | List return deliveries for the logged-in employee hierarchy. |
+| `POST` | `/api/v1/returns/prepare` | Prepare return creation data (default warehouse, distributor). |
+| `POST` | `/api/v1/returns/products` | Search products available in distributor customer location. |
+| `POST` | `/api/v1/returns/products/<product_id>/lots` | Lot-wise available stock for return product. |
+| `POST` | `/api/v1/returns/create` | Create a return delivery in 'Ready' state from distributor to warehouse. |
+| `POST` | `/api/v1/returns/<return_id>` | Return delivery detail. |
+| `POST` | `/api/v1/returns/<return_id>/update` | Update a draft or assigned return delivery. |
+
+## 7. Scrap Transfer
+
+**Return defective/scrap stock from distributor scrap location to inventory loss**
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/scraps` | List scrap deliveries for the logged-in employee hierarchy. |
+| `POST` | `/api/v1/scraps/prepare` | Prepare scrap creation data (default warehouse, distributor scrap location). |
+| `POST` | `/api/v1/scraps/products` | Search products available in distributor scrap location. |
+| `POST` | `/api/v1/scraps/products/<product_id>/lots` | Lot-wise available stock for scrap product. |
+| `POST` | `/api/v1/scraps/create` | Create a scrap delivery in 'Ready' state from distributor to virtual scrap. |
+| `POST` | `/api/v1/scraps/<scrap_id>` | Scrap delivery detail. |
+| `POST` | `/api/v1/scraps/<scrap_id>/update` | Update a draft or assigned scrap delivery. |

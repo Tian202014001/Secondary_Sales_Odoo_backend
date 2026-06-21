@@ -2308,3 +2308,439 @@ Gets today's active visit and checked out outlet IDs for the logged-in employee 
 ```
 
 
+## Return Delivery
+
+### Return Delivery List
+
+`POST /api/v1/returns`
+
+Fetch a list of return deliveries. The list will automatically include all returns from the logged-in employee and their subordinates (`child_of`).
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "page": 1,
+    "page_size": 20
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Returns fetched successfully.",
+  "data": [
+    {
+      "id": 105,
+      "name": "RET/00105",
+      "state": "assigned",
+      "scheduled_date": "2026-06-21 10:00:00",
+      "origin": "Return from Distributor A",
+      "source_location": {
+        "id": 35,
+        "name": "Partners/Customers",
+        "usage": "customer"
+      },
+      "destination_location": {
+        "id": 8,
+        "name": "WH/Stock",
+        "usage": "internal"
+      }
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "limit": 20,
+    "offset": 0
+  }
+}
+```
+
+### Prepare Return Delivery
+
+`POST /api/v1/returns/prepare`
+
+Get the context needed to start a return, including the default warehouse destination and the distributor's source location.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Return context prepared successfully.",
+  "data": {
+    "employee": {
+      "id": 7,
+      "name": "Anita Oliver"
+    },
+    "distributor": {
+      "id": 3,
+      "name": "Distributor A"
+    },
+    "source_location": {
+      "id": 35,
+      "name": "Partners/Customers"
+    },
+    "destination_location": {
+      "id": 8,
+      "name": "WH/Stock"
+    },
+    "warehouse": {
+      "id": 1,
+      "name": "YourCompany"
+    }
+  }
+}
+```
+
+### Return Product Search
+
+`POST /api/v1/returns/products`
+
+Search products currently available at the distributor's customer location.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "search": "Eggs"
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Return products fetched successfully.",
+  "data": [
+    {
+      "id": 25,
+      "name": "Eggs",
+      "default_code": "EGG001",
+      "tracking": "lot",
+      "available_qty": 10.0,
+      "uom": {
+        "id": 1,
+        "name": "Dzn"
+      }
+    }
+  ]
+}
+```
+
+### Return Product Lots
+
+`POST /api/v1/returns/products/<product_id>/lots`
+
+Get specific lots available to return.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Return product lots fetched successfully.",
+  "data": {
+    "product": {
+      "id": 25,
+      "name": "Eggs",
+      "tracking": "lot"
+    },
+    "source_location": {
+      "id": 35,
+      "name": "Partners/Customers",
+      "usage": "customer"
+    },
+    "data": [
+      {
+        "lot_id": 7,
+        "lot_name": "LOT-001",
+        "available_qty": 5.0,
+        "quantity": 5.0,
+        "reserved_quantity": 0.0
+      }
+    ]
+  }
+}
+```
+
+### Create Return Delivery
+
+`POST /api/v1/returns/create`
+
+Creates the return delivery in 'Ready' (`assigned`) status, waiting for warehouse validation.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "lines": [
+      {
+        "product_id": 25,
+        "quantity": 2.0,
+        "lot_lines": [
+          {
+            "lot_id": 7,
+            "quantity": 2.0
+          }
+        ]
+      }
+    ]
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Return delivery created successfully.",
+  "data": {
+    "id": 105,
+    "name": "RET/00105",
+    "state": "assigned",
+    "scheduled_date": "2026-06-21 10:00:00",
+    "origin": "Return from Distributor A",
+    "source_location": {
+      "id": 35,
+      "name": "Partners/Customers",
+      "usage": "customer"
+    },
+    "destination_location": {
+      "id": 8,
+      "name": "WH/Stock",
+      "usage": "internal"
+    },
+    "lines": [
+      {
+        "move_id": 110,
+        "state": "assigned",
+        "product": {
+          "id": 25,
+          "name": "Eggs",
+          "tracking": "lot"
+        },
+        "demand_qty": 2.0,
+        "quantity": 2.0,
+        "lot_lines": [
+          {
+            "lot": {
+              "id": 7,
+              "name": "LOT-001"
+            },
+            "quantity": 2.0
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Return Delivery Detail
+
+`POST /api/v1/returns/<return_id>`
+
+Fetches the complete details of a specific return delivery, including all items and lot allocations.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Return delivery fetched successfully.",
+  "data": {
+    "id": 105,
+    "name": "RET/00105",
+    "state": "assigned",
+    "scheduled_date": "2026-06-21 10:00:00",
+    "origin": "Return from Distributor A",
+    "distributor": {
+      "id": 3,
+      "name": "Distributor A"
+    },
+    "source_location": {
+      "id": 35,
+      "name": "Partners/Customers",
+      "usage": "customer"
+    },
+    "destination_location": {
+      "id": 8,
+      "name": "WH/Stock",
+      "usage": "internal"
+    },
+    "lines": [
+      {
+        "move_id": 110,
+        "state": "assigned",
+        "product": {
+          "id": 25,
+          "name": "Eggs",
+          "tracking": "lot"
+        },
+        "demand_qty": 2.0,
+        "quantity": 2.0,
+        "lot_lines": [
+          {
+            "lot": {
+              "id": 7,
+              "name": "LOT-001"
+            },
+            "quantity": 2.0
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Update Return Delivery
+
+`POST /api/v1/returns/<return_id>/update`
+
+Updates the product lines and lot allocations for an existing draft or assigned return delivery. Returns an error if the transfer is already done or cancelled.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "lines": [
+      {
+        "product_id": 25,
+        "quantity": 5.0,
+        "lot_lines": [
+          {
+            "lot_id": 7,
+            "quantity": 5.0
+          }
+        ]
+      }
+    ]
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Return delivery updated successfully.",
+  "data": {
+    "id": 105,
+    "name": "RET/00105",
+    "state": "assigned",
+    "scheduled_date": "2026-06-21 10:00:00",
+    "origin": "Return from Distributor A",
+    "distributor": {
+      "id": 3,
+      "name": "Distributor A"
+    },
+    "source_location": {
+      "id": 35,
+      "name": "Partners/Customers",
+      "usage": "customer"
+    },
+    "destination_location": {
+      "id": 8,
+      "name": "WH/Stock",
+      "usage": "internal"
+    },
+    "lines": [
+      {
+        "move_id": 112,
+        "state": "assigned",
+        "product": {
+          "id": 25,
+          "name": "Eggs",
+          "tracking": "lot"
+        },
+        "demand_qty": 5.0,
+        "quantity": 5.0,
+        "lot_lines": [
+          {
+            "lot": {
+              "id": 7,
+              "name": "LOT-001"
+            },
+            "quantity": 5.0
+          }
+        ]
+      }
+    ]
+  }
+}
+```

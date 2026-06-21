@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class StockPicking(models.Model):
@@ -9,9 +9,17 @@ class StockPicking(models.Model):
     so_employee_id = fields.Many2one(
         "hr.employee",
         string="Sales Employee",
-        related="sale_id.so_employee_id",
+        compute="_compute_so_employee_id",
         store=True,
+        readonly=False,
         index=True,
-        readonly=True,
-        help="Sales employee from the source sale order.",
+        help="Sales employee from the source sale order or assigned directly.",
     )
+
+    @api.depends("sale_id.so_employee_id")
+    def _compute_so_employee_id(self):
+        for picking in self:
+            if picking.sale_id and picking.sale_id.so_employee_id:
+                picking.so_employee_id = picking.sale_id.so_employee_id
+            else:
+                picking.so_employee_id = picking.so_employee_id

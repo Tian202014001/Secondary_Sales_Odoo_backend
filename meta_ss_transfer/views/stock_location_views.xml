@@ -49,8 +49,8 @@
             <field name="context">{'default_ss_location_type': 'distributor_location', 'default_usage': 'customer'}</field>
         </record>
 
-        <!-- Menu under Inventory / Configuration / Warehouse Management / Locations submenu -->
-        <menuitem id="menu_ss_distributor_locations" name="Distributor Locations" parent="stock.menu_action_location_form" action="action_distributor_locations" sequence="11"/>
-        <menuitem id="menu_ss_locations" name="Van Loading Locations" parent="stock.menu_action_location_form" action="action_van_loading_locations" sequence="12"/>
+        <!-- Menu under Inventory / Configuration / Warehouse Management -->
+        <menuitem id="menu_ss_distributor_locations" name="Distributor Locations" parent="stock.menu_warehouse_config" action="action_distributor_locations" sequence="11"/>
+        <menuitem id="menu_ss_locations" name="Van Loading Locations" parent="stock.menu_warehouse_config" action="action_van_loading_locations" sequence="12"/>
     </data>
 </odoo>

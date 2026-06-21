@@ -43,6 +43,7 @@ def _create_move_line(env, picking, move, quantity, lot=None):
         "quantity": quantity,
         "picked": True,
         "lot_id": lot.id if lot else False,
+        "lot_name": lot.name if lot else False,
         "location_id": move.location_id.id,
         "location_dest_id": move.location_dest_id.id,
     })

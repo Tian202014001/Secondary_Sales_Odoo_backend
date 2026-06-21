@@ -1,0 +1,155 @@
+# -*- coding: utf-8 -*-
+
+from odoo import http
+from odoo.http import request
+
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    error_response,
+    get_mobile_api_context,
+)
+from odoo.addons.meta_ss_transfer.utils.scraps import (
+    build_scrap_domain,
+    build_scrap_product_domain,
+    create_scrap_delivery,
+    serialize_scraps,
+    serialize_scrap_delivery,
+    serialize_scrap_prepare,
+    serialize_scrap_product_lots,
+    serialize_scrap_products,
+    get_scrap_delivery_for_employee,
+    update_scrap_delivery,
+)
+from odoo.addons.meta_ss_rest_api.utils.routes import get_pagination
+
+
+class MetaSSScrapController(http.Controller):
+
+    @http.route(f"{API_PREFIX}/scraps/prepare", type="json", auth="user", methods=["POST"])
+    def prepare_scrap(self, **payload):
+        """Fetch distributor scrap location, destination scrap location, and available stock."""
+        try:
+            get_mobile_api_context(payload, require_employee=True)
+            result = serialize_scrap_prepare(request.env, payload)
+            return {
+                "success": True,
+                "api_version": "v1",
+                "message": "Scrap context prepared successfully.",
+                "data": result,
+            }
+        except Exception as exc:
+            return error_response(400, str(exc))
+
+    @http.route(f"{API_PREFIX}/scraps", type="json", auth="user", methods=["POST"])
+    def get_scraps(self, **payload):
+        """Get list of scrap deliveries."""
+        try:
+            get_mobile_api_context(payload, require_employee=True)
+            domain = build_scrap_domain(request.env, payload)
+            
+            limit, offset, _, _ = get_pagination(payload)
+            order = payload.get("order", "id desc")
+                
+            pickings = request.env["stock.picking"].sudo().search(
+                domain, limit=limit, offset=offset, order=order
+            )
+            total_count = request.env["stock.picking"].sudo().search_count(domain)
+            
+            result = serialize_scraps(pickings)
+            
+            return {
+                "success": True,
+                "api_version": "v1",
+                "message": "Scraps fetched successfully.",
+                "data": result,
+                "meta": {
+                    "total": total_count,
+                    "limit": limit,
+                    "offset": offset,
+                },
+            }
+        except Exception as exc:
+            return error_response(400, str(exc))
+
+    @http.route(f"{API_PREFIX}/scraps/products", type="json", auth="user", methods=["POST"])
+    def get_scrap_products(self, **payload):
+        """Get available products for scrap from distributor scrap location."""
+        try:
+            get_mobile_api_context(payload, require_employee=True)
+            source_location, domain = build_scrap_product_domain(request.env, payload)
+            
+            products = request.env["product.product"].sudo().search(domain, order="name")
+            result = serialize_scrap_products(request.env, products, source_location)
+            
+            return {
+                "success": True,
+                "api_version": "v1",
+                "message": "Scrap products fetched successfully.",
+                "data": result,
+            }
+        except Exception as exc:
+            return error_response(400, str(exc))
+
+    @http.route(f"{API_PREFIX}/scraps/products/<int:product_id>/lots", type="json", auth="user", methods=["POST"])
+    def get_scrap_product_lots(self, product_id, **payload):
+        """Get available lots for a product in distributor scrap location."""
+        try:
+            get_mobile_api_context(payload, require_employee=True)
+            result = serialize_scrap_product_lots(request.env, payload, product_id)
+            return {
+                "success": True,
+                "api_version": "v1",
+                "message": "Scrap product lots fetched successfully.",
+                "data": result,
+            }
+        except Exception as exc:
+            return error_response(400, str(exc))
+
+    @http.route(f"{API_PREFIX}/scraps/create", type="json", auth="user", methods=["POST"])
+    def create_scrap(self, **payload):
+        """Create a scrap picking from distributor scrap location to virtual scrap location."""
+        try:
+            get_mobile_api_context(payload, require_employee=True)
+            picking = create_scrap_delivery(request.env, payload)
+            result = serialize_scrap_delivery(picking)
+            
+            return {
+                "success": True,
+                "api_version": "v1",
+                "message": "Scrap delivery created successfully.",
+                "data": result,
+            }
+        except Exception as exc:
+            return error_response(400, str(exc))
+
+    @http.route(f"{API_PREFIX}/scraps/<int:picking_id>", type="json", auth="user", methods=["POST"])
+    def get_scrap_details(self, picking_id, **payload):
+        """Get details of a specific scrap delivery."""
+        try:
+            get_mobile_api_context(payload, require_employee=True)
+            picking = get_scrap_delivery_for_employee(request.env, picking_id, payload)
+            result = serialize_scrap_delivery(picking)
+            return {
+                "success": True,
+                "api_version": "v1",
+                "message": "Scrap delivery fetched successfully.",
+                "data": result,
+            }
+        except Exception as exc:
+            return error_response(400, str(exc))
+
+    @http.route(f"{API_PREFIX}/scraps/<int:picking_id>/update", type="json", auth="user", methods=["POST"])
+    def update_scrap(self, picking_id, **payload):
+        """Update lines of an existing draft/assigned scrap delivery."""
+        try:
+            get_mobile_api_context(payload, require_employee=True)
+            picking = update_scrap_delivery(request.env, picking_id, payload)
+            result = serialize_scrap_delivery(picking)
+            return {
+                "success": True,
+                "api_version": "v1",
+                "message": "Scrap delivery updated successfully.",
+                "data": result,
+            }
+        except Exception as exc:
+            return error_response(400, str(exc))
