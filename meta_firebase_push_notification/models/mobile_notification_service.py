@@ -26,6 +26,8 @@ class MobileNotificationService(models.AbstractModel):
 
         # Get service account path from system parameters
         service_account_path = self.env['ir.config_parameter'].sudo().get_param('firebase.service_account_path')
+        if service_account_path:
+            service_account_path = service_account_path.strip()
         if not service_account_path:
             raise UserError("System parameter 'firebase.service_account_path' is not set.")
 
@@ -103,7 +105,7 @@ class MobileNotificationService(models.AbstractModel):
         )
 
         try:
-            response = messaging.send_multicast(message)
+            response = messaging.send_each_for_multicast(message)
 
             # Handle response
             if response.failure_count > 0:
