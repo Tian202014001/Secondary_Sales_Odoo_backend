@@ -2,6 +2,7 @@
 
 from odoo.exceptions import ValidationError
 from odoo.addons.meta_ss_rest_api.utils.helpers import _get_employee, _get_integer_id
+from odoo.addons.meta_ss_rest_api.utils.mobile_policy import MobilePolicy
 from odoo.osv import expression
 
 from odoo.addons.meta_ss_rest_api.utils.outlets import (
@@ -60,6 +61,14 @@ def build_contact_domain(env, payload, customer_type=None):
     if customer_type:
         domain.append(("customer_type", "=", customer_type))
 
+    if customer_type == "distributor" and payload.get("employee_id"):
+        employee = _get_employee(env, payload.get("employee_id"))
+        distributor_ids = MobilePolicy.visible_distributor_ids(env, employee)
+        if distributor_ids:
+            domain.append(("id", "in", distributor_ids))
+        else:
+            domain.append(("id", "=", 0))
+
     distributor_id = payload.get("distributor_id")
     if distributor_id:
         distributor_id = _get_integer_id(distributor_id, "distributor_id")
@@ -101,7 +110,7 @@ def get_contact_for_payload(env, contact_id, payload, customer_type=None):
     customer_type = normalize_customer_type(payload, customer_type, required=False)
     domain = build_contact_domain(env, payload, customer_type)
     domain = expression.AND([domain, [("id", "=", _get_integer_id(contact_id, "contact_id"))]])
-    contact = env["res.partner"].search(domain, limit=1)
+    contact = env["res.partner"].sudo().search(domain, limit=1)
     if not contact:
         raise ValidationError("No contact was found for the provided id.")
     return contact
@@ -203,8 +212,9 @@ def serialize_contacts(contacts):
     """Serialize distributor or outlet partner records for API response."""
     data = []
     for contact in contacts:
-        cust_loc = contact.property_stock_customer
-        scrap_loc = contact.scrap_location_id
+        contact = contact.sudo()
+        cust_loc = contact.property_stock_customer.sudo() if contact.property_stock_customer else None
+        scrap_loc = contact.scrap_location_id.sudo() if contact.scrap_location_id else None
         data.append({
             "id": contact.id,
             "name": contact.name,
@@ -238,4 +248,3 @@ def serialize_contacts(contacts):
 def get_contact_pagination(payload):
     """Return pagination values for contact list APIs."""
     return get_pagination(payload)
-

@@ -43,10 +43,12 @@ def get_sale_order_for_employee(env, order_id, payload):
     sale_type = payload.get("sale_type")
     if sale_type and sale_type != "all" and order.sale_type != sale_type:
         raise ValidationError("The requested order does not match 'sale_type'.")
-    if order.so_employee_id:
-        valid_employee_ids = env["hr.employee"].sudo().search([("id", "child_of", employee.id)]).ids
-        if order.so_employee_id.id not in valid_employee_ids:
-            raise ValidationError("This sale order does not belong to the requested employee or their team.")
+    if not order.so_employee_id:
+        raise ValidationError("This sale order is missing a sales employee assignment.")
+
+    valid_employee_ids = env["hr.employee"].sudo().search([("id", "child_of", employee.id)]).ids
+    if order.so_employee_id.id not in valid_employee_ids:
+        raise ValidationError("This sale order does not belong to the requested employee or their team.")
     return order
 
 

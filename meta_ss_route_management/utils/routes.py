@@ -241,23 +241,26 @@ def serialize_routes(routes):
     """Serialize sale.route records for API response."""
     data = []
     for route in routes:
+        route = route.sudo()
         planner_lines = route.env["route.planner.line"].sudo().search([("route_ids", "in", route.id)])
         planned_days = [line.day_of_week for line in planner_lines]
+        distributor = route.distributor_contact_id.sudo() if route.distributor_contact_id else None
+        employee = route.ss_employee_id.sudo() if route.ss_employee_id else None
         data.append({
             "id": route.id,
             "name": route.name,
             "code": route.code or None,
             "active": route.active,
             "distributor": {
-                "id": route.distributor_contact_id.id,
-                "name": route.distributor_contact_id.name,
-            } if route.distributor_contact_id else None,
+                "id": distributor.id,
+                "name": distributor.name,
+            } if distributor else None,
             "employees": [
                 {
-                    "id": route.ss_employee_id.id,
-                    "name": route.ss_employee_id.name,
+                    "id": employee.id,
+                    "name": employee.name,
                 }
-            ] if route.ss_employee_id else [],
+            ] if employee else [],
             "planned_days": planned_days,
             "outlet_count": route.env["sale.route.line"].search_count([("route_id", "=", route.id), ("active", "=", True)]),
         })
@@ -266,47 +269,52 @@ def serialize_routes(routes):
 
 def serialize_route_outlet_line(route_line):
     """Serialize one sale.route.line record for API response."""
+    route_line = route_line.sudo()
+    outlet = route_line.outlet_id.sudo()
     return {
         "line_id": route_line.id,
-        "id": route_line.outlet_id.id,
-        "name": route_line.outlet_id.name,
+        "id": outlet.id,
+        "name": outlet.name,
         "sequence": route_line.sequence,
-        "phone": route_line.outlet_id.phone or None,
-        "mobile": route_line.outlet_id.mobile or None,
-        "email": route_line.outlet_id.email or None,
-        "street": route_line.outlet_id.street or None,
-        "street2": route_line.outlet_id.street2 or None,
-        "city": route_line.outlet_id.city or None,
-        "zip": route_line.outlet_id.zip or None,
-        "vat": route_line.outlet_id.vat or None,
-        "partner_latitude": route_line.outlet_id.partner_latitude,
-        "partner_longitude": route_line.outlet_id.partner_longitude,
+        "phone": outlet.phone or None,
+        "mobile": outlet.mobile or None,
+        "email": outlet.email or None,
+        "street": outlet.street or None,
+        "street2": outlet.street2 or None,
+        "city": outlet.city or None,
+        "zip": outlet.zip or None,
+        "vat": outlet.vat or None,
+        "partner_latitude": outlet.partner_latitude,
+        "partner_longitude": outlet.partner_longitude,
         "active": route_line.active,
     }
 
 
 def serialize_route_detail(route):
     """Serialize one sale.route record with its ordered outlet list."""
+    route = route.sudo()
+    distributor = route.distributor_contact_id.sudo() if route.distributor_contact_id else None
+    employee = route.ss_employee_id.sudo() if route.ss_employee_id else None
     return {
         "id": route.id,
         "name": route.name,
         "code": route.code or None,
         "active": route.active,
         "distributor": {
-            "id": route.distributor_contact_id.id,
-            "name": route.distributor_contact_id.name,
-            "phone": route.distributor_contact_id.phone or None,
-            "mobile": route.distributor_contact_id.mobile or None,
-            "email": route.distributor_contact_id.email or None,
-        } if route.distributor_contact_id else None,
+            "id": distributor.id,
+            "name": distributor.name,
+            "phone": distributor.phone or None,
+            "mobile": distributor.mobile or None,
+            "email": distributor.email or None,
+        } if distributor else None,
         "employees": [
             {
-                "id": route.ss_employee_id.id,
-                "name": route.ss_employee_id.name,
-                "work_phone": route.ss_employee_id.work_phone or None,
-                "work_email": route.ss_employee_id.work_email or None,
+                "id": employee.id,
+                "name": employee.name,
+                "work_phone": employee.work_phone or None,
+                "work_email": employee.work_email or None,
             }
-        ] if route.ss_employee_id else [],
+        ] if employee else [],
         "outlets": [
             serialize_route_outlet_line(route_line)
             for route_line in route.route_line_ids.sorted(lambda line: (line.sequence, line.id))

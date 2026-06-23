@@ -4,6 +4,8 @@ from odoo.addons.meta_ss_rest_api.utils.helpers import _get_float, _get_positive
 from odoo.exceptions import ValidationError
 from odoo.osv import expression
 
+from odoo.addons.meta_ss_rest_api.utils.mobile_policy import MobilePolicy
+
 
 def get_sales_pagination(payload):
     """Return pagination values from API payload."""
@@ -83,7 +85,7 @@ def build_sale_order_domain(payload):
     return domain
 
 
-def get_distributor(env, distributor_id):
+def get_distributor(env, distributor_id, employee=None):
     """Return a distributor contact or raise a validation error."""
     if not distributor_id:
         raise ValidationError("'distributor_id' is required.")
@@ -97,6 +99,16 @@ def get_distributor(env, distributor_id):
         raise ValidationError("No distributor was found for the provided 'distributor_id'.")
     if distributor.customer_type != "distributor":
         raise ValidationError("'distributor_id' must be a distributor contact.")
+    if employee:
+        visible_distributor_ids = MobilePolicy.visible_distributor_ids(env, employee)
+        if not visible_distributor_ids:
+            raise ValidationError(
+                "No distributors are assigned to the requesting employee or their team."
+            )
+        if distributor.id not in visible_distributor_ids:
+            raise ValidationError(
+                "The selected distributor is not visible to the requesting employee."
+            )
 
     return distributor
 
@@ -121,8 +133,8 @@ def prepare_sale_order_values(env, payload):
     """Build validated sale.order values for sale.order creation."""
     sale_type = (payload.get("sale_type") or "primary").strip()
 
-    distributor = get_distributor(env, payload.get("distributor_id"))
     employee = get_employee(env, payload.get("employee_id"))
+    distributor = get_distributor(env, payload.get("distributor_id"), employee=employee)
     order_lines = payload.get("order_lines") or payload.get("lines") or []
     if not isinstance(order_lines, list) or not order_lines:
         raise ValidationError("'order_lines' must be a non-empty list.")

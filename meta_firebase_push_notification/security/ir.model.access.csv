@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_res_mobile_device_user,res.mobile.device.user,model_res_mobile_device,,1,1,1,1
+access_mobile_push_notification_user,mobile.push.notification.user,model_mobile_push_notification,,1,1,1,1
+access_mobile_notification_service_user,mobile.notification.service.user,model_mobile_notification_service,,1,0,0,0

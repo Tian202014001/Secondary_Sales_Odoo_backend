@@ -4,6 +4,8 @@ import logging
 from odoo.http import request
 from odoo.exceptions import AccessDenied
 
+from odoo.addons.meta_ss_rest_api.utils.mobile_policy import MobilePolicy
+
 _logger = logging.getLogger(__name__)
 
 API_VERSION = "v1"
@@ -68,5 +70,30 @@ def get_mobile_api_context(payload=None, require_employee=False):
         trusted_payload["employee_id"] = mobile_user.employee_id.id
 
     api_env = request.env["mobile.auth.session"].sudo().get_integration_env()
+    api_env = api_env(context=dict(api_env.context, mobile_api_user_id=mobile_user.id))
     return mobile_user, api_env, trusted_payload
 
+
+def check_mobile_model_access(mobile_user, model_name, operation):
+    """Check mobile-group model access using group + implied groups."""
+    policy = MobilePolicy(mobile_user)
+    if not policy.has_model_access(model_name, operation, default_if_unconfigured=False):
+        raise AccessDenied("You do not have access to this operation.")
+
+
+def get_mobile_rule_domain(mobile_user, model_name, operation):
+    """Return the effective mobile rule domain for group + implied groups."""
+    return MobilePolicy(mobile_user).rule_domain(model_name, operation)
+
+
+def apply_mobile_rule_domain(mobile_user, model_name, operation, domain):
+    """AND a base domain with the effective mobile record-rule domain."""
+    return MobilePolicy(mobile_user).apply_domain(model_name, operation, domain)
+
+
+def mobile_rule_domain_allows_values(env, mobile_user, model_name, operation, values):
+    """Check whether a values dict satisfies the effective mobile rule domain.
+
+    This is useful before create requests, where there is no saved record yet.
+    """
+    return MobilePolicy(mobile_user).allows_values(env, model_name, operation, values)

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Mobile Device Views -->
+        <record id="view_res_mobile_device_tree" model="ir.ui.view">
+            <field name="name">res.mobile.device.tree</field>
+            <field name="model">res.mobile.device</field>
+            <field name="arch" type="xml">
+                <list string="Mobile Devices">
+                    <field name="mobile_user_id"/>
+                    <field name="platform"/>
+                    <field name="device_name"/>
+                    <field name="app_version"/>
+                    <field name="active" widget="boolean_toggle"/>
+                    <field name="last_seen_at"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Push Notification Views -->
+        <record id="view_mobile_push_notification_tree" model="ir.ui.view">
+            <field name="name">mobile.push.notification.tree</field>
+            <field name="model">mobile.push.notification</field>
+            <field name="arch" type="xml">
+                <list string="Push Notifications">
+                    <field name="create_date" string="Created On"/>
+                    <field name="mobile_user_id"/>
+                    <field name="title"/>
+                    <field name="sale_order_id"/>
+                    <field name="state" widget="badge" decoration-success="state == 'sent'" decoration-danger="state == 'failed'" decoration-info="state == 'pending'"/>
+                    <field name="retry_count"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Actions -->
+        <record id="action_res_mobile_device" model="ir.actions.act_window">
+            <field name="name">Mobile Devices</field>
+            <field name="res_model">res.mobile.device</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <record id="action_mobile_push_notification" model="ir.actions.act_window">
+            <field name="name">Push Notifications</field>
+            <field name="res_model">mobile.push.notification</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <!-- Menus -->
+        <menuitem id="menu_mobile_app_root" name="Mobile App" sequence="60"/>
+
+        <menuitem id="menu_res_mobile_device" name="Registered Devices" parent="menu_mobile_app_root" action="action_res_mobile_device" sequence="10"/>
+        <menuitem id="menu_mobile_push_notification" name="Push Notification Queue" parent="menu_mobile_app_root" action="action_mobile_push_notification" sequence="20"/>
+    </data>
+</odoo>

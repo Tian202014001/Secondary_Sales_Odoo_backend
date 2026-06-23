@@ -74,6 +74,33 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Effective Access">
+                            <field name="effective_model_access_ids" readonly="1">
+                                <list create="0" edit="0" delete="0">
+                                    <field name="name"/>
+                                    <field name="model_id"/>
+                                    <field name="group_id"/>
+                                    <field name="perm_read"/>
+                                    <field name="perm_create"/>
+                                    <field name="perm_write"/>
+                                    <field name="perm_unlink"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Effective Rules">
+                            <field name="effective_rule_ids" readonly="1">
+                                <list create="0" edit="0" delete="0">
+                                    <field name="name"/>
+                                    <field name="model_id"/>
+                                    <field name="domain_force"/>
+                                    <field name="perm_read"/>
+                                    <field name="perm_create"/>
+                                    <field name="perm_write"/>
+                                    <field name="perm_unlink"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Users">
                             <field name="user_ids" readonly="1">
                                 <list>

@@ -1,5 +1,3 @@
-import time
-
 from odoo import fields, models
 from odoo.osv import expression
 from odoo.tools.safe_eval import safe_eval
@@ -38,6 +36,18 @@ class ResMobileUserGroup(models.Model):
         string="Mobile Record Rules",
         help="Existing Odoo record rules used as mobile API configuration only.",
     )
+    effective_model_access_ids = fields.Many2many(
+        "ir.model.access",
+        compute="_compute_effective_permissions",
+        string="Effective Mobile Model Access",
+        help="Model access from this group and every implied mobile group.",
+    )
+    effective_rule_ids = fields.Many2many(
+        "ir.rule",
+        compute="_compute_effective_permissions",
+        string="Effective Mobile Record Rules",
+        help="Record rules from this group and every implied mobile group.",
+    )
 
     def _get_effective_mobile_groups(self):
         groups = self.browse()
@@ -47,6 +57,12 @@ class ResMobileUserGroup(models.Model):
             implied = pending.mapped("implied_group_ids") - groups
             pending = implied
         return groups
+
+    def _compute_effective_permissions(self):
+        for group in self:
+            effective_groups = group._get_effective_mobile_groups()
+            group.effective_model_access_ids = effective_groups.mapped("model_access_ids")
+            group.effective_rule_ids = effective_groups.mapped("rule_ids")
 
     def get_mobile_access_summary(self):
         self.ensure_one()
@@ -124,7 +140,6 @@ class ResMobileUserGroup(models.Model):
             or self.env.company
         )
         eval_context = {
-            "time": time,
             "user": self.env.user,
             "mobile_user": mobile_user,
             "employee": employee,

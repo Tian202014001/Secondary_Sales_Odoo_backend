@@ -139,7 +139,7 @@ class MetaSSRouteController(http.Controller):
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            Route = api_env["sale.route"]
+            Route = api_env["sale.route"].sudo()
             domain = build_employee_route_domain(employee, payload)
             limit, offset, page, page_size = get_pagination(payload)
             routes = Route.search(domain, limit=limit, offset=offset, order="name")
@@ -464,7 +464,7 @@ class MetaSSRouteController(http.Controller):
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            route = api_env["sale.route"].search([
+            route = api_env["sale.route"].sudo().search([
                 ("id", "=", route_id),
                 ("ss_employee_id", "child_of", employee.id),
                 ("active", "=", True),
@@ -566,7 +566,7 @@ class MetaSSRouteController(http.Controller):
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            route = api_env["sale.route"].search([
+            route = api_env["sale.route"].sudo().search([
                 ("id", "=", route_id),
                 ("ss_employee_id", "child_of", employee.id),
             ], limit=1)
@@ -634,7 +634,7 @@ class MetaSSRouteController(http.Controller):
                     "No employee was found for the provided 'employee_id'.",
                 )
 
-            route = api_env["sale.route"].search([
+            route = api_env["sale.route"].sudo().search([
                 ("id", "=", route_id),
                 ("ss_employee_id", "child_of", employee.id),
             ], limit=1)
@@ -644,7 +644,7 @@ class MetaSSRouteController(http.Controller):
                     "No route was found for the provided route and employee.",
                 )
 
-            route_line = api_env["sale.route.line"].search([
+            route_line = api_env["sale.route.line"].sudo().search([
                 ("route_id", "=", route.id),
                 ("outlet_id", "=", int(outlet_id)),
             ], limit=1)
@@ -690,7 +690,7 @@ class MetaSSRouteController(http.Controller):
             if not outlet_id:
                 raise ValidationError("'outlet_id' is required.")
                 
-            visit = api_env["outlet.visit"].create({
+            visit = api_env["outlet.visit"].sudo().create({
                 "employee_id": int(employee_id),
                 "outlet_id": int(outlet_id),
                 "check_in_time": check_in_time,
@@ -728,7 +728,7 @@ class MetaSSRouteController(http.Controller):
             except (TypeError, ValueError) as exc:
                 raise ValidationError("'employee_id' must be a valid integer id.") from exc
             
-            visit = api_env["outlet.visit"].search([
+            visit = api_env["outlet.visit"].sudo().search([
                 ("id", "=", visit_id),
                 ("employee_id", "child_of", employee_id),
             ], limit=1)
@@ -782,7 +782,7 @@ class MetaSSRouteController(http.Controller):
             start_dt = datetime.datetime.combine(today_user, datetime.time.min)
             start_dt_utc = user_tz.localize(start_dt).astimezone(pytz.utc).replace(tzinfo=None)
             
-            visits = api_env["outlet.visit"].search([
+            visits = api_env["outlet.visit"].sudo().search([
                 ("employee_id", "=", int(employee_id)),
                 "|",
                 ("check_in_time", ">=", start_dt_utc),

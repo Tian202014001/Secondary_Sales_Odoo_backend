@@ -15,6 +15,14 @@ class HrEmployee(models.Model):
         domain="[('customer_type', '=', 'distributor')]",
         help="Distributor contacts associated with this employee"
     )
+
+    effective_distributor_contact_ids = fields.Many2many(
+        'res.partner',
+        compute="_compute_effective_distributor_contact_ids",
+        string="Effective Distributors",
+        domain="[('customer_type', '=', 'distributor')]",
+        help="Distributor contacts visible to this employee through the hierarchy."
+    )
     
     assigned_route_ids = fields.One2many(
         'sale.route',
@@ -29,6 +37,29 @@ class HrEmployee(models.Model):
         domain="[('active', '=', True)]",
         help="The recommended default route for this employee."
     )
+
+    def _get_effective_distributor_contact_ids(self):
+        self.ensure_one()
+        if not isinstance(self.id, int):
+            return self.distributor_contact_ids.filtered(
+                lambda partner: partner.customer_type == "distributor"
+            )
+
+        subordinate_employees = self.env["hr.employee"].sudo().search([
+            ("id", "child_of", self.id),
+        ]) - self
+        if subordinate_employees:
+            distributors = subordinate_employees.mapped("distributor_contact_ids")
+        else:
+            distributors = self.distributor_contact_ids
+        return distributors.filtered(lambda partner: partner.customer_type == "distributor")
+
+    @api.depends("distributor_contact_ids", "parent_id")
+    def _compute_effective_distributor_contact_ids(self):
+        for employee in self:
+            employee.effective_distributor_contact_ids = [
+                (6, 0, employee.sudo()._get_effective_distributor_contact_ids().ids)
+            ]
 
 
     @api.constrains("distributor_contact_ids")

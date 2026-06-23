@@ -9,9 +9,13 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     API_VERSION,
     error_response,
     get_mobile_api_context,
+    check_mobile_model_access,
+    apply_mobile_rule_domain,
+    mobile_rule_domain_allows_values,
 )
 from odoo.addons.meta_ss_sales.utils.sales import (
     build_sale_order_domain,
+    get_employee,
     get_sales_pagination,
     parse_bool,
     prepare_sale_order_values,
@@ -30,7 +34,11 @@ class MetaSSSalesController(http.Controller):
         """Return sale orders filtered by sale_type and common dashboard filters."""
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            check_mobile_model_access(_mobile_user, "sale.order", "read")
+
             domain = build_sale_order_domain(payload)
+            domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", domain)
+
             limit, offset, page, page_size = get_sales_pagination(payload)
 
             SaleOrder = api_env["sale.order"].sudo()
@@ -65,12 +73,18 @@ class MetaSSSalesController(http.Controller):
         """
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            check_mobile_model_access(_mobile_user, "sale.order", "create")
+
             sale_type = (payload.get("sale_type") or "primary").strip()
             if sale_type != "primary":
                 # TODO: Implement secondary sale order creation
                 raise ValidationError("Only primary sale order creation is supported currently.")
 
             order_values = prepare_sale_order_values(api_env, payload)
+
+            if not mobile_rule_domain_allows_values(api_env, _mobile_user, "sale.order", "create", order_values):
+                raise AccessDenied("You do not have access to create this sale order based on your mobile rules.")
+
             order = api_env["sale.order"].create(order_values)
 
             if parse_bool(payload.get("confirm")):
@@ -96,10 +110,16 @@ class MetaSSSalesController(http.Controller):
         """Update a sale order with draft/sale restrictions."""
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            check_mobile_model_access(_mobile_user, "sale.order", "write")
+
             if not order_id:
                 raise ValidationError("'order_id' is required for updating.")
 
             order = get_sale_order_for_employee(api_env, order_id, payload)
+
+            rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "write", [("id", "=", order.id)])
+            if not api_env["sale.order"].sudo().search_count(rule_domain):
+                raise AccessDenied("You do not have access to update this sale order.")
 
             if order.state == "cancel":
                 raise ValidationError("Cannot edit cancelled sale order.")
@@ -112,7 +132,7 @@ class MetaSSSalesController(http.Controller):
                 # If confirmed, check if any pickings are done
                 if any(p.state == "done" for p in order.picking_ids):
                     raise ValidationError("Cannot edit confirmed sale order with completed or partial delivery.")
-                
+
                 # Check distributor/customer change restriction
                 if "distributor_id" in payload:
                     new_dist_id = _get_int(payload.get("distributor_id"), "distributor_id")
@@ -127,7 +147,12 @@ class MetaSSSalesController(http.Controller):
             # Update general fields
             vals = {}
             if "distributor_id" in payload and not was_confirmed:
-                distributor = get_distributor(api_env, payload.get("distributor_id"))
+                employee = get_employee(api_env, payload.get("employee_id"))
+                distributor = get_distributor(
+                    api_env,
+                    payload.get("distributor_id"),
+                    employee=employee,
+                )
                 vals["partner_id"] = distributor.id
                 vals["partner_shipping_id"] = distributor.id
 

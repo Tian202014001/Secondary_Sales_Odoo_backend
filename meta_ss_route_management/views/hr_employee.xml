@@ -8,6 +8,7 @@
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='coach_id']" position="after">
                     <field name="distributor_contact_ids" widget="many2many_tags" domain="[('customer_type', '=', 'distributor')]"/>
+                    <field name="effective_distributor_contact_ids" widget="many2many_tags" readonly="1" domain="[('customer_type', '=', 'distributor')]"/>
                     <field name="default_route_id"/>
                     <field name="mobile_user_group_id"/>
                 </xpath>
