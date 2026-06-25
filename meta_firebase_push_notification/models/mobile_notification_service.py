@@ -45,7 +45,6 @@ class MobileNotificationService(models.AbstractModel):
         """Cron job entry point to process pending push notifications."""
         notifications = self.env['mobile.push.notification'].search([
             ('state', 'in', ['pending', 'failed']),
-            ('retry_count', '<', 3)
         ], limit=50)
 
         if not notifications:

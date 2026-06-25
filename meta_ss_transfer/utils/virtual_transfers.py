@@ -8,7 +8,15 @@ from odoo.addons.meta_ss_rest_api.utils.routes import get_pagination
 from odoo.addons.meta_ss_rest_api.utils.helpers import _create_move_line, _get_float, _get_positive_float, _get_integer_id, _get_employee, _get_lot
 
 
-def get_virtual_transfer_picking_type(env):
+def get_virtual_transfer_picking_type(env, van_operation_type=None):
+    if van_operation_type == "unload":
+        picking_type = env.ref(
+            "meta_ss_transfer.picking_type_van_unload_transfer",
+            raise_if_not_found=False,
+        )
+        if not picking_type:
+            raise ValidationError("Van Unload Transfer operation type is not configured.")
+        return picking_type
     picking_type = env.ref(
         "meta_ss_transfer.picking_type_virtual_location_transfer",
         raise_if_not_found=False,
@@ -40,9 +48,15 @@ def get_employee_transfer_context(env, payload):
         raise ValidationError("Select a Van Loading Location before loading transfer stock.")
     if distributor.customer_type != "distributor":
         raise ValidationError("The employee's assigned contact is not a distributor.")
-    source_location = distributor.property_stock_customer
+    
+    van_op_type = payload.get("van_operation_type") or "load"
+    if van_op_type == "unload" and destination:
+        source_location = destination
+    else:
+        source_location = distributor.property_stock_customer
+
     if not source_location:
-        raise ValidationError("The assigned distributor has no customer stock location.")
+        raise ValidationError("The source stock location is not configured.")
     return employee, distributor, source_location
 
 
@@ -88,9 +102,31 @@ def build_virtual_transfer_product_domain(env, payload):
     return source_location, domain
 
 
-def serialize_transfer_products(env, products, source_location):
-    return [
-        {
+def serialize_transfer_products(env, products, source_location, payload=None):
+    payload = payload or {}
+    van_op_type = payload.get("van_operation_type") or "load"
+    
+    van_scrap_location = env["stock.location"]
+    if van_op_type == "unload" and source_location.ss_location_type == "van_loading":
+        employee = _get_employee(env, payload.get("employee_id"))
+        destination = _get_destination_location_from_payload(env, payload)
+        if destination:
+            employee = destination.ss_employee_id.sudo()
+            distributor = destination.ss_distributor_id.sudo()
+        else:
+            distributor = env["res.partner"].sudo()
+            
+        van_scrap_location = env["stock.location"].sudo().search([
+            ("ss_location_type", "=", "van_loading"),
+            ("scrap_location", "=", True),
+            ("ss_employee_id", "=", employee.id),
+            ("ss_distributor_id", "=", distributor.id),
+            ("active", "=", True),
+        ], limit=1)
+
+    result = []
+    for product in products:
+        item = {
             "id": product.id,
             "name": product.display_name,
             "default_code": product.default_code or None,
@@ -102,61 +138,150 @@ def serialize_transfer_products(env, products, source_location):
                 "name": product.uom_id.name,
             } if product.uom_id else None,
         }
-        for product in products
-    ]
+        if van_op_type == "unload":
+            item["scrap_qty"] = _get_available_qty(env, product, van_scrap_location) if van_scrap_location else 0.0
+        result.append(item)
+    return result
+
 
 
 def serialize_product_lots(env, payload, product_id):
-    _employee, _distributor, source_location = get_employee_transfer_context(env, payload)
+    employee, distributor, source_location = get_employee_transfer_context(env, payload)
     product = _get_product(env, product_id)
-    domain = [
-        ("product_id", "=", product.id),
-        ("location_id", "child_of", source_location.id),
-        ("available_quantity", ">", 0),
-        ("lot_id", "!=", False),
-    ]
-    if source_location.ss_location_type != "van_loading":
-        domain.append(("location_id.ss_location_type", "!=", "van_loading"))
+    van_op_type = payload.get("van_operation_type") or "load"
 
-    quants = env["stock.quant"].sudo().search(domain, order="lot_id")
-    return {
-        "product": _serialize_product(product),
-        "source_location": _serialize_location(source_location),
-        "data": [
-            {
-                "lot_id": quant.lot_id.id,
-                "lot_name": quant.lot_id.name,
-                "available_qty": quant.available_quantity,
-                "quantity": quant.quantity,
-                "reserved_quantity": quant.reserved_quantity,
-                "uom": {
-                    "id": quant.product_uom_id.id,
-                    "name": quant.product_uom_id.name,
-                } if quant.product_uom_id else None,
-                "location": _serialize_location(quant.location_id),
-            }
-            for quant in quants
-        ],
-    }
+    if van_op_type == "unload":
+        van_scrap_location = env["stock.location"].sudo().search([
+            ("ss_location_type", "=", "van_loading"),
+            ("scrap_location", "=", True),
+            ("ss_employee_id", "=", employee.id),
+            ("ss_distributor_id", "=", distributor.id),
+            ("active", "=", True),
+        ], limit=1)
+
+        # Query fresh quants
+        fresh_quants = env["stock.quant"].sudo().search([
+            ("product_id", "=", product.id),
+            ("location_id", "child_of", source_location.id),
+            ("available_quantity", ">", 0),
+            ("lot_id", "!=", False),
+        ])
+
+        # Query scrap quants
+        scrap_quants = env["stock.quant"].sudo().search([
+            ("product_id", "=", product.id),
+            ("location_id", "child_of", van_scrap_location.id),
+            ("available_quantity", ">", 0),
+            ("lot_id", "!=", False),
+        ]) if van_scrap_location else env["stock.quant"].sudo()
+
+        # Group and merge by lot
+        lots_dict = {}
+        for q in fresh_quants:
+            lid = q.lot_id.id
+            if lid not in lots_dict:
+                lots_dict[lid] = {
+                    "lot_id": lid,
+                    "lot_name": q.lot_id.name,
+                    "available_qty": q.available_quantity,
+                    "scrap_qty": 0.0,
+                    "quantity": q.quantity,
+                    "reserved_quantity": q.reserved_quantity,
+                    "uom": {
+                        "id": q.product_uom_id.id,
+                        "name": q.product_uom_id.name,
+                    } if q.product_uom_id else None,
+                    "location": _serialize_location(q.location_id),
+                }
+            else:
+                lots_dict[lid]["available_qty"] += q.available_quantity
+                lots_dict[lid]["quantity"] += q.quantity
+                lots_dict[lid]["reserved_quantity"] += q.reserved_quantity
+
+        for q in scrap_quants:
+            lid = q.lot_id.id
+            if lid not in lots_dict:
+                lots_dict[lid] = {
+                    "lot_id": lid,
+                    "lot_name": q.lot_id.name,
+                    "available_qty": 0.0,
+                    "scrap_qty": q.available_quantity,
+                    "quantity": q.quantity,
+                    "reserved_quantity": q.reserved_quantity,
+                    "uom": {
+                        "id": q.product_uom_id.id,
+                        "name": q.product_uom_id.name,
+                    } if q.product_uom_id else None,
+                    "location": _serialize_location(q.location_id),
+                }
+            else:
+                lots_dict[lid]["scrap_qty"] += q.available_quantity
+                lots_dict[lid]["quantity"] += q.quantity
+                lots_dict[lid]["reserved_quantity"] += q.reserved_quantity
+
+        return {
+            "product": _serialize_product(product),
+            "source_location": _serialize_location(source_location),
+            "data": list(lots_dict.values()),
+        }
+
+    else:
+        domain = [
+            ("product_id", "=", product.id),
+            ("location_id", "child_of", source_location.id),
+            ("available_quantity", ">", 0),
+            ("lot_id", "!=", False),
+        ]
+        if source_location.ss_location_type != "van_loading":
+            domain.append(("location_id.ss_location_type", "!=", "van_loading"))
+
+        quants = env["stock.quant"].sudo().search(domain, order="lot_id")
+        return {
+            "product": _serialize_product(product),
+            "source_location": _serialize_location(source_location),
+            "data": [
+                {
+                    "lot_id": quant.lot_id.id,
+                    "lot_name": quant.lot_id.name,
+                    "available_qty": quant.available_quantity,
+                    "scrap_qty": 0.0,
+                    "quantity": quant.quantity,
+                    "reserved_quantity": quant.reserved_quantity,
+                    "uom": {
+                        "id": quant.product_uom_id.id,
+                        "name": quant.product_uom_id.name,
+                    } if quant.product_uom_id else None,
+                    "location": _serialize_location(quant.location_id),
+                }
+                for quant in quants
+            ],
+        }
 
 
 def build_virtual_transfer_domain(env, payload):
     employee = _get_employee(env, payload.get("employee_id"))
     dist_id = payload.get("distributor_id")
-    picking_type = get_virtual_transfer_picking_type(env)
+    van_operation_type = payload.get("van_operation_type") or "all"
+
+    p_ids = []
+    p_type_load = env.ref("meta_ss_transfer.picking_type_virtual_location_transfer", raise_if_not_found=False)
+    p_type_unload = env.ref("meta_ss_transfer.picking_type_van_unload_transfer", raise_if_not_found=False)
+    
+    if van_operation_type == "load" and p_type_load:
+        p_ids = [p_type_load.id]
+    elif van_operation_type == "unload" and p_type_unload:
+        p_ids = [p_type_unload.id]
+    else:
+        p_ids = [pt.id for pt in (p_type_load, p_type_unload) if pt]
+
     domain = [
-        ("picking_type_id", "=", picking_type.id),
+        ("picking_type_id", "in", p_ids),
         ("ss_destination_location_id.ss_location_type", "=", "van_loading"),
+        ("so_employee_id", "child_of", employee.id),
     ]
     if dist_id:
         distributor = env["res.partner"].sudo().browse(int(dist_id)).exists()
         domain.append(("ss_distributor_id", "=", distributor.id))
-        domain.append(("ss_destination_location_id.ss_employee_id", "=", employee.id))
-    else:
-        distributors = employee.distributor_contact_ids.sudo()
-        if distributors:
-            domain.append(("ss_distributor_id", "in", distributors.ids))
-            domain.append(("ss_destination_location_id.ss_employee_id", "=", employee.id))
 
     destination_id = payload.get("destination_location_id")
     if destination_id:
@@ -164,11 +289,14 @@ def build_virtual_transfer_domain(env, payload):
 
     assigned_employee_id = payload.get("assigned_employee_id")
     if assigned_employee_id:
-        domain.append(("ss_destination_location_id.ss_employee_id", "=", _get_integer_id(assigned_employee_id, "assigned_employee_id")))
+        domain.append(("ss_destination_location_id.ss_employee_id", "child_of", _get_integer_id(assigned_employee_id, "assigned_employee_id")))
 
     state = payload.get("state")
     if state and state != "all":
         domain.append(("state", "=", str(state)))
+        
+    if van_operation_type and van_operation_type != "all":
+        domain.append(("van_operation_type", "=", str(van_operation_type)))
 
     date = payload.get("date") or payload.get("scheduled_date")
     if date:
@@ -192,49 +320,134 @@ def build_virtual_transfer_domain(env, payload):
 def create_virtual_transfer(env, payload):
     employee, distributor, source_location = get_employee_transfer_context(env, payload)
     destination = _get_destination_location(env, payload, employee, distributor)
-    picking_type = get_virtual_transfer_picking_type(env)
+    van_op_type = payload.get("van_operation_type") or "load"
+    picking_type = get_virtual_transfer_picking_type(env, van_op_type)
     lines = payload.get("lines") or payload.get("move_lines") or []
     if not isinstance(lines, list) or not lines:
         raise ValidationError("'lines' must be a non-empty list.")
 
-    prepared_lines = _prepare_transfer_lines(env, lines, source_location)
-    _validate_requested_quantities(env, prepared_lines, source_location)
+    if van_op_type == "unload":
+        fresh_lines_data = []
+        for line in lines:
+            pid = line.get("product_id")
+            fresh_qty = _get_float(line.get("fresh_qty") if "fresh_qty" in line else line.get("quantity") or 0.0, "fresh qty")
+            scrap_qty = _get_float(line.get("scrap_qty") or 0.0, "scrap qty")
+            
+            lot_lines = line.get("lot_lines") or []
+            mapped_lots = []
+            for l in lot_lines:
+                lot_id = l.get("lot_id")
+                l_fresh = _get_float(l.get("fresh_qty") if "fresh_qty" in l else l.get("quantity") or 0.0, "lot fresh qty")
+                l_scrap = _get_float(l.get("scrap_qty") or 0.0, "lot scrap qty")
+                mapped_lots.append({
+                    "lot_id": lot_id,
+                    "quantity": l_fresh,
+                    "ss_scrap_qty": l_scrap,
+                })
+            
+            fresh_lines_data.append({
+                "product_id": pid,
+                "quantity": fresh_qty,
+                "ss_scrap_qty": scrap_qty,
+                "lot_lines": mapped_lots,
+            })
+            
+        prepared_lines = _prepare_transfer_lines(env, fresh_lines_data, source_location)
+        for pl in prepared_lines:
+            inp = next((i for i in fresh_lines_data if i["product_id"] == pl["product"].id), None)
+            if inp:
+                pl["ss_scrap_qty"] = inp["ss_scrap_qty"]
+                for lot_line in pl.get("lot_lines", []):
+                    inp_lot = next((il for il in inp.get("lot_lines", []) if il["lot_id"] == lot_line["lot"].id), None)
+                    if inp_lot:
+                        lot_line["ss_scrap_qty"] = inp_lot["ss_scrap_qty"]
 
-    picking = env["stock.picking"].sudo().create({
-        "picking_type_id": picking_type.id,
-        "location_id": source_location.id,
-        "location_dest_id": destination.id,
-        "ss_distributor_id": distributor.id,
-        "ss_destination_location_id": destination.id,
-        "origin": "Mobile Van Loading Transfer",
-        "move_ids": [
-            (
-                0,
-                0,
-                {
-                    "name": item["product"].display_name,
-                    "product_id": item["product"].id,
-                    "product_uom_qty": item["quantity"],
-                    "product_uom": item["uom"].id,
-                    "location_id": source_location.id,
-                    "location_dest_id": destination.id,
-                },
+        _validate_requested_quantities(env, prepared_lines, source_location)
+
+        picking = env["stock.picking"].sudo().create({
+            "picking_type_id": picking_type.id,
+            "location_id": source_location.id,
+            "location_dest_id": distributor.property_stock_customer.id,
+            "ss_distributor_id": distributor.id,
+            "ss_destination_location_id": source_location.id,
+            "origin": "Mobile Van Unload Transfer",
+            "van_operation_type": "unload",
+            "ss_transfer_type": "unload",
+            "so_employee_id": employee.id,
+            "ss_picking_type": "secondary",
+            "move_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "name": item["product"].display_name,
+                        "product_id": item["product"].id,
+                        "product_uom_qty": item["quantity"],
+                        "ss_scrap_qty": item.get("ss_scrap_qty", 0.0),
+                        "product_uom": item["uom"].id,
+                        "location_id": source_location.id,
+                        "location_dest_id": distributor.property_stock_customer.id,
+                    },
+                )
+                for item in prepared_lines
+            ],
+        })
+        picking.action_confirm()
+
+        for move in picking.move_ids.filtered(lambda item: item.state not in ("cancel", "done")):
+            item = next(
+                (p for p in prepared_lines if p["product"].id == move.product_id.id),
+                None
             )
-            for item in prepared_lines
-        ],
-    })
-    picking.action_confirm()
+            if not item:
+                continue
+            _apply_move_lines(env, picking, move, item)
 
-    for move in picking.move_ids.filtered(lambda item: item.state not in ("cancel", "done")):
-        item = next(
-            (p for p in prepared_lines if p["product"].id == move.product_id.id),
-            None
-        )
-        if not item:
-            continue
-        _apply_move_lines(env, picking, move, item)
+        return picking
 
-    return picking
+    else:
+        prepared_lines = _prepare_transfer_lines(env, lines, source_location)
+        _validate_requested_quantities(env, prepared_lines, source_location)
+
+        picking = env["stock.picking"].sudo().create({
+            "picking_type_id": picking_type.id,
+            "location_id": source_location.id,
+            "location_dest_id": destination.id,
+            "ss_distributor_id": distributor.id,
+            "ss_destination_location_id": destination.id,
+            "origin": "Mobile Van Loading Transfer",
+            "van_operation_type": "load",
+            "ss_transfer_type": "load",
+            "so_employee_id": employee.id,
+            "ss_picking_type": "secondary",
+            "move_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "name": item["product"].display_name,
+                        "product_id": item["product"].id,
+                        "product_uom_qty": item["quantity"],
+                        "product_uom": item["uom"].id,
+                        "location_id": source_location.id,
+                        "location_dest_id": destination.id,
+                    },
+                )
+                for item in prepared_lines
+            ],
+        })
+        picking.action_confirm()
+
+        for move in picking.move_ids.filtered(lambda item: item.state not in ("cancel", "done")):
+            item = next(
+                (p for p in prepared_lines if p["product"].id == move.product_id.id),
+                None
+            )
+            if not item:
+                continue
+            _apply_move_lines(env, picking, move, item)
+
+        return picking
 
 
 def get_virtual_transfer_for_employee(env, transfer_id, payload):
@@ -294,6 +507,7 @@ def serialize_virtual_transfer(picking):
         "id": picking.id,
         "name": picking.name,
         "state": picking.state,
+        "van_operation_type": picking.van_operation_type,
         "scheduled_date": str(picking.scheduled_date) if picking.scheduled_date else None,
         "origin": picking.origin or None,
         "distributor": _serialize_distributor(picking.ss_distributor_id),
@@ -337,10 +551,12 @@ def _get_destination_location(env, payload, employee, distributor):
         raise ValidationError("Destination location not found.")
     if destination.ss_location_type != "van_loading":
         raise ValidationError("Destination must be a Van Loading Location.")
-    if destination.ss_employee_id != employee:
-        raise ValidationError("Destination location is not assigned to this employee.")
-    if destination.ss_distributor_id != distributor:
-        raise ValidationError("Destination location is not assigned to this distributor.")
+    logged_in_employee = _get_employee(env, payload.get("employee_id"))
+    subordinates = env["hr.employee"].sudo().search([("id", "child_of", logged_in_employee.id)])
+    if destination.ss_employee_id not in subordinates:
+        raise ValidationError("Destination location is not assigned to you or your subordinates.")
+    if not destination.ss_distributor_id:
+        raise ValidationError("Destination location has no assigned distributor.")
     return destination
 
 
@@ -367,19 +583,15 @@ def _get_prepare_van_locations(env, employee, distributor):
         ("ss_location_type", "=", "van_loading"),
         ("scrap_location", "=", False),
         ("active", "=", True),
+        ("ss_employee_id", "child_of", employee.id),
     ]
-    if distributor:
-        domain.append(("ss_distributor_id", "=", distributor.id))
-        if employee.distributor_contact_ids:
-            domain.append(("ss_employee_id", "=", employee.id))
     return env["stock.location"].sudo().search(domain, order="name")
 
 
 def _get_employee_van_locations(env, employee, distributor):
     return env["stock.location"].sudo().search([
         ("ss_location_type", "=", "van_loading"),
-        ("ss_employee_id", "=", employee.id),
-        ("ss_distributor_id", "=", distributor.id),
+        ("ss_employee_id", "child_of", employee.id),
         ("scrap_location", "=", False),
         ("active", "=", True),
     ], order="name")
@@ -440,6 +652,17 @@ def _prepare_lot_lines(env, product, quantity, lot_lines):
 
 
 def _validate_requested_quantities(env, prepared_lines, source_location):
+    is_unload = source_location.ss_location_type == "van_loading" and not source_location.scrap_location
+    van_scrap_location = env["stock.location"]
+    if is_unload:
+        van_scrap_location = env["stock.location"].sudo().search([
+            ("ss_location_type", "=", "van_loading"),
+            ("scrap_location", "=", True),
+            ("ss_employee_id", "=", source_location.ss_employee_id.id),
+            ("ss_distributor_id", "=", source_location.ss_distributor_id.id),
+            ("active", "=", True),
+        ], limit=1)
+
     for item in prepared_lines:
         if float_compare(
             item["quantity"],
@@ -450,6 +673,21 @@ def _validate_requested_quantities(env, prepared_lines, source_location):
                 "Requested quantity exceeds available quantity for product '%s'."
                 % item["product"].display_name
             )
+
+        scrap_qty_requested = item.get("ss_scrap_qty", 0.0)
+        if scrap_qty_requested > 0.0:
+            if not van_scrap_location:
+                raise ValidationError("Van Scrap Location not configured.")
+            scrap_available = _get_available_qty(env, item["product"], van_scrap_location)
+            if float_compare(
+                scrap_qty_requested,
+                scrap_available,
+                precision_rounding=item["uom"].rounding,
+            ) > 0:
+                raise ValidationError(
+                    "Requested scrap quantity exceeds available scrap quantity for product '%s'. (Requested: %s, Available: %s)"
+                    % (item["product"].display_name, scrap_qty_requested, scrap_available)
+                )
 
         for lot_line in item["lot_lines"]:
             lot_qty = _get_lot_available_qty(env, item["product"], lot_line["lot"], source_location)
@@ -463,14 +701,35 @@ def _validate_requested_quantities(env, prepared_lines, source_location):
                     % lot_line["lot"].name
                 )
 
+            lot_scrap_qty_requested = lot_line.get("ss_scrap_qty", 0.0)
+            if lot_scrap_qty_requested > 0.0:
+                if not van_scrap_location:
+                    raise ValidationError("Van Scrap Location not configured.")
+                lot_scrap_qty = _get_lot_available_qty(env, item["product"], lot_line["lot"], van_scrap_location)
+                if float_compare(
+                    lot_scrap_qty_requested,
+                    lot_scrap_qty,
+                    precision_rounding=item["uom"].rounding,
+                ) > 0:
+                    raise ValidationError(
+                        "Requested scrap lot quantity exceeds available scrap quantity for lot '%s'."
+                        % lot_line["lot"].name
+                    )
+
 
 def _apply_move_lines(env, picking, move, item):
     move.move_line_ids.unlink()
     if item["product"].tracking == "none":
         _create_move_line(env, picking, move, item["quantity"])
+        if item.get("ss_scrap_qty"):
+            move.move_line_ids.write({"ss_scrap_qty": item["ss_scrap_qty"]})
     else:
         for lot_line in item["lot_lines"]:
             _create_move_line(env, picking, move, lot_line["quantity"], lot=lot_line["lot"])
+            if lot_line.get("ss_scrap_qty"):
+                ml = move.move_line_ids.filtered(lambda l: l.lot_id == lot_line["lot"])
+                if ml:
+                    ml.write({"ss_scrap_qty": lot_line["ss_scrap_qty"]})
     move.write({"picked": True})
     move.move_line_ids.write({"picked": True})
 
@@ -585,6 +844,7 @@ def _serialize_transfer_move(move):
         "product": _serialize_product(move.product_id),
         "demand_qty": move.product_uom_qty,
         "quantity": move.quantity,
+        "scrap_qty": move.ss_scrap_qty,
         "uom": {
             "id": move.product_uom.id,
             "name": move.product_uom.name,
@@ -597,6 +857,7 @@ def _serialize_transfer_move(move):
                     "name": line.lot_id.name,
                 } if line.lot_id else None,
                 "quantity": line.quantity,
+                "scrap_qty": line.ss_scrap_qty,
                 "source_location": _serialize_location(line.location_id),
                 "destination_location": _serialize_location(line.location_dest_id),
             }

@@ -65,6 +65,31 @@ class MetaSSSalesController(http.Controller):
                 "An unexpected error occurred while fetching sale orders.",
             )
 
+    @http.route(f"{API_PREFIX}/sales/mediums", type="json", auth="user", methods=["POST"])
+    def get_mediums(self, **payload):
+        """Fetch available order mediums from utm.medium."""
+        try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload)
+
+            # Sudo is used to fetch all active mediums
+            mediums = api_env["utm.medium"].sudo().search([])
+            data = [{"id": m.id, "name": m.name} for m in mediums]
+
+            return {
+                "success": True,
+                "api_version": API_VERSION,
+                "message": "Order mediums fetched successfully.",
+                "data": data,
+            }
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response(
+                "server_error",
+                "An unexpected error occurred while fetching order mediums.",
+            )
+
     @http.route(f"{API_PREFIX}/sale-orders/create", type="json", auth="user", methods=["POST"])
     def create_sale_order(self, **payload):
         """Create a sale order using sale_type.
@@ -76,9 +101,8 @@ class MetaSSSalesController(http.Controller):
             check_mobile_model_access(_mobile_user, "sale.order", "create")
 
             sale_type = (payload.get("sale_type") or "primary").strip()
-            if sale_type != "primary":
-                # TODO: Implement secondary sale order creation
-                raise ValidationError("Only primary sale order creation is supported currently.")
+            if sale_type not in ("primary", "secondary"):
+                raise ValidationError("Invalid sale_type. Must be 'primary' or 'secondary'.")
 
             order_values = prepare_sale_order_values(api_env, payload)
 

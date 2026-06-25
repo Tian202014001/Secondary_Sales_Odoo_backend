@@ -384,6 +384,10 @@ def build_delivery_domain(payload):
     if state and state != "all":
         domain.append(("state", "=", str(state)))
 
+    picking_type = payload.get("picking_type") or payload.get("type") or payload.get("sale_type")
+    if picking_type:
+        domain.append(("ss_picking_type", "=", picking_type))
+
     search = (payload.get("search") or "").strip()
     if search:
         search_domain = [

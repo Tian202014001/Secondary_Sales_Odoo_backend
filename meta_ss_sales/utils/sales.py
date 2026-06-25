@@ -134,14 +134,28 @@ def prepare_sale_order_values(env, payload):
     sale_type = (payload.get("sale_type") or "primary").strip()
 
     employee = get_employee(env, payload.get("employee_id"))
-    distributor = get_distributor(env, payload.get("distributor_id"), employee=employee)
+    
+    if sale_type == "primary":
+        customer = get_distributor(env, payload.get("distributor_id"), employee=employee)
+    else:
+        outlet_id = payload.get("outlet_id")
+        if not outlet_id:
+            raise ValidationError("'outlet_id' is required for secondary sales.")
+        try:
+            outlet_id = int(outlet_id)
+        except (TypeError, ValueError):
+            raise ValidationError("'outlet_id' must be a valid integer id.")
+        customer = env["res.partner"].sudo().browse(outlet_id).exists()
+        if not customer or customer.customer_type != "outlet":
+            raise ValidationError("'outlet_id' must be an outlet contact.")
+
     order_lines = payload.get("order_lines") or payload.get("lines") or []
     if not isinstance(order_lines, list) or not order_lines:
         raise ValidationError("'order_lines' must be a non-empty list.")
 
     values = {
-        "partner_id": distributor.id,
-        "partner_shipping_id": distributor.id,
+        "partner_id": customer.id,
+        "partner_shipping_id": customer.id,
         "sale_type": sale_type,
         "order_line": _prepare_sale_order_line_commands(env, order_lines),
     }
@@ -166,6 +180,10 @@ def prepare_sale_order_values(env, payload):
         values["note"] = payload.get("note")
     if payload.get("expected_delivery_date"):
         values["commitment_date"] = payload.get("expected_delivery_date")
+    if payload.get("route_id"):
+        values["route_id"] = _get_int(payload.get("route_id"), "route_id")
+    if payload.get("visit_id"):
+        values["visit_id"] = _get_int(payload.get("visit_id"), "visit_id")
 
     return values
 
@@ -186,6 +204,7 @@ def _prepare_sale_order_line_commands(env, order_lines):
         values = {
             "product_id": product.id,
             "product_uom_qty": quantity,
+            "damaged_qty": _get_positive_float(line.get("damaged_qty", 0), "damaged_qty"),
             "sequence": _get_int(line.get("sequence", index * 10), "sequence"),
         }
         if line.get("uom_id"):
@@ -223,6 +242,7 @@ def update_sale_order_lines(env, order, order_lines, was_confirmed):
 
         values = {
             "product_uom_qty": quantity,
+            "damaged_qty": _get_positive_float(line.get("damaged_qty", 0), "damaged_qty"),
             "sequence": _get_int(line.get("sequence", index * 10), "sequence"),
         }
         if line.get("uom_id"):
@@ -356,6 +376,7 @@ def serialize_sale_order(order):
                     "default_code": line.product_id.default_code or None,
                 } if line.product_id else None,
                 "product_uom_qty": line.product_uom_qty,
+                "damaged_qty": getattr(line, "damaged_qty", 0.0),
                 "product_uom": {
                     "id": line.product_uom.id,
                     "name": line.product_uom.name,

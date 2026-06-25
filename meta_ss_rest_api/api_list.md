@@ -109,17 +109,20 @@ Full request and response examples are in [api_documentation.md](api_documentati
 |---|---|---|
 | `POST` | `/api/v1/locations` | List and search generic stock locations. |
 
-## 5. Virtual Inventory Transfer
+## 5. Virtual Inventory Transfer (Van Load & Van Unload)
 
-**Move stock from distributor customer location to employee Van Loading Location**
+**Transfer stock between distributor customer location and employee Van Loading Location (Load / Unload)**
+
+*Note: All virtual transfer endpoints accept `van_operation_type` (either `"load"` or `"unload"`, defaults to `"load"`).*
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/api/v1/virtual-transfers` | List virtual transfers. |
+| `POST` | `/api/v1/virtual-transfers` | List virtual transfers. Supports filtering by `van_operation_type`. |
 | `POST` | `/api/v1/virtual-transfers/prepare` | Prepare transfer creation data. |
-| `POST` | `/api/v1/virtual-transfers/products` | Search products available in distributor customer location. |
-| `POST` | `/api/v1/virtual-transfers/products/<product_id>/lots` | Lot-wise available stock for transfer product. |
-| `POST` | `/api/v1/virtual-transfers/create` | Create draft virtual transfer. |
+| `POST` | `/api/v1/van_loading/targets` | Fetch monthly target products with stock (fresh/scrap) based on `van_operation_type`. |
+| `POST` | `/api/v1/virtual-transfers/products` | Search products available in distributor customer location (for `"load"`) or Van Loading Location (for `"unload"`). Returns both `available_qty` and `scrap_qty` for `"unload"`. |
+| `POST` | `/api/v1/virtual-transfers/products/<product_id>/lots` | Lot-wise available stock (fresh/scrap) for transfer product. |
+| `POST` | `/api/v1/virtual-transfers/create` | Create draft virtual transfer. For `"unload"`, validating it automatically creates and validates a scrap transfer. |
 | `POST` | `/api/v1/virtual-transfers/<transfer_id>` | Virtual transfer detail. |
 | `POST` | `/api/v1/virtual-transfers/<transfer_id>/action` | Run virtual transfer action: `validate`, `cancel`. |
 

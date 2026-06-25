@@ -36,7 +36,7 @@ class MetaSSDeliveryController(http.Controller):
             domain = build_delivery_domain(payload)
             limit, offset, page, page_size = get_delivery_pagination(payload)
 
-            Picking = api_env["stock.picking"]
+            Picking = api_env["stock.picking"].sudo()
             pickings = Picking.search(domain, limit=limit, offset=offset, order="scheduled_date desc, id desc")
             total = Picking.search_count(domain)
 

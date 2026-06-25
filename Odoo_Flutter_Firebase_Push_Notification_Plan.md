@@ -657,3 +657,541 @@ Firebase is the right delivery tool for Flutter push notifications. The
 important production improvement is to make Odoo's notification layer durable,
 asynchronous, auditable, and tied cleanly to the real `res.mobile.user` who
 created the sale order.
+
+------------------------------------------------------------------------
+
+## End-to-End Setup and Deployment Runbook
+
+This section documents the full manual setup from Firebase project creation to
+Odoo server deployment and APK testing.
+
+### 1. Firebase Project Creation
+
+1. Open Firebase Console:
+
+```text
+https://console.firebase.google.com/
+```
+
+2. Click **Add project**.
+3. Project name:
+
+```text
+Secondary Sales
+```
+
+4. Google Analytics is optional for this push notification use case.
+5. Create the project.
+
+Firebase is used only for push notification delivery. Do not configure Firebase
+Authentication, Firestore, Realtime Database, or business data storage for this
+use case.
+
+### 2. Register Android App in Firebase
+
+1. Open the Firebase project.
+2. Click **Add app**.
+3. Select **Android**.
+4. Enter the Android package name from the Flutter app.
+
+Check the package name in:
+
+```text
+android/app/build.gradle.kts
+```
+
+Look for:
+
+```text
+applicationId
+```
+
+5. Optional app nickname:
+
+```text
+Secondary Sales Android
+```
+
+6. Register the app.
+7. Download:
+
+```text
+google-services.json
+```
+
+8. Place it in the Flutter app:
+
+```text
+/home/abrar/AndroidStudioProjects/secondary_sales/android/app/google-services.json
+```
+
+This file belongs to the Flutter app. It is not the Firebase service account
+private key.
+
+### 3. Enable Firebase Cloud Messaging
+
+1. In Firebase Console, open:
+
+```text
+Project settings > Cloud Messaging
+```
+
+2. Confirm Firebase Cloud Messaging API / HTTP v1 API is enabled.
+3. Note the Firebase project ID. It is useful for debugging FCM responses.
+
+The backend uses the Firebase Admin SDK, which authorizes server-side sends
+using a trusted service account.
+
+### 4. Generate Firebase Service Account JSON
+
+1. In Firebase Console, open:
+
+```text
+Project settings > Service accounts
+```
+
+2. Click **Generate new private key**.
+3. Download the JSON key file.
+4. Rename it locally to something clear:
+
+```text
+firebase-secondary-sales-service-account.json
+```
+
+Important security rules:
+
+- Do not commit this JSON file to git.
+- Do not put this JSON file inside the Flutter app.
+- Do not include this JSON file inside the APK.
+- Store it only on the trusted Odoo server.
+- Restrict file permissions on self-hosted servers.
+
+### 5. Flutter App Configuration
+
+The Flutter app must have these packages:
+
+```yaml
+firebase_core: ^3.1.0
+firebase_messaging: ^15.0.0
+```
+
+The current app already includes them in:
+
+```text
+/home/abrar/AndroidStudioProjects/secondary_sales/pubspec.yaml
+```
+
+The app also has:
+
+```text
+android/app/google-services.json
+```
+
+Android permission required for Android 13+:
+
+```xml
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+```
+
+The current app registers the FCM token after Odoo mobile login by calling:
+
+```text
+POST /api/v1/mobile/device/register
+Authorization: Bearer <mobile_access_token>
+```
+
+The app unregisters the device token on logout:
+
+```text
+POST /api/v1/mobile/device/unregister
+Authorization: Bearer <mobile_access_token>
+```
+
+The app should never send `mobile_user_id`. Odoo derives the mobile user from
+the bearer token.
+
+### 6. Odoo Backend Code Deployment
+
+Deploy these backend parts:
+
+```text
+meta_firebase_push_notification
+meta_ss_rest_api changes for mobile_api_user_id context
+```
+
+Required backend behavior:
+
+- `res.mobile.device` stores FCM tokens against `res.mobile.user`.
+- `/api/v1/mobile/device/register` creates or updates the device token.
+- `/api/v1/mobile/device/unregister` deactivates the token.
+- `sale.order.mobile_user_id` is set from the authenticated mobile user.
+- `action_confirm()` creates one pending `mobile.push.notification`.
+- cron processes pending notifications asynchronously.
+
+### 7. Python Dependency Configuration
+
+The backend imports:
+
+```python
+firebase_admin
+```
+
+Add this to the Odoo deployment `requirements.txt`:
+
+```text
+firebase-admin
+```
+
+Recommended after testing:
+
+```text
+firebase-admin==<tested-version>
+```
+
+For Odoo.sh, put `requirements.txt` in the branch root or the parent folder that
+contains custom Odoo modules. Odoo.sh installs additional Python dependencies
+from `requirements.txt` during container builds.
+
+After deployment, check:
+
+```text
+/home/odoo/logs/pip.log
+```
+
+or the Odoo.sh build logs to confirm `firebase-admin` installed successfully.
+
+### 8. Service Account Storage on Server
+
+#### Self-hosted Odoo
+
+Recommended path:
+
+```text
+/opt/odoo/secrets/firebase-service-account.json
+```
+
+Example permissions:
+
+```bash
+sudo mkdir -p /opt/odoo/secrets
+sudo chown odoo:odoo /opt/odoo/secrets/firebase-service-account.json
+sudo chmod 600 /opt/odoo/secrets/firebase-service-account.json
+```
+
+Then set Odoo system parameter:
+
+```text
+firebase.service_account_path = /opt/odoo/secrets/firebase-service-account.json
+```
+
+Restart Odoo after setting the file and dependency.
+
+#### Odoo.sh
+
+Do not commit the service account JSON into the repository.
+
+Current backend code reads a file path from:
+
+```text
+firebase.service_account_path
+```
+
+For Odoo.sh, the practical options are:
+
+1. Upload the JSON file through Odoo.sh shell to a private path and set that path
+   in `firebase.service_account_path`.
+2. Verify the file still exists after rebuild/redeploy.
+3. If the file path is not stable on your Odoo.sh setup, change the backend to
+   read service account JSON content from a private Odoo system parameter or
+   protected attachment instead of a filesystem path.
+
+Suggested Odoo.sh private path to test:
+
+```text
+/home/odoo/data/firebase-service-account.json
+```
+
+Then set:
+
+```text
+firebase.service_account_path = /home/odoo/data/firebase-service-account.json
+```
+
+Verify from Odoo.sh shell:
+
+```bash
+python3 -c "import firebase_admin; print('firebase_admin ok')"
+ls -l /home/odoo/data/firebase-service-account.json
+```
+
+If the file disappears after rebuild, do not continue with file-path storage.
+Use system-parameter JSON content or a protected attachment approach.
+
+### 9. Odoo System Parameter
+
+Enable developer mode in Odoo, then go to:
+
+```text
+Settings > Technical > Parameters > System Parameters
+```
+
+Create:
+
+```text
+Key: firebase.service_account_path
+Value: /path/to/firebase-service-account.json
+```
+
+Examples:
+
+Self-hosted:
+
+```text
+/opt/odoo/secrets/firebase-service-account.json
+```
+
+Odoo.sh test path:
+
+```text
+/home/odoo/data/firebase-service-account.json
+```
+
+### 10. Upgrade Odoo Module
+
+After pushing backend code:
+
+1. Update app list.
+2. Upgrade:
+
+```text
+meta_firebase_push_notification
+```
+
+3. Confirm these models exist:
+
+```text
+res.mobile.device
+mobile.push.notification
+mobile.notification.service
+```
+
+4. Confirm cron exists and is active:
+
+```text
+Process Mobile Push Notifications
+```
+
+5. Confirm `sale.order` has:
+
+```text
+mobile_user_id
+```
+
+Important upgrade note:
+
+The notification model has a uniqueness constraint. If there are already
+duplicate rows for the same sale order, mobile user, and notification type,
+clean duplicates before upgrading.
+
+### 11. Backend Smoke Test
+
+Login from Flutter or Postman and get a mobile bearer token.
+
+Call:
+
+```text
+POST /api/v1/mobile/device/register
+Authorization: Bearer <mobile_access_token>
+Content-Type: application/json
+```
+
+JSON-RPC body:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "fcm_token": "test-device-token",
+    "platform": "android",
+    "device_name": "Manual Test",
+    "app_version": "1.0.0"
+  },
+  "id": 1
+}
+```
+
+Expected response:
+
+```json
+{
+  "success": true,
+  "message": "Device registered successfully."
+}
+```
+
+Then verify in Odoo:
+
+```text
+res.mobile.device
+```
+
+Expected:
+
+- `mobile_user_id` is the logged-in mobile user.
+- `fcm_token` is stored.
+- `active` is true.
+- `last_seen_at` is set.
+
+### 12. Build APK
+
+From Flutter app directory:
+
+```bash
+cd /home/abrar/AndroidStudioProjects/secondary_sales
+flutter clean
+flutter pub get
+flutter build apk --release
+```
+
+APK output:
+
+```text
+build/app/outputs/flutter-apk/app-release.apk
+```
+
+Install on Android device:
+
+```bash
+adb install -r build/app/outputs/flutter-apk/app-release.apk
+```
+
+The Android device must have Google Play services available.
+
+### 13. Manual End-to-End Test
+
+1. Install the APK.
+2. Open the app.
+3. Configure Odoo server URL and database.
+4. Login as a mobile user.
+5. Accept notification permission.
+6. In Odoo, verify a `res.mobile.device` record was created.
+7. Create a sale order from the app.
+8. In Odoo, verify the sale order has:
+
+```text
+mobile_user_id = logged-in res.mobile.user
+```
+
+9. Confirm the sale order from Odoo Web.
+10. Verify one pending notification was created:
+
+```text
+mobile.push.notification
+state = pending
+notification_type = sale_order_confirmed
+mobile_user_id = creator
+sale_order_id = confirmed order
+```
+
+11. Wait for cron or manually run:
+
+```text
+Process Mobile Push Notifications
+```
+
+12. Expected result:
+
+- notification state becomes `sent`;
+- phone receives push notification;
+- tapping the notification opens the sale order detail page.
+
+### 14. Failure Test Cases
+
+Test these before production rollout:
+
+- Login creates/updates one active `res.mobile.device`.
+- Token refresh updates the same token record or creates a new valid record.
+- Logout deactivates the token.
+- User with no active device does not break sale order confirmation.
+- Expired/invalid FCM token is deactivated by the cron sender.
+- Confirming the same sale order twice does not create duplicate notifications.
+- Firebase outage does not block sale order confirmation.
+- App launched from terminated state opens sale order detail when notification is
+  tapped.
+
+### 15. Troubleshooting
+
+#### `firebase-admin python package is not installed`
+
+Cause:
+
+```text
+firebase-admin
+```
+
+is missing from `requirements.txt` or failed during build.
+
+Fix:
+
+- Add `firebase-admin` to `requirements.txt`.
+- Rebuild/redeploy.
+- Check Odoo.sh `pip.log` or server install logs.
+
+#### `firebase.service_account_path is not set`
+
+Cause:
+
+Odoo system parameter is missing.
+
+Fix:
+
+Create:
+
+```text
+firebase.service_account_path = /path/to/firebase-service-account.json
+```
+
+#### Firebase credential file not found
+
+Cause:
+
+The path in `firebase.service_account_path` does not exist from the Odoo server
+process.
+
+Fix:
+
+- Check the path.
+- Check permissions.
+- On Odoo.sh, verify the file still exists after rebuild.
+
+#### Flutter login works but no `res.mobile.device`
+
+Check:
+
+- Android notification permission was accepted.
+- Device has Google Play services.
+- `android/app/google-services.json` exists.
+- Flutter app is calling `/api/v1/mobile/device/register`.
+- Odoo mobile bearer token is valid.
+- Odoo server logs for validation errors.
+
+#### Notification record is pending but no push arrives
+
+Check:
+
+- cron is active;
+- `firebase-admin` is installed;
+- service account path is configured;
+- service account JSON is valid;
+- FCM token is active;
+- Odoo log contains Firebase errors.
+
+### 16. Source References
+
+- Firebase Flutter setup:
+  `https://firebase.google.com/docs/flutter/setup`
+- Firebase FCM HTTP v1 authorization:
+  `https://firebase.google.com/docs/cloud-messaging/send/v1-api#authorize-http-v1-send-requests`
+- Odoo.sh container and `requirements.txt` dependency behavior:
+  `https://www.odoo.com/documentation/18.0/administration/odoo_sh/advanced/containers.html`

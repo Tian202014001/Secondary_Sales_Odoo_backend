@@ -18,6 +18,9 @@
                            invisible="not ss_is_virtual_location_transfer"
                            required="ss_is_virtual_location_transfer"/>
                 </xpath>
+                <xpath expr="//field[@name='move_ids_without_package']/list/field[@name='quantity']" position="after">
+                    <field name="ss_scrap_qty" column_invisible="parent.ss_transfer_type != 'unload' or not parent.ss_is_virtual_location_transfer"/>
+                </xpath>
             </field>
         </record>
 
@@ -37,10 +40,44 @@
             </field>
         </record>
 
+        <record id="action_van_unload_transfer" model="ir.actions.act_window">
+            <field name="name">Van Unload Transfer</field>
+            <field name="res_model">stock.picking</field>
+            <field name="view_mode">list,form</field>
+            <field name="domain" eval="[('picking_type_id', '=', ref('picking_type_van_unload_transfer'))]"/>
+            <field name="context" eval="{
+                'default_picking_type_id': ref('picking_type_van_unload_transfer'),
+                'search_default_picking_type_id': ref('picking_type_van_unload_transfer'),
+                'default_ss_transfer_type': 'unload',
+            }"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a van unload transfer.
+                </p>
+            </field>
+        </record>
+
+        <record id="view_stock_move_line_operation_tree_inherit" model="ir.ui.view">
+            <field name="name">stock.move.line.operation.tree.inherit</field>
+            <field name="model">stock.move.line</field>
+            <field name="inherit_id" ref="stock.view_stock_move_line_operation_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='quantity']" position="after">
+                    <field name="ss_scrap_qty" column_invisible="parent.picking_id.ss_transfer_type != 'unload' or not parent.picking_id.ss_is_virtual_location_transfer"/>
+                </xpath>
+            </field>
+        </record>
+
         <menuitem id="menu_virtual_location_transfer"
                   name="Virtual Location Transfer"
                   parent="stock.menu_stock_transfers"
                   action="action_virtual_location_transfer"
                   sequence="30"/>
+
+        <menuitem id="menu_van_unload_transfer"
+                  name="Van Unload Transfer"
+                  parent="stock.menu_stock_transfers"
+                  action="action_van_unload_transfer"
+                  sequence="31"/>
     </data>
 </odoo>

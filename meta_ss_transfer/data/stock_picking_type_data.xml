@@ -9,5 +9,14 @@
             <field name="default_location_dest_id" ref="stock.stock_location_customers"/>
             <field name="reservation_method">manual</field>
         </record>
+
+        <record id="picking_type_van_unload_transfer" model="stock.picking.type">
+            <field name="name">Van Unload Transfer</field>
+            <field name="code">internal</field>
+            <field name="sequence_code">VUT</field>
+            <field name="default_location_src_id" ref="stock.stock_location_customers"/>
+            <field name="default_location_dest_id" ref="stock.stock_location_customers"/>
+            <field name="reservation_method">manual</field>
+        </record>
     </data>
 </odoo>

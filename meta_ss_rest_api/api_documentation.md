@@ -1797,17 +1797,14 @@ Response:
 }
 ```
 
-## Virtual Inventory Transfer
+### Virtual Inventory Transfer (Van Load & Van Unload)
 
-Virtual transfer moves stock from the employee's assigned distributor customer location into one of the employee's assigned Van Loading Locations.
+Virtual transfers are used to load stock into a van or unload stock from a van.
 
-Backend derives the source location from:
+- **Van Load (`van_operation_type: "load"`)**: Moves stock from the employee's assigned distributor customer location into one of the employee's assigned Van Loading Locations.
+- **Van Unload (`van_operation_type: "unload"`)**: Moves stock from the employee's assigned Van Loading Location back to the distributor customer location. In addition, any scrap quantities entered are automatically transferred from the van's scrap location to the distributor's scrap location.
 
-```text
-hr.employee.distributor_contact_id.property_stock_customer
-```
-
-The app sends only `employee_id`, `destination_location_id`, and product lines.
+All endpoints support `van_operation_type` as a parameter (values: `"load"` or `"unload"`, defaults to `"load"`).
 
 ### Virtual Transfer Prepare
 
@@ -1867,6 +1864,49 @@ Response:
 }
 ```
 
+### Van Loading & Unloading Targets
+
+`POST /api/v1/van_loading/targets`
+
+Fetch the monthly target products for the employee. Based on `van_operation_type` (`"load"` or `"unload"`), it returns either the distributor customer location's fresh stock or the van's fresh and scrap stock.
+
+Request (Van Unload):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "van_operation_type": "unload",
+    "destination_location_id": 48
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Van loading targets fetched successfully.",
+  "data": [
+    {
+      "product_id": 25,
+      "product_name": "Eggs",
+      "sku": "EGG001",
+      "uom_id": 1,
+      "uom_name": "Dzn",
+      "daily_target_qty": 10.0,
+      "available_stock": 4.0,
+      "scrap_stock": 2.0
+    }
+  ]
+}
+```
+
 ### Transfer Product Search
 
 `POST /api/v1/virtual-transfers/products`
@@ -1879,6 +1919,8 @@ Request:
   "method": "call",
   "params": {
     "employee_id": 7,
+    "van_operation_type": "unload",
+    "destination_location_id": 48,
     "search": "Eggs",
     "page": 1,
     "page_size": 20
@@ -1895,8 +1937,8 @@ Response:
   "api_version": "v1",
   "message": "Transfer products fetched successfully.",
   "source_location": {
-    "id": 35,
-    "name": "Partners/Customers",
+    "id": 48,
+    "name": "Partners/Customers/Distributor A/Van Loading 1",
     "usage": "customer"
   },
   "data": [
@@ -1906,6 +1948,7 @@ Response:
       "default_code": "EGG001",
       "tracking": "lot",
       "available_qty": 10.0,
+      "scrap_qty": 5.0,
       "uom": {
         "id": 1,
         "name": "Dzn"
@@ -1920,6 +1963,8 @@ Response:
 }
 ```
 
+*Note: `scrap_qty` is returned only when `van_operation_type` is `"unload"`.*
+
 ### Transfer Product Lots
 
 `POST /api/v1/virtual-transfers/products/<product_id>/lots`
@@ -1931,7 +1976,9 @@ Request:
   "jsonrpc": "2.0",
   "method": "call",
   "params": {
-    "employee_id": 7
+    "employee_id": 7,
+    "van_operation_type": "unload",
+    "destination_location_id": 48
   },
   "id": 1
 }
@@ -1950,8 +1997,8 @@ Response:
     "tracking": "lot"
   },
   "source_location": {
-    "id": 35,
-    "name": "Partners/Customers",
+    "id": 48,
+    "name": "Partners/Customers/Distributor A/Van Loading 1",
     "usage": "customer"
   },
   "data": [
@@ -1959,8 +2006,17 @@ Response:
       "lot_id": 7,
       "lot_name": "LOT-001",
       "available_qty": 5.0,
-      "quantity": 5.0,
-      "reserved_quantity": 0.0
+      "scrap_qty": 2.0,
+      "quantity": 7.0,
+      "reserved_quantity": 0.0,
+      "uom": {
+        "id": 1,
+        "name": "Dzn"
+      },
+      "location": {
+        "id": 48,
+        "name": "Van Loading 1"
+      }
     }
   ]
 }
@@ -2018,15 +2074,18 @@ Request:
   "method": "call",
   "params": {
     "employee_id": 7,
+    "van_operation_type": "unload",
     "destination_location_id": 48,
     "lines": [
       {
         "product_id": 25,
-        "quantity": 2.0,
+        "fresh_qty": 4.0,
+        "scrap_qty": 2.0,
         "lot_lines": [
           {
             "lot_id": 7,
-            "quantity": 2.0
+            "fresh_qty": 4.0,
+            "scrap_qty": 2.0
           }
         ]
       }
@@ -2045,15 +2104,16 @@ Response:
   "message": "Virtual transfer created successfully.",
   "data": {
     "id": 90,
-    "name": "VLT/00090",
+    "name": "VUT/00090",
     "state": "confirmed",
+    "van_operation_type": "unload",
     "distributor": {
       "id": 3,
       "name": "Distributor A"
     },
     "source_location": {
-      "id": 35,
-      "name": "Partners/Customers",
+      "id": 48,
+      "name": "Van Loading 1",
       "usage": "customer"
     },
     "destination_location": {
@@ -2069,8 +2129,9 @@ Response:
           "name": "Eggs",
           "tracking": "lot"
         },
-        "demand_qty": 2.0,
-        "quantity": 2.0
+        "demand_qty": 4.0,
+        "quantity": 4.0,
+        "scrap_qty": 2.0
       }
     ]
   }
@@ -2089,8 +2150,9 @@ Request:
   "method": "call",
   "params": {
     "employee_id": 7,
+    "van_operation_type": "unload",
     "state": "confirmed",
-    "search": "VLT",
+    "search": "VUT",
     "page": 1,
     "page_size": 20
   },
@@ -2108,11 +2170,12 @@ Response:
   "data": [
     {
       "id": 90,
-      "name": "VLT/00090",
+      "name": "VUT/00090",
       "state": "confirmed",
+      "van_operation_type": "unload",
       "source_location": {
-        "id": 35,
-        "name": "Partners/Customers",
+        "id": 48,
+        "name": "Van Loading 1",
         "usage": "customer"
       },
       "destination_location": {
@@ -2179,12 +2242,15 @@ Response:
     "validation_result": true,
     "transfer": {
       "id": 90,
-      "name": "VLT/00090",
-      "state": "done"
+      "name": "VUT/00090",
+      "state": "done",
+      "van_operation_type": "unload"
     }
   }
 }
 ```
+
+*Note: For `"unload"` operations, validation automatically triggers a secondary scrap transfer moving the specified scrap quantities from the van's scrap location to the distributor's scrap location.*
 
 Use `action: "cancel"` to cancel an eligible virtual transfer.
 

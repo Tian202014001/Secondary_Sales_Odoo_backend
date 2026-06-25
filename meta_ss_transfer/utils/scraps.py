@@ -13,17 +13,31 @@ def get_employee_scrap_context(env, payload):
     dist_id = payload.get("distributor_id")
     if dist_id:
         distributor = env["res.partner"].sudo().browse(int(dist_id)).exists()
+        if not distributor:
+            raise ValidationError("Distributor not found.")
     else:
         distributors = employee.distributor_contact_ids.sudo()
+        if not distributors:
+            subordinates = env["hr.employee"].sudo().search([("id", "child_of", employee.id)])
+            distributors = subordinates.mapped("distributor_contact_ids").sudo()
+        
+        distributors = distributors.filtered(lambda d: d.customer_type == "distributor")
+        
         if len(distributors) == 1:
             distributor = distributors[0]
         elif len(distributors) > 1:
-            raise ValidationError("Employee is assigned to multiple distributors. Please provide a distributor_id.")
+            distributor = distributors[0]
         else:
-            raise ValidationError("Employee is not assigned to any distributor.")
+            raise ValidationError("Employee and subordinates are not assigned to any distributor.")
             
     if distributor.customer_type != "distributor":
         raise ValidationError("The assigned contact is not a distributor.")
+        
+    # Context override: override employee to the subordinate who owns this distributor
+    subordinates = env["hr.employee"].sudo().search([("id", "child_of", employee.id)])
+    sub_emp = subordinates.filtered(lambda e: distributor.id in e.distributor_contact_ids.ids)
+    if sub_emp:
+        employee = sub_emp[0]
         
     source_location = distributor.scrap_location_id
     if not source_location:
@@ -42,6 +56,12 @@ def get_employee_scrap_context(env, payload):
 def serialize_scrap_prepare(env, payload):
     employee, distributor, source_location, dest_location, warehouse = get_employee_scrap_context(env, payload)
     
+    logged_in_employee = _get_employee(env, payload.get("employee_id"))
+    subordinates = env["hr.employee"].sudo().search([("id", "child_of", logged_in_employee.id)])
+    allowed_distributors = subordinates.mapped("distributor_contact_ids").filtered(
+        lambda d: d.customer_type == "distributor"
+    ).sudo()
+    
     return {
         "employee": {
             "id": employee.id,
@@ -51,6 +71,9 @@ def serialize_scrap_prepare(env, payload):
             "id": distributor.id,
             "name": distributor.name,
         },
+        "distributors": [
+            {"id": d.id, "name": d.name} for d in allowed_distributors
+        ],
         "source_location": {
             "id": source_location.id,
             "name": source_location.display_name,
@@ -158,6 +181,10 @@ def build_scrap_domain(env, payload):
         ("picking_type_id", "=", picking_type.id),
         ("location_dest_id.scrap_location", "=", True),
     ]
+
+    picking_type_filter = payload.get("picking_type") or payload.get("type") or payload.get("sale_type")
+    if picking_type_filter:
+        domain.append(("ss_picking_type", "=", picking_type_filter))
     
     if distributor_ids:
         domain.extend([
@@ -233,6 +260,7 @@ def create_scrap_delivery(env, payload):
         "ss_distributor_id": distributor.id,
         "so_employee_id": employee.id,
         "origin": f"Scrap from {distributor.name}",
+        "ss_picking_type": payload.get("picking_type") or payload.get("type") or payload.get("sale_type") or "primary",
         "move_ids": [
             (
                 0,
@@ -308,6 +336,7 @@ def update_scrap_delivery(env, picking_id, payload):
         pass
 
     picking.write({
+        "ss_picking_type": payload.get("picking_type") or payload.get("type") or payload.get("sale_type") or "primary",
         "move_ids": [
             (
                 0,

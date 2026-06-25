@@ -129,7 +129,7 @@ class MetaSSVirtualTransferController(http.Controller):
                     "name": source_location.display_name,
                     "usage": source_location.usage,
                 },
-                "data": serialize_transfer_products(api_env, products, source_location),
+                "data": serialize_transfer_products(api_env, products, source_location, payload=payload),
                 "pagination": {
                     "page": page,
                     "page_size": page_size,
