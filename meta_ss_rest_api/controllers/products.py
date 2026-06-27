@@ -28,6 +28,31 @@ class MetaSSProductController(http.Controller):
             limit, offset, page, page_size = get_product_pagination(payload)
 
             Product = api_env["product.product"]
+            sale_type = payload.get("sale_type")
+            employee_id = payload.get("employee_id")
+
+            if sale_type == "secondary" and employee_id:
+                employee = api_env["hr.employee"].browse(int(employee_id))
+                van_locations = api_env["stock.location"].sudo().search([
+                    ("ss_location_type", "=", "van_loading"),
+                    ("ss_employee_id", "child_of", employee.id),
+                    ("scrap_location", "=", False),
+                    ("active", "=", True),
+                ])
+                if van_locations:
+                    van_location = van_locations[0]
+                    Product = Product.with_context(location=van_location.id)
+                    # Restrict products to those with available stock in the van
+                    quants = api_env["stock.quant"].search([
+                        ("location_id", "child_of", van_location.id),
+                        ("quantity", ">", 0)
+                    ])
+                    product_ids = list(set(quants.mapped("product_id").ids))
+                    domain.append(("id", "in", product_ids))
+                else:
+                    # If no van location, they cannot sell anything
+                    domain.append(("id", "in", []))
+
             products = Product.search(domain, limit=limit, offset=offset, order="name")
             total = Product.search_count(domain)
             data = serialize_products(products)

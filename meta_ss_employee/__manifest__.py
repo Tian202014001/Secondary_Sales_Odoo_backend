@@ -1,6 +1,6 @@
 {
     "name": "Meta SS Employee",
-    "version": "1.0",
+    "version": "18.0.1.0.0",
     "category": "Secondary Sales",
     "author": "Meta",
     "summary": "Employee endpoints for Secondary Sales",
@@ -8,4 +8,5 @@
     "data": [],
     "installable": True,
     "application": False,
+    "license": "LGPL-3",
 }

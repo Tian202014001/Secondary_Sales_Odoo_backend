@@ -15,6 +15,12 @@ def _get_positive_float(value, field_name):
         raise ValidationError("'%s' must be greater than zero." % field_name)
     return value
 
+def _get_non_negative_float(value, field_name):
+    value = _get_float(value, field_name)
+    if value < 0:
+        raise ValidationError("'%s' cannot be negative." % field_name)
+    return value
+
 def _get_integer_id(value, field_name):
     try:
         return int(value)

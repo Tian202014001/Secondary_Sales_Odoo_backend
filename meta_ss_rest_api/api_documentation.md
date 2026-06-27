@@ -2256,7 +2256,7 @@ Use `action: "cancel"` to cancel an eligible virtual transfer.
 
 ### `POST /api/v1/visits/create`
 
-Creates a new outlet visit (Check-in).
+Creates a new outlet visit (Check-in). Enforces a strict 50m geo-fence radius from the outlet's stored coordinates.
 
 **Request (JSON-RPC):**
 ```json
@@ -2266,6 +2266,8 @@ Creates a new outlet visit (Check-in).
     "params": {
         "employee_id": 7,
         "outlet_id": 14,
+        "latitude": 23.8103,
+        "longitude": 90.4125,
         "visit_type": "standard",
         "check_in_time": "2024-05-15 10:45:00"
     },
@@ -2297,7 +2299,7 @@ Creates a new outlet visit (Check-in).
 
 ### `POST /api/v1/visits/<visit_id>/update`
 
-Updates an existing outlet visit (Check-out).
+Updates an existing outlet visit (Check-out). If latitude and longitude are provided, enforces a strict 50m geo-fence radius from the outlet's stored coordinates.
 
 **Request (JSON-RPC):**
 ```json
@@ -2305,6 +2307,9 @@ Updates an existing outlet visit (Check-out).
     "jsonrpc": "2.0",
     "method": "call",
     "params": {
+        "employee_id": 7,
+        "latitude": 23.8105,
+        "longitude": 90.4128,
         "check_out_time": "2024-05-15 11:30:00"
     },
     "id": 1
@@ -2807,6 +2812,199 @@ Response:
         ]
       }
     ]
+  }
+}
+```
+
+## HR Modules (Attendance & Leave Request)
+
+### Attendance Status
+
+`POST /api/v1/hr/attendance/status`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Attendance status fetched successfully.",
+  "data": {
+    "is_checked_in": true,
+    "active_id": 105,
+    "active_check_in": "2026-10-24 09:00:00"
+  }
+}
+```
+
+### Attendance History
+
+`POST /api/v1/hr/attendance/history`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "page": 1,
+    "page_size": 20
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Attendance history fetched successfully.",
+  "data": [
+    {
+      "id": 105,
+      "date": "2026-10-24",
+      "check_in": "2026-10-24 09:00:00",
+      "check_out": "2026-10-24 17:30:00",
+      "worked_hours": 8.5,
+      "distributor_name": "Acme Corp"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 20,
+    "total": 1
+  }
+}
+```
+
+### Attendance Action (Check In / Check Out)
+
+`POST /api/v1/hr/attendance/action`
+
+Enforces a strict 50m geo-fence radius around the assigned distributor's location.
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "action": "check_in",
+    "latitude": 23.8103,
+    "longitude": 90.4125
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Checked in successfully.",
+  "data": {
+    "id": 106,
+    "check_in": "2026-10-25 08:55:00"
+  }
+}
+```
+
+### Leave Request List
+
+`POST /api/v1/hr/leaves`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "page": 1,
+    "page_size": 20
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Leave requests fetched successfully.",
+  "data": [
+    {
+      "id": 50,
+      "leave_type": "Sick Leave",
+      "date_from": "2026-11-01",
+      "date_to": "2026-11-02",
+      "state": "approved",
+      "reason": "Flu"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "page_size": 20,
+    "total": 1
+  }
+}
+```
+
+### Create Leave Request
+
+`POST /api/v1/hr/leaves/create`
+
+Request:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "call",
+  "params": {
+    "employee_id": 7,
+    "leave_type_id": 2,
+    "date_from": "2026-12-01",
+    "date_to": "2026-12-05",
+    "reason": "Annual Vacation"
+  },
+  "id": 1
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "api_version": "v1",
+  "message": "Leave request submitted successfully.",
+  "data": {
+    "id": 51,
+    "state": "draft"
   }
 }
 ```

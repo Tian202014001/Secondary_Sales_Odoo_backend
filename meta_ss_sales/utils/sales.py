@@ -1,4 +1,4 @@
-from odoo.addons.meta_ss_rest_api.utils.helpers import _get_float, _get_positive_float
+from odoo.addons.meta_ss_rest_api.utils.helpers import _get_float, _get_positive_float, _get_non_negative_float
 # -*- coding: utf-8 -*-
 
 from odoo.exceptions import ValidationError
@@ -54,6 +54,14 @@ def build_sale_order_domain(payload):
         except (TypeError, ValueError) as exc:
             raise ValidationError("'distributor_id' must be a valid integer id.") from exc
         domain.append(("partner_id", "=", distributor_id))
+
+    outlet_id = payload.get("outlet_id")
+    if outlet_id:
+        try:
+            outlet_id = int(outlet_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("'outlet_id' must be a valid integer id.") from exc
+        domain.append(("partner_id", "=", outlet_id))
 
     search = (payload.get("search") or payload.get("customer") or "").strip()
     if search:
@@ -204,7 +212,7 @@ def _prepare_sale_order_line_commands(env, order_lines):
         values = {
             "product_id": product.id,
             "product_uom_qty": quantity,
-            "damaged_qty": _get_positive_float(line.get("damaged_qty", 0), "damaged_qty"),
+            "damaged_qty": _get_non_negative_float(line.get("damaged_qty", 0), "damaged_qty"),
             "sequence": _get_int(line.get("sequence", index * 10), "sequence"),
         }
         if line.get("uom_id"):
@@ -242,7 +250,7 @@ def update_sale_order_lines(env, order, order_lines, was_confirmed):
 
         values = {
             "product_uom_qty": quantity,
-            "damaged_qty": _get_positive_float(line.get("damaged_qty", 0), "damaged_qty"),
+            "damaged_qty": _get_non_negative_float(line.get("damaged_qty", 0), "damaged_qty"),
             "sequence": _get_int(line.get("sequence", index * 10), "sequence"),
         }
         if line.get("uom_id"):

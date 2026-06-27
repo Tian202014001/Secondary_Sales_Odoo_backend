@@ -2,6 +2,7 @@
 
 from odoo import http
 from odoo.http import request
+from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 
 from odoo.addons.meta_ss_rest_api.utils.common import (
     API_PREFIX,
@@ -37,8 +38,11 @@ class MetaSSScrapController(http.Controller):
                 "message": "Scrap context prepared successfully.",
                 "data": result,
             }
-        except Exception as exc:
-            return error_response(400, str(exc))
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response("server_error", "An unexpected error occurred while preparing scrap.")
 
     @http.route(f"{API_PREFIX}/scraps", type="json", auth="user", methods=["POST"])
     def get_scraps(self, **payload):
@@ -68,8 +72,11 @@ class MetaSSScrapController(http.Controller):
                     "offset": offset,
                 },
             }
-        except Exception as exc:
-            return error_response(400, str(exc))
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response("server_error", "An unexpected error occurred while fetching scraps.")
 
     @http.route(f"{API_PREFIX}/scraps/products", type="json", auth="user", methods=["POST"])
     def get_scrap_products(self, **payload):
@@ -87,8 +94,11 @@ class MetaSSScrapController(http.Controller):
                 "message": "Scrap products fetched successfully.",
                 "data": result,
             }
-        except Exception as exc:
-            return error_response(400, str(exc))
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response("server_error", "An unexpected error occurred while fetching scrap products.")
 
     @http.route(f"{API_PREFIX}/scraps/products/<int:product_id>/lots", type="json", auth="user", methods=["POST"])
     def get_scrap_product_lots(self, product_id, **payload):
@@ -102,8 +112,11 @@ class MetaSSScrapController(http.Controller):
                 "message": "Scrap product lots fetched successfully.",
                 "data": result,
             }
-        except Exception as exc:
-            return error_response(400, str(exc))
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response("server_error", "An unexpected error occurred while fetching scrap product lots.")
 
     @http.route(f"{API_PREFIX}/scraps/create", type="json", auth="user", methods=["POST"])
     def create_scrap(self, **payload):
@@ -119,8 +132,11 @@ class MetaSSScrapController(http.Controller):
                 "message": "Scrap delivery created successfully.",
                 "data": result,
             }
-        except Exception as exc:
-            return error_response(400, str(exc))
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response("server_error", "An unexpected error occurred while creating scrap.")
 
     @http.route(f"{API_PREFIX}/scraps/<int:picking_id>", type="json", auth="user", methods=["POST"])
     def get_scrap_details(self, picking_id, **payload):
@@ -135,8 +151,11 @@ class MetaSSScrapController(http.Controller):
                 "message": "Scrap delivery fetched successfully.",
                 "data": result,
             }
-        except Exception as exc:
-            return error_response(400, str(exc))
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response("server_error", "An unexpected error occurred while fetching scrap details.")
 
     @http.route(f"{API_PREFIX}/scraps/<int:picking_id>/update", type="json", auth="user", methods=["POST"])
     def update_scrap(self, picking_id, **payload):
@@ -151,5 +170,8 @@ class MetaSSScrapController(http.Controller):
                 "message": "Scrap delivery updated successfully.",
                 "data": result,
             }
-        except Exception as exc:
-            return error_response(400, str(exc))
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response("server_error", "An unexpected error occurred while updating scrap.")

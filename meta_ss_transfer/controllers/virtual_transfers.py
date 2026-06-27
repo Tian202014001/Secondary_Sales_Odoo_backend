@@ -22,6 +22,7 @@ from odoo.addons.meta_ss_transfer.utils.virtual_transfers import (
     serialize_virtual_transfer,
     serialize_virtual_transfer_prepare,
     validate_virtual_transfer,
+    update_virtual_transfer,
 )
 
 
@@ -289,6 +290,27 @@ class MetaSSVirtualTransferController(http.Controller):
             return error_response(
                 "server_error",
                 "An unexpected error occurred while fetching the virtual transfer.",
+            )
+
+    @http.route(f"{API_PREFIX}/virtual-transfers/<int:transfer_id>/update", type="json", auth="user", methods=["POST"])
+    def update_virtual_transfer(self, transfer_id, **payload):
+        """Update lines of an existing draft/assigned virtual transfer."""
+        try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = update_virtual_transfer(api_env, transfer_id, payload)
+            return {
+                "success": True,
+                "api_version": API_VERSION,
+                "message": "Virtual transfer updated successfully.",
+                "data": serialize_virtual_transfer(picking),
+            }
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response(
+                "server_error",
+                "An unexpected error occurred while updating the virtual transfer.",
             )
 
     @http.route(f"{API_PREFIX}/virtual-transfers/<int:transfer_id>/action", type="json", auth="user", methods=["POST"])

@@ -87,8 +87,8 @@ Full request and response examples are in [api_documentation.md](api_documentati
 | `POST` | `/api/v1/route-visits` | List route visits. |
 | `POST` | `/api/v1/route-visits/<visit_id>` | Route visit detail. |
 | `POST` | `/api/v1/route-visits/<visit_id>/action` | Route visit actions (`check_in`, `check_out`, `cancel`). |
-| `POST` | `/api/v1/visits/create` | Create outlet visit (Check-in). |
-| `POST` | `/api/v1/visits/<visit_id>/update` | Update outlet visit (Check-out). |
+| `POST` | `/api/v1/visits/create` | Create outlet visit (Check-in, requires `latitude`, `longitude` for geo-fencing). |
+| `POST` | `/api/v1/visits/<visit_id>/update` | Update outlet visit (Check-out, requires `latitude`, `longitude` for geo-fencing). |
 | `POST` | `/api/v1/visits/today` | Fetch today's active visit and checked out outlet IDs for the logged-in employee. |
 
 ### 4.1 Virtual Locations
@@ -153,3 +153,16 @@ Full request and response examples are in [api_documentation.md](api_documentati
 | `POST` | `/api/v1/scraps/create` | Create a scrap delivery in 'Ready' state from distributor to virtual scrap. |
 | `POST` | `/api/v1/scraps/<scrap_id>` | Scrap delivery detail. |
 | `POST` | `/api/v1/scraps/<scrap_id>/update` | Update a draft or assigned scrap delivery. |
+
+## 8. HR Modules
+
+**Employee Attendance and Leave Requests**
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/hr/attendance/status` | Fetch the employee's current check-in status. |
+| `POST` | `/api/v1/hr/attendance/history` | List paginated recent attendance logs for the logged-in employee (includes `distributor_name`). |
+| `POST` | `/api/v1/hr/attendance/action` | Record employee check-in or check-out (requires `latitude`, `longitude`, enforces 50m geo-fencing). |
+| `POST` | `/api/v1/hr/leaves` | List leave requests for the logged-in employee. |
+| `POST` | `/api/v1/hr/leaves/create` | Submit a new leave request (requires dates, leave type, reason). |
+| `POST` | `/api/v1/hr/leaves/<leave_id>` | View details of a specific leave request. |

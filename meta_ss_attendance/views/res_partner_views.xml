@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_inherit_attendance_radius" model="ir.ui.view">
+        <field name="name">res.partner.form.attendance.radius</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook/page[@name='internal_notes']" position="before">
+                <page name="attendance_config" string="Attendance Config">
+                    <group>
+                        <group>
+                            <field name="ss_attendance_radius" />
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

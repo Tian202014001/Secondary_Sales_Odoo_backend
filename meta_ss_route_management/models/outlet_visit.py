@@ -45,6 +45,12 @@ class OutletVisit(models.Model):
         string="Visit Type",
         default='standard'
     )
+    visited_with_id = fields.Many2one(
+        'hr.employee',
+        string="Visited With",
+        help="Employee accompanying this visit.",
+        tracking=True,
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -62,15 +68,20 @@ class OutletVisit(models.Model):
 
     def _link_visits(self):
         """Unified method to establish the link between joint visits and standard visits."""
+        from datetime import datetime, time
         for visit in self:
             if visit.visit_type == 'join':
                 if not visit.visited_with_id or not visit.outlet_id or not visit.check_in_time:
                     continue
+                check_in_date = visit.check_in_time.date()
+                date_start = datetime.combine(check_in_date, time.min)
+                date_end = datetime.combine(check_in_date, time.max)
                 candidates = self.search([
                     ('visit_type', '=', 'standard'),
                     ('employee_id', '=', visit.visited_with_id.id),
                     ('outlet_id', '=', visit.outlet_id.id),
-                    ('check_in_time', '!=', False),
+                    ('check_in_time', '>=', date_start),
+                    ('check_in_time', '<=', date_end),
                 ])
                 matching_visit = False
                 for cand in candidates:
@@ -88,11 +99,15 @@ class OutletVisit(models.Model):
             elif visit.visit_type == 'standard':
                 if not visit.employee_id or not visit.outlet_id or not visit.check_in_time:
                     continue
+                check_in_date = visit.check_in_time.date()
+                date_start = datetime.combine(check_in_date, time.min)
+                date_end = datetime.combine(check_in_date, time.max)
                 candidates = self.search([
                     ('visit_type', '=', 'join'),
                     ('visited_with_id', '=', visit.employee_id.id),
                     ('outlet_id', '=', visit.outlet_id.id),
-                    ('check_in_time', '!=', False),
+                    ('check_in_time', '>=', date_start),
+                    ('check_in_time', '<=', date_end),
                 ])
                 matching_visit = False
                 for cand in candidates:
@@ -108,9 +123,3 @@ class OutletVisit(models.Model):
                     if visit.join_visit_id != matching_visit:
                         visit.with_context(syncing_visit_links=True).write({'join_visit_id': matching_visit.id})
 
-    visited_with_id = fields.Many2one(
-        'hr.employee',
-        string="Visited With",
-        help="Employee accompanying this visit.",
-        tracking=True,
-    )

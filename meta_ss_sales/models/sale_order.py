@@ -40,6 +40,54 @@ class SaleOrder(models.Model):
         help="Outlet visit associated with this sales order"
     )
 
+    damaged_picking_ids = fields.One2many(
+        "stock.picking",
+        compute="_compute_damaged_picking_ids",
+        string="Damaged Receipts",
+    )
+    damaged_picking_count = fields.Integer(
+        compute="_compute_damaged_picking_ids",
+        string="Damaged Receipt Count",
+    )
+
+    @api.depends("picking_ids")
+    def _compute_damaged_picking_ids(self):
+        for order in self:
+            damaged = self.env["stock.picking"].search([
+                ("sale_id", "=", order.id),
+                ("picking_type_id.code", "=", "incoming"),
+            ])
+            order.damaged_picking_ids = damaged
+            order.damaged_picking_count = len(damaged)
+
+    def action_view_damaged_receipt(self):
+        self.ensure_one()
+        action = self.env["ir.actions.actions"]._for_xml_id("stock.action_picking_tree_all")
+        pickings = self.damaged_picking_ids
+        if len(pickings) > 1:
+            action["domain"] = [("id", "in", pickings.ids)]
+        elif pickings:
+            form_view = self.env.ref("stock.view_picking_form", raise_if_not_found=False)
+            action["views"] = [(form_view.id if form_view else False, "form")]
+            action["res_id"] = pickings.id
+        else:
+            action = {"type": "ir.actions.act_window_close"}
+        return action
+
+    @api.depends('picking_ids')
+    def _compute_picking_ids(self):
+        super()._compute_picking_ids()
+        for order in self:
+            if order.sale_type == 'secondary':
+                deliveries = order.picking_ids.filtered(lambda p: p.picking_type_id.code == 'outgoing')
+                order.delivery_count = len(deliveries)
+
+    def action_view_delivery(self):
+        if self.sale_type == 'secondary':
+            deliveries = self.picking_ids.filtered(lambda p: p.picking_type_id.code == 'outgoing')
+            return self._get_action_view_picking(deliveries)
+        return super().action_view_delivery()
+
     @api.onchange("so_employee_id")
     def _onchange_so_employee_id(self):
         if (
@@ -176,6 +224,8 @@ class SaleOrder(models.Model):
             "location_dest_id": scrap_location.id,
             "origin": origin,
             "company_id": self.company_id.id,
+            "sale_id": self.id,
+            "ss_picking_type": "secondary",
             "move_ids": [
                 (0, 0, {
                     "name": _("%s (Damaged Return)") % line.product_id.display_name,

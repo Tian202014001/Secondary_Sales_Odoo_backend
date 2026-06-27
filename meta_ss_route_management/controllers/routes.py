@@ -1,8 +1,19 @@
 # -*- coding: utf-8 -*-
 
+import math
 from datetime import datetime, timezone
 
-from odoo import http
+from odoo import http, fields
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    R = 6371000  # radius of Earth in meters
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2
+    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
 from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
@@ -674,6 +685,70 @@ class MetaSSRouteController(http.Controller):
                 "An unexpected error occurred while removing the outlet.",
             )
 
+    @http.route(f"{API_PREFIX}/visits", type="json", auth="user", methods=["POST"], csrf=False)
+    def get_employee_visits(self, **payload):
+        """Get paginated list of visits."""
+        try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            employee_id = payload.get("employee_id")
+            if not employee_id:
+                return error_response("missing_employee_id", "'employee_id' is required.")
+                
+            domain = [("employee_id", "child_of", int(employee_id))]
+            
+            visit_type = payload.get("visit_type")
+            if visit_type and visit_type != "all":
+                domain.append(("visit_type", "=", visit_type))
+                
+            route_id = payload.get("route_id")
+            if route_id:
+                route_line_outlets = api_env["sale.route.line"].sudo().search([("route_id", "=", int(route_id))]).mapped("outlet_id.id")
+                if route_line_outlets:
+                    domain.append(("outlet_id", "in", route_line_outlets))
+                else:
+                    domain.append(("id", "=", 0))
+                    
+            search = (payload.get("search") or "").strip()
+            if search:
+                domain.append(("outlet_id.name", "ilike", search))
+
+            limit, offset, page, page_size = get_pagination(payload)
+            Visit = api_env["outlet.visit"].sudo()
+            
+            visits = Visit.search(domain, limit=limit, offset=offset, order="check_in_time desc, id desc")
+            total = Visit.search_count(domain)
+            
+            data = []
+            for visit in visits:
+                data.append({
+                    "id": visit.id,
+                    "employee_id": visit.employee_id.id,
+                    "employee_name": visit.employee_id.name,
+                    "outlet_id": visit.outlet_id.id,
+                    "outlet_name": visit.outlet_id.name,
+                    "check_in_time": str(visit.check_in_time) if visit.check_in_time else None,
+                    "check_out_time": str(visit.check_out_time) if visit.check_out_time else None,
+                    "visit_type": visit.visit_type,
+                    "visited_with_name": visit.visited_with_id.name if visit.visited_with_id else None,
+                })
+                
+            return {
+                "success": True,
+                "api_version": API_VERSION,
+                "message": "Visits fetched successfully.",
+                "data": data,
+                "pagination": {
+                    "page": page,
+                    "page_size": page_size,
+                    "total": total,
+                },
+            }
+        except (AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception as exc:
+            request.env.cr.rollback()
+            return error_response("server_error", f"An unexpected error occurred: {str(exc)}")
+
     @http.route(f"{API_PREFIX}/visits/create", type="json", auth="user", methods=["POST"], csrf=False)
     def create_visit(self, **payload):
         """Create a new outlet.visit record."""
@@ -685,10 +760,37 @@ class MetaSSRouteController(http.Controller):
             outlet_id = payload.get("outlet_id")
             check_in_time = _mobile_datetime_to_odoo(payload.get("check_in_time")) or fields.Datetime.now()
             
+            lat = payload.get("latitude")
+            lon = payload.get("longitude")
+
             if not employee_id:
                 raise ValidationError("'employee_id' is required.")
             if not outlet_id:
                 raise ValidationError("'outlet_id' is required.")
+            if not lat or not lon:
+                raise ValidationError("latitude and longitude are required to check in to an outlet.")
+                
+            try:
+                lat = float(lat)
+                lon = float(lon)
+            except ValueError:
+                raise ValidationError("Invalid coordinates format.")
+
+            outlet = api_env["res.partner"].sudo().browse(int(outlet_id))
+            if not outlet.exists():
+                raise ValidationError("Outlet not found.")
+
+            o_lat = outlet.partner_latitude
+            o_lon = outlet.partner_longitude
+            # Fallback to 50 meters if the radius is not configured
+            radius = getattr(outlet, 'ss_attendance_radius', 50.0) or 50.0
+            
+            if not o_lat or not o_lon:
+                raise ValidationError("This outlet does not have GPS coordinates set. Please update the outlet location first.")
+                
+            distance = haversine_distance(lat, lon, o_lat, o_lon)
+            if distance > radius:
+                raise ValidationError("You must be within the outlet's radius to check in.")
                 
             visit = api_env["outlet.visit"].sudo().create({
                 "employee_id": int(employee_id),
@@ -735,6 +837,28 @@ class MetaSSRouteController(http.Controller):
             if not visit:
                 raise ValidationError("No visit was found for the provided id.")
                 
+            lat = payload.get("latitude")
+            lon = payload.get("longitude")
+            
+            if lat and lon:
+                try:
+                    lat = float(lat)
+                    lon = float(lon)
+                except ValueError:
+                    raise ValidationError("Invalid coordinates format.")
+                
+                outlet = visit.outlet_id
+                o_lat = outlet.partner_latitude
+                o_lon = outlet.partner_longitude
+                radius = getattr(outlet, 'ss_attendance_radius', 50.0) or 50.0
+                
+                if not o_lat or not o_lon:
+                    raise ValidationError("This outlet does not have GPS coordinates set.")
+                    
+                distance = haversine_distance(lat, lon, o_lat, o_lon)
+                if distance > radius:
+                    raise ValidationError("You must be within the outlet's radius to check out.")
+
             vals = {}
             if "check_out_time" in payload:
                 vals["check_out_time"] = _mobile_datetime_to_odoo(payload["check_out_time"])

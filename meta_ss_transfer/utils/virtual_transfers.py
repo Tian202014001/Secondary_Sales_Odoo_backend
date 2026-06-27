@@ -450,6 +450,149 @@ def create_virtual_transfer(env, payload):
         return picking
 
 
+def update_virtual_transfer(env, transfer_id, payload):
+    picking = get_virtual_transfer_for_employee(env, transfer_id, payload)
+    if picking.state in ("done", "cancel"):
+        raise ValidationError("Cannot update a virtual transfer in its current state.")
+
+    employee, distributor, source_location = get_employee_transfer_context(env, payload)
+    destination = _get_destination_location(env, payload, employee, distributor)
+    van_op_type = payload.get("van_operation_type") or "load"
+    
+    lines = payload.get("lines") or payload.get("move_lines") or []
+    if not isinstance(lines, list) or not lines:
+        raise ValidationError("'lines' must be a non-empty list.")
+
+    if van_op_type == "unload":
+        fresh_lines_data = []
+        for line in lines:
+            pid = line.get("product_id")
+            fresh_qty = _get_float(line.get("fresh_qty") if "fresh_qty" in line else line.get("quantity") or 0.0, "fresh qty")
+            scrap_qty = _get_float(line.get("scrap_qty") or 0.0, "scrap qty")
+            
+            lot_lines = line.get("lot_lines") or []
+            mapped_lots = []
+            for l in lot_lines:
+                lot_id = l.get("lot_id")
+                l_fresh = _get_float(l.get("fresh_qty") if "fresh_qty" in l else l.get("quantity") or 0.0, "lot fresh qty")
+                l_scrap = _get_float(l.get("scrap_qty") or 0.0, "lot scrap qty")
+                mapped_lots.append({
+                    "lot_id": lot_id,
+                    "quantity": l_fresh,
+                    "ss_scrap_qty": l_scrap,
+                })
+            
+            fresh_lines_data.append({
+                "product_id": pid,
+                "quantity": fresh_qty,
+                "ss_scrap_qty": scrap_qty,
+                "lot_lines": mapped_lots,
+            })
+            
+        prepared_lines = _prepare_transfer_lines(env, fresh_lines_data, source_location)
+        for pl in prepared_lines:
+            inp = next((i for i in fresh_lines_data if i["product_id"] == pl["product"].id), None)
+            if inp:
+                pl["ss_scrap_qty"] = inp["ss_scrap_qty"]
+                for lot_line in pl.get("lot_lines", []):
+                    inp_lot = next((il for il in inp.get("lot_lines", []) if il["lot_id"] == lot_line["lot"].id), None)
+                    if inp_lot:
+                        lot_line["ss_scrap_qty"] = inp_lot["ss_scrap_qty"]
+
+        _validate_requested_quantities(env, prepared_lines, source_location)
+
+        # Cancel existing moves
+        if picking.state != "draft":
+            picking.move_ids._action_cancel()
+        try:
+            picking.move_ids.unlink()
+        except Exception:
+            pass
+
+        picking.write({
+            "location_id": source_location.id,
+            "location_dest_id": distributor.property_stock_customer.id,
+            "ss_distributor_id": distributor.id,
+            "ss_destination_location_id": source_location.id,
+            "van_operation_type": "unload",
+            "ss_transfer_type": "unload",
+            "move_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "name": item["product"].display_name,
+                        "product_id": item["product"].id,
+                        "product_uom_qty": item["quantity"],
+                        "ss_scrap_qty": item.get("ss_scrap_qty", 0.0),
+                        "product_uom": item["uom"].id,
+                        "location_id": source_location.id,
+                        "location_dest_id": distributor.property_stock_customer.id,
+                    },
+                )
+                for item in prepared_lines
+            ],
+        })
+        picking.action_confirm()
+
+        for move in picking.move_ids.filtered(lambda item: item.state not in ("cancel", "done")):
+            item = next(
+                (p for p in prepared_lines if p["product"].id == move.product_id.id),
+                None
+            )
+            if not item:
+                continue
+            _apply_move_lines(env, picking, move, item)
+
+    else:
+        prepared_lines = _prepare_transfer_lines(env, lines, source_location)
+        _validate_requested_quantities(env, prepared_lines, source_location)
+
+        # Cancel existing moves
+        if picking.state != "draft":
+            picking.move_ids._action_cancel()
+        try:
+            picking.move_ids.unlink()
+        except Exception:
+            pass
+
+        picking.write({
+            "location_id": source_location.id,
+            "location_dest_id": destination.id,
+            "ss_distributor_id": distributor.id,
+            "ss_destination_location_id": destination.id,
+            "van_operation_type": "load",
+            "ss_transfer_type": "load",
+            "move_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "name": item["product"].display_name,
+                        "product_id": item["product"].id,
+                        "product_uom_qty": item["quantity"],
+                        "product_uom": item["uom"].id,
+                        "location_id": source_location.id,
+                        "location_dest_id": destination.id,
+                    },
+                )
+                for item in prepared_lines
+            ],
+        })
+        picking.action_confirm()
+
+        for move in picking.move_ids.filtered(lambda item: item.state not in ("cancel", "done")):
+            item = next(
+                (p for p in prepared_lines if p["product"].id == move.product_id.id),
+                None
+            )
+            if not item:
+                continue
+            _apply_move_lines(env, picking, move, item)
+
+    return picking
+
+
 def get_virtual_transfer_for_employee(env, transfer_id, payload):
     if not transfer_id:
         raise ValidationError("'transfer_id' is required.")

@@ -15,6 +15,15 @@
                 <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
                     <field name="damaged_qty" column_invisible="parent.sale_type != 'secondary'"/>
                 </xpath>
+                <xpath expr="//div[@name='button_box']" position="inside">
+                    <button name="action_view_damaged_receipt"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-exchange"
+                            invisible="sale_type != 'secondary' or damaged_picking_count == 0">
+                        <field name="damaged_picking_count" widget="statinfo" string="Damaged Returns"/>
+                    </button>
+                </xpath>
             </field>
         </record>
 

@@ -139,7 +139,7 @@ class MetaSSContactController(http.Controller):
             logging.getLogger(__name__).exception("create_contact failed")
             return error_response(
                 "server_error",
-                "An unexpected error occurred while creating contact. Please contact support.",
+                f"Server error: {str(exc)}",
             )
 
     @http.route(f"{API_PREFIX}/contacts/<int:contact_id>", type="json", auth="user", methods=["POST"])

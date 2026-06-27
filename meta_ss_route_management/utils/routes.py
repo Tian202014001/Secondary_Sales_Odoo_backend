@@ -177,14 +177,12 @@ def _get_route_line_commands(env, outlets, replace_existing=True):
 
         try:
             sequence = int(outlet_payload.get("sequence", index * 10))
-            expected_visit_time = float(outlet_payload.get("expected_visit_time", 0.0))
         except (TypeError, ValueError) as exc:
-            raise ValidationError("'sequence' and 'expected_visit_time' must be numeric.") from exc
+            raise ValidationError("'sequence' must be numeric.") from exc
 
         commands.append((0, 0, {
             "outlet_id": outlet_partner.id,
             "sequence": sequence,
-            "expected_visit_time": expected_visit_time,
             "active": parse_active_filter(outlet_payload),
         }))
 

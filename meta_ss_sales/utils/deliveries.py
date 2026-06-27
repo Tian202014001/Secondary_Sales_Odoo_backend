@@ -6,6 +6,7 @@ from odoo.tools.float_utils import float_compare, float_is_zero
 
 from odoo.addons.meta_ss_sales.utils.sale_order_details import (
     get_primary_sale_order_for_employee,
+    get_sale_order_for_employee,
     serialize_sale_order_detail,
 )
 from odoo.addons.meta_ss_sales.utils.sales import parse_bool
@@ -40,7 +41,14 @@ def resolve_delivery_location(env, payload):
 
 
 def get_order_delivery_context(env, order_id, payload):
-    order = get_primary_sale_order_for_employee(env, order_id, payload)
+    try:
+        ord_id = int(order_id)
+        order_sudo = env["sale.order"].sudo().browse(ord_id)
+        sale_type = payload.get("sale_type") or order_sudo.sale_type or "primary"
+    except Exception:
+        sale_type = payload.get("sale_type") or "primary"
+
+    order = get_sale_order_for_employee(env, order_id, {**payload, "sale_type": sale_type})
     picking = _get_active_delivery_picking(order, payload.get("picking_id"))
     return order, picking
 
@@ -313,6 +321,14 @@ def _validate_move_quantity(move, quantity):
         raise ValidationError(
             "Delivered quantity cannot exceed ordered quantity for product '%s'."
             % move.product_id.display_name
+        )
+    
+    # Ensure they don't deliver more than what is available in the source location
+    available_qty = move.product_id.with_context(location=move.location_id.id).qty_available
+    if float_compare(quantity, available_qty, precision_rounding=move.product_uom.rounding) > 0:
+        raise ValidationError(
+            "Delivered quantity (%.2f) exceeds available stock (%.2f) in source location for product '%s'."
+            % (quantity, available_qty, move.product_id.display_name)
         )
 
 
