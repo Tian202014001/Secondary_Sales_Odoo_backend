@@ -69,7 +69,8 @@ def _reverse_geocode(lat, lon):
             
         url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
         headers = {
-            "User-Agent": "Odoo-Meta-SS-App/1.0 (abrar@example.com)"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept-Language": "en-US,en;q=0.9"
         }
         
         response = requests.get(url, headers=headers, timeout=5)
