@@ -69,7 +69,9 @@ def _reverse_geocode(lat, lon):
             
         url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            # Nominatim Policy requires a valid app identifier (not a fake browser).
+            # Please replace "your-email@meta.com" with a real admin email to avoid blocks.
+            "User-Agent": "Secondary-Sales-Odoo-Backend/1.0 (info@metamorphosis.com.bd)",
             "Accept-Language": "en-US,en;q=0.9"
         }
         
