@@ -18,6 +18,7 @@
     'data': [
         'views/res_partner_views.xml',
         'views/hr_attendance_views.xml',
+        'views/res_mobile_user_group_views.xml',
     ],
     'installable': True,
     'application': False,

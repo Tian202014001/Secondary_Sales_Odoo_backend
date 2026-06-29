@@ -5,8 +5,10 @@ class HrAttendance(models.Model):
 
     check_in_latitude = fields.Float(string="Check-in Latitude", digits=(10, 7))
     check_in_longitude = fields.Float(string="Check-in Longitude", digits=(10, 7))
+    check_in_address = fields.Char(string="Check-in Address")
     
     check_out_latitude = fields.Float(string="Check-out Latitude", digits=(10, 7))
     check_out_longitude = fields.Float(string="Check-out Longitude", digits=(10, 7))
+    check_out_address = fields.Char(string="Check-out Address")
 
     ss_distributor_id = fields.Many2one('res.partner', string="Distributor Checked In At")

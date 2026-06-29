@@ -9,10 +9,12 @@
                 <group string="GPS Check-in">
                     <field name="check_in_latitude" />
                     <field name="check_in_longitude" />
+                    <field name="check_in_address" />
                 </group>
                 <group string="GPS Check-out">
                     <field name="check_out_latitude" />
                     <field name="check_out_longitude" />
+                    <field name="check_out_address" />
                 </group>
             </xpath>
         </field>

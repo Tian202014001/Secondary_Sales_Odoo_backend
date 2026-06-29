@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_res_mobile_user_group_form_inherit_attendance" model="ir.ui.view">
+        <field name="name">res.mobile.user.group.form.inherit.attendance</field>
+        <field name="model">res.mobile.user.group</field>
+        <field name="inherit_id" ref="meta_api_user.view_res_mobile_user_group_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='active']" position="after">
+                <field name="skip_attendance_geolocation"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

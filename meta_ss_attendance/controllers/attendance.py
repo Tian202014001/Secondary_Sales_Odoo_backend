@@ -55,6 +55,37 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return R * c
 
 
+import time
+
+_last_call_time = 0
+
+def _reverse_geocode(lat, lon):
+    global _last_call_time
+    try:
+        import requests
+        elapsed = time.time() - _last_call_time
+        if elapsed < 1.0:
+            time.sleep(1.0 - elapsed)
+            
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
+        headers = {
+            "User-Agent": "Odoo-Meta-SS-App/1.0 (abrar@example.com)"
+        }
+        
+        response = requests.get(url, headers=headers, timeout=5)
+        _last_call_time = time.time()
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("display_name", "")
+            
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Geocoding Error: %s", e)
+        
+    return ""
+
+
 class AttendanceAPI(http.Controller):
 
     @http.route(f"{API_PREFIX}/hr/attendance/status", type="json", auth="user", methods=["POST"])
@@ -83,7 +114,8 @@ class AttendanceAPI(http.Controller):
                 "data": {
                     "is_checked_in": bool(active_attendance),
                     "active_id": active_attendance.id if active_attendance else None,
-                    "active_check_in": active_attendance.check_in.strftime("%Y-%m-%d %H:%M:%S") if active_attendance else None
+                    "active_check_in": active_attendance.check_in.strftime("%Y-%m-%d %H:%M:%S") if active_attendance else None,
+                    "check_in_address": active_attendance.check_in_address if active_attendance else None,
                 }
             }
         except Exception as e:
@@ -122,6 +154,8 @@ class AttendanceAPI(http.Controller):
                     "check_out": rec.check_out.strftime("%Y-%m-%d %H:%M:%S") if rec.check_out else None,
                     "worked_hours": round(rec.worked_hours, 2) if rec.worked_hours else 0.0,
                     "distributor_name": rec.ss_distributor_id.name if rec.ss_distributor_id else None,
+                    "check_in_address": rec.check_in_address,
+                    "check_out_address": rec.check_out_address,
                 })
 
             return {
@@ -147,6 +181,7 @@ class AttendanceAPI(http.Controller):
             action = payload.get("action")
             lat = payload.get("latitude")
             lon = payload.get("longitude")
+            address = payload.get("address") # Optionally from payload
 
             if not all((employee_id, action, lat, lon)):
                 raise ValidationError("employee_id, action (check_in/check_out), latitude, and longitude are required.")
@@ -156,6 +191,9 @@ class AttendanceAPI(http.Controller):
                 lon = float(lon)
             except ValueError:
                 raise ValidationError("Invalid coordinates format.")
+
+            if not address:
+                address = _reverse_geocode(lat, lon)
 
             employee = api_env["hr.employee"].browse(int(employee_id))
             if not employee.exists():
@@ -169,28 +207,35 @@ class AttendanceAPI(http.Controller):
                 })
 
             # 2. Geo-Fence Validation
+            skip_geolocation = employee.mobile_user_group_id and employee.mobile_user_group_id.skip_attendance_geolocation
+
             subordinates = api_env["hr.employee"].sudo().search([("id", "child_of", employee.id)])
             allowed_distributors = subordinates.mapped("distributor_contact_ids")
             
-            if not allowed_distributors:
+            if not skip_geolocation and not allowed_distributors:
                 raise ValidationError("No distributors assigned. You cannot punch attendance without an assigned distributor.")
 
             is_valid_location = False
             valid_distributor = None
-            for distributor in allowed_distributors:
-                d_lat = distributor.partner_latitude
-                d_lon = distributor.partner_longitude
-                radius = distributor.ss_attendance_radius or 50.0  # fallback if field is 0
-                
-                if d_lat and d_lon:
-                    distance = haversine_distance(lat, lon, d_lat, d_lon)
-                    if distance <= radius:
-                        is_valid_location = True
-                        valid_distributor = distributor
-                        break
+            
+            if skip_geolocation:
+                is_valid_location = True
+                valid_distributor = allowed_distributors[0] if allowed_distributors else None
+            else:
+                for distributor in allowed_distributors:
+                    d_lat = distributor.partner_latitude
+                    d_lon = distributor.partner_longitude
+                    radius = distributor.ss_attendance_radius or 50.0  # fallback if field is 0
+                    
+                    if d_lat and d_lon:
+                        distance = haversine_distance(lat, lon, d_lat, d_lon)
+                        if distance <= radius:
+                            is_valid_location = True
+                            valid_distributor = distributor
+                            break
 
-            if not is_valid_location:
-                raise ValidationError("You must be within the assigned distributor's radius to check in/out.")
+                if not is_valid_location:
+                    raise ValidationError("You must be within the assigned distributor's radius to check in/out.")
 
             # 3. Create or Update Attendance Record
             attendance_obj = api_env["hr.attendance"]
@@ -210,6 +255,7 @@ class AttendanceAPI(http.Controller):
                     "check_in": fields.Datetime.now(),
                     "check_in_latitude": lat,
                     "check_in_longitude": lon,
+                    "check_in_address": address,
                     "ss_distributor_id": valid_distributor.id if valid_distributor else False,
                 })
                 
@@ -219,7 +265,8 @@ class AttendanceAPI(http.Controller):
                     "message": "Checked in successfully.",
                     "data": {
                         "id": new_rec.id,
-                        "check_in": new_rec.check_in.strftime("%Y-%m-%d %H:%M:%S")
+                        "check_in": new_rec.check_in.strftime("%Y-%m-%d %H:%M:%S"),
+                        "check_in_address": address,
                     }
                 }
                 
@@ -235,7 +282,8 @@ class AttendanceAPI(http.Controller):
                 open_rec.write({
                     "check_out": fields.Datetime.now(),
                     "check_out_latitude": lat,
-                    "check_out_longitude": lon
+                    "check_out_longitude": lon,
+                    "check_out_address": address,
                 })
                 
                 return {
@@ -245,7 +293,8 @@ class AttendanceAPI(http.Controller):
                     "data": {
                         "id": open_rec.id,
                         "check_out": open_rec.check_out.strftime("%Y-%m-%d %H:%M:%S"),
-                        "worked_hours": round(open_rec.worked_hours, 2) if open_rec.worked_hours else 0.0
+                        "worked_hours": round(open_rec.worked_hours, 2) if open_rec.worked_hours else 0.0,
+                        "check_out_address": address,
                     }
                 }
             else:
