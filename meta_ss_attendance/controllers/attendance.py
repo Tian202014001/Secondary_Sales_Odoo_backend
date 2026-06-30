@@ -16,8 +16,8 @@ except ImportError:
     API_PREFIX = "/api/v1"
     API_VERSION = "v1"
     
-    def error_response(e):
-        return {"success": False, "error": str(type(e).__name__), "message": str(e)}
+    def error_response(code, message, data=None):
+        return {"success": False, "error": code, "message": str(message)}
         
     def get_mobile_api_context(payload):
         return request.env.user, request.env, payload
@@ -118,10 +118,11 @@ class AttendanceAPI(http.Controller):
                     "is_checked_in": bool(active_attendance),
                     "active_id": active_attendance.id if active_attendance else None,
                     "active_check_in": active_attendance.check_in.strftime("%Y-%m-%d %H:%M:%S") if active_attendance else None,
-                    "check_in_address": active_attendance.check_in_address if active_attendance else None,
+                    "check_in_address": (active_attendance.check_in_address or "") if active_attendance else "",
                 }
             }
         except Exception as e:
+            request.env.cr.rollback()
             return error_response(400, str(e))
 
     @http.route(f"{API_PREFIX}/hr/attendance/history", type="json", auth="user", methods=["POST"])
@@ -154,11 +155,11 @@ class AttendanceAPI(http.Controller):
                     "id": rec.id,
                     "date": rec.check_in.strftime("%Y-%m-%d") if rec.check_in else None,
                     "check_in": rec.check_in.strftime("%Y-%m-%d %H:%M:%S") if rec.check_in else None,
-                    "check_out": rec.check_out.strftime("%Y-%m-%d %H:%M:%S") if rec.check_out else None,
+                    "check_out": rec.check_out.strftime("%Y-%m-%d %H:%M:%S") if rec.check_out else "",
                     "worked_hours": round(rec.worked_hours, 2) if rec.worked_hours else 0.0,
-                    "distributor_name": rec.ss_distributor_id.name if rec.ss_distributor_id else None,
-                    "check_in_address": rec.check_in_address,
-                    "check_out_address": rec.check_out_address,
+                    "distributor_name": rec.ss_distributor_id.name if rec.ss_distributor_id else "",
+                    "check_in_address": rec.check_in_address or "",
+                    "check_out_address": rec.check_out_address or "",
                 })
 
             return {
@@ -173,6 +174,7 @@ class AttendanceAPI(http.Controller):
                 }
             }
         except Exception as e:
+            request.env.cr.rollback()
             return error_response(400, str(e))
 
     @http.route(f"{API_PREFIX}/hr/attendance/action", type="json", auth="user", methods=["POST"])
@@ -269,7 +271,7 @@ class AttendanceAPI(http.Controller):
                     "data": {
                         "id": new_rec.id,
                         "check_in": new_rec.check_in.strftime("%Y-%m-%d %H:%M:%S"),
-                        "check_in_address": address,
+                        "check_in_address": address or "",
                     }
                 }
                 
@@ -286,7 +288,7 @@ class AttendanceAPI(http.Controller):
                     "check_out": fields.Datetime.now(),
                     "check_out_latitude": lat,
                     "check_out_longitude": lon,
-                    "check_out_address": address,
+                    "check_out_address": address or "",
                 })
                 
                 return {
@@ -297,11 +299,12 @@ class AttendanceAPI(http.Controller):
                         "id": open_rec.id,
                         "check_out": open_rec.check_out.strftime("%Y-%m-%d %H:%M:%S"),
                         "worked_hours": round(open_rec.worked_hours, 2) if open_rec.worked_hours else 0.0,
-                        "check_out_address": address,
+                        "check_out_address": address or "",
                     }
                 }
             else:
                 raise ValidationError("Invalid action. Must be 'check_in' or 'check_out'.")
 
         except Exception as e:
+            request.env.cr.rollback()
             return error_response(400, str(e))
