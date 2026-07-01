@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_hr_expense_sheet_form_inherit_request_source" model="ir.ui.view">
+        <field name="name">hr.expense.sheet.form.inherit.request_source</field>
+        <field name="model">hr.expense.sheet</field>
+        <field name="inherit_id" ref="hr_expense.view_hr_expense_sheet_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='employee_id']" position="after">
+                <field name="request_source" readonly="1" groups="base.group_no_one"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_hr_expense_sheet_tree_inherit_request_source" model="ir.ui.view">
+        <field name="name">hr.expense.sheet.tree.inherit.request_source</field>
+        <field name="model">hr.expense.sheet</field>
+        <field name="inherit_id" ref="hr_expense.view_hr_expense_sheet_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='employee_id']" position="after">
+                <field name="request_source" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Clear the action from standard parent menu to make it a parent menu folder -->
+    <record id="hr_expense.menu_hr_expense_report" model="ir.ui.menu">
+        <field name="action" eval="False"/>
+    </record>
+
+    <!-- Odoo/Standard Reports Window Action -->
+    <record id="action_hr_expense_sheet_odoo" model="ir.actions.act_window">
+        <field name="name">Odoo Reports</field>
+        <field name="res_model">hr.expense.sheet</field>
+        <field name="view_mode">list,kanban,form,pivot,graph</field>
+        <field name="search_view_id" ref="hr_expense.hr_expense_sheet_view_search_with_panel"/>
+        <field name="domain">[('request_source', '=', 'odoo')]</field>
+        <field name="context">{
+            'default_request_source': 'odoo',
+            'searchpanel_default_state': ["draft", "submit", "approve", "post", "done"]
+        }</field>
+    </record>
+
+    <!-- Mobile App Reports Window Action -->
+    <record id="action_hr_expense_sheet_app" model="ir.actions.act_window">
+        <field name="name">Mobile Reports</field>
+        <field name="res_model">hr.expense.sheet</field>
+        <field name="view_mode">list,kanban,form,pivot,graph</field>
+        <field name="search_view_id" ref="hr_expense.hr_expense_sheet_view_search_with_panel"/>
+        <field name="domain">[('request_source', '=', 'app')]</field>
+        <field name="context">{
+            'default_request_source': 'app',
+            'searchpanel_default_state': ["draft", "submit", "approve", "post", "done"]
+        }</field>
+    </record>
+
+    <!-- Submenus under Expense Reports -->
+    <menuitem id="menu_hr_expense_sheet_odoo" 
+              name="Odoo Reports" 
+              sequence="1" 
+              parent="hr_expense.menu_hr_expense_report"
+              action="action_hr_expense_sheet_odoo"
+              groups="account.group_account_user,hr_expense.group_hr_expense_team_approver"/>
+
+    <menuitem id="menu_hr_expense_sheet_app" 
+              name="Mobile Reports" 
+              sequence="2" 
+              parent="hr_expense.menu_hr_expense_report"
+              action="action_hr_expense_sheet_app"
+              groups="account.group_account_user,hr_expense.group_hr_expense_team_approver"/>
+</odoo>

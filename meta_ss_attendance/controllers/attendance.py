@@ -82,7 +82,7 @@ def _reverse_geocode(lat, lon):
             data = response.json()
             return data.get("display_name", "")
             
-    except Exception as e:
+    except Exception as e: 
         import logging
         logging.getLogger(__name__).warning("Geocoding Error: %s", e)
         

@@ -44,14 +44,14 @@ class ResPartner(models.Model):
         StockLocation = self.env['stock.location'].sudo()
         customer_parent = self.env.ref('stock.stock_location_customers')
 
-        # Find or create dealer folder
-        dealer_folder = StockLocation.search([
+        # Find or create dealer location
+        dealer_loc = StockLocation.search([
             ('name', '=', self.name),
             ('usage', '=', 'customer'),
             ('location_id', '=', customer_parent.id),
             ('active', '=', True)
         ], limit=1)
-        if not dealer_folder:
+        if not dealer_loc:
             vals = {
                 'name': self.name,
                 'usage': 'customer',
@@ -62,66 +62,38 @@ class ResPartner(models.Model):
             if 'ss_distributor_id' in StockLocation._fields:
                 vals['ss_distributor_id'] = self.id
                 
-            dealer_folder = StockLocation.create(vals)
-            dealer_folder._compute_complete_name()
-            dealer_folder.flush_recordset(['complete_name'])
+            dealer_loc = StockLocation.create(vals)
+            dealer_loc._compute_complete_name()
+            dealer_loc.flush_recordset(['complete_name'])
         else:
             update_vals = {}
-            if 'ss_location_type' in StockLocation._fields and dealer_folder.ss_location_type != 'distributor_location':
+            if 'ss_location_type' in StockLocation._fields and dealer_loc.ss_location_type != 'distributor_location':
                 update_vals['ss_location_type'] = 'distributor_location'
-            if 'ss_distributor_id' in StockLocation._fields and dealer_folder.ss_distributor_id.id != self.id:
+            if 'ss_distributor_id' in StockLocation._fields and dealer_loc.ss_distributor_id.id != self.id:
                 update_vals['ss_distributor_id'] = self.id
             if update_vals:
-                dealer_folder.write(update_vals)
+                dealer_loc.write(update_vals)
 
-        # Find or create Stock child
+        # Assign dealer_loc as the customer location
         if not self.property_stock_customer or self.property_stock_customer == customer_parent:
-            stock_loc = StockLocation.search([
-                ('name', '=', 'Stock'),
-                ('usage', '=', 'customer'),
-                ('location_id', '=', dealer_folder.id),
-                ('active', '=', True)
-            ], limit=1)
-            if not stock_loc:
-                vals = {
-                    'name': 'Stock',
-                    'usage': 'customer',
-                    'location_id': dealer_folder.id,
-                }
-                if 'ss_location_type' in StockLocation._fields:
-                    vals['ss_location_type'] = 'distributor_location'
-                if 'ss_distributor_id' in StockLocation._fields:
-                    vals['ss_distributor_id'] = self.id
-                
-                stock_loc = StockLocation.create(vals)
-                stock_loc._compute_complete_name()
-                stock_loc.flush_recordset(['complete_name'])
-            else:
-                update_vals = {}
-                if 'ss_location_type' in StockLocation._fields and stock_loc.ss_location_type != 'distributor_location':
-                    update_vals['ss_location_type'] = 'distributor_location'
-                if 'ss_distributor_id' in StockLocation._fields and stock_loc.ss_distributor_id.id != self.id:
-                    update_vals['ss_distributor_id'] = self.id
-                if update_vals:
-                    stock_loc.write(update_vals)
-                    
-            self.sudo().property_stock_customer = stock_loc
+            self.sudo().property_stock_customer = dealer_loc
 
-        # Find or create Scrap child
+        # Find or create Scrap location directly under partner/customer
         has_scrap_field = 'scrap_location_id' in self._fields
         if has_scrap_field and not self.scrap_location_id:
+            scrap_name = f"{self.name} - Scrap"
             scrap_loc = StockLocation.search([
-                ('name', '=', 'Scrap'),
+                ('name', '=', scrap_name),
                 ('usage', '=', 'customer'),
-                ('location_id', '=', dealer_folder.id),
+                ('location_id', '=', customer_parent.id),
                 ('active', '=', True),
                 ('scrap_location', '=', True)
             ], limit=1)
             if not scrap_loc:
                 vals = {
-                    'name': 'Scrap',
+                    'name': scrap_name,
                     'usage': 'customer',
-                    'location_id': dealer_folder.id,
+                    'location_id': customer_parent.id,
                     'scrap_location': True,
                 }
                 if 'ss_location_type' in StockLocation._fields:
