@@ -9,6 +9,7 @@
                 <list string="Outlet Visits" default_order="check_in_time desc">
                     <field name="employee_id" />
                     <field name="outlet_id" />
+                    <field name="route_id" />
                     <field name="check_in_time" />
                     <field name="check_out_time" />
                 </list>
@@ -26,6 +27,7 @@
                             <group>
                                 <field name="employee_id" />
                                 <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]" />
+                                <field name="route_id" />
                                 <field name="join_visit_id" />
                                 <field name="visited_with_id" />
                                 <field name="role_id" />

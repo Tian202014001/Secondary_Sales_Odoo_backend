@@ -52,6 +52,13 @@ class OutletVisit(models.Model):
         tracking=True,
     )
 
+    route_id = fields.Many2one(
+        'sale.route',
+        related='outlet_id.outlet_route_id',
+        string="Route",
+        store=True,
+    )
+
     @api.model_create_multi
     def create(self, vals_list):
         visits = super().create(vals_list)
