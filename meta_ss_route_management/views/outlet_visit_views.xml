@@ -10,6 +10,7 @@
                     <field name="employee_id" />
                     <field name="outlet_id" />
                     <field name="route_id" />
+                    <field name="is_in_recommanded_route" widget="boolean_toggle" />
                     <field name="check_in_time" />
                     <field name="check_out_time" />
                 </list>
@@ -28,6 +29,7 @@
                                 <field name="employee_id" />
                                 <field name="outlet_id" domain="[('customer_type', '=', 'outlet')]" />
                                 <field name="route_id" />
+                                <field name="is_in_recommanded_route" readonly="1" />
                                 <field name="join_visit_id" />
                                 <field name="visited_with_id" />
                                 <field name="role_id" />
@@ -44,13 +46,37 @@
             </field>
         </record>
 
+        <!-- Search (Filter) View -->
+        <record id="view_outlet_visit_filter" model="ir.ui.view">
+            <field name="name">outlet.visit.select</field>
+            <field name="model">outlet.visit</field>
+            <field name="arch" type="xml">
+                <search string="Search Outlet Visits">
+                    <field name="employee_id" />
+                    <field name="outlet_id" />
+                    <field name="route_id" />
+                    <separator/>
+                    <filter string="Today" name="today" domain="[('check_in_time', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('check_in_time', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <separator/>
+                    <filter string="In Recommended Route" name="in_recommended" domain="[('is_in_recommanded_route', '=', True)]"/>
+                    <filter string="Not In Recommended Route" name="not_in_recommended" domain="[('is_in_recommanded_route', '=', False)]"/>
+                    <group expand="0" string="Group By">
+                        <filter string="Employee" name="group_by_employee" context="{'group_by': 'employee_id'}"/>
+                        <filter string="Outlet" name="group_by_outlet" context="{'group_by': 'outlet_id'}"/>
+                        <filter string="Route" name="group_by_route" context="{'group_by': 'route_id'}"/>
+                        <filter string="Visit Type" name="group_by_visit_type" context="{'group_by': 'visit_type'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
         <!-- Standard Visit Action -->
         <record id="action_standard_visit" model="ir.actions.act_window">
             <field name="name">Standard Visits</field>
             <field name="res_model">outlet.visit</field>
             <field name="view_mode">list,form</field>
             <field name="domain">[('visit_type', '=', 'standard')]</field>
-            <field name="context">{'default_visit_type': 'standard'}</field>
+            <field name="context">{'default_visit_type': 'standard', 'search_default_today': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Log your first Standard Visit!
@@ -64,7 +90,7 @@
             <field name="res_model">outlet.visit</field>
             <field name="view_mode">list,form</field>
             <field name="domain">[('visit_type', '=', 'join')]</field>
-            <field name="context">{'default_visit_type': 'join'}</field>
+            <field name="context">{'default_visit_type': 'join', 'search_default_today': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Log your first join Visit!
