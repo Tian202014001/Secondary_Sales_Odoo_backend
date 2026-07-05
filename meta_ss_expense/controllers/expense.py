@@ -3,22 +3,13 @@ from odoo import http, fields
 from odoo.http import request
 from odoo.exceptions import ValidationError, UserError
 
-try:
-    from odoo.addons.meta_ss_rest_api.utils.common import (
-        API_PREFIX,
-        API_VERSION,
-        error_response,
-        get_mobile_api_context,
-    )
-except ImportError:
-    API_PREFIX = "/api/v1"
-    API_VERSION = "v1"
-    
-    def error_response(code, message, data=None):
-        return {"success": False, "error": code, "message": str(message)}
-        
-    def get_mobile_api_context(payload):
-        return request.env.user, request.env, payload
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+    handle_api_exception,
+)
 
 
 class ExpenseAPI(http.Controller):
@@ -29,7 +20,7 @@ class ExpenseAPI(http.Controller):
         try:
             _, api_env, _ = get_mobile_api_context(payload)
             
-            categories = api_env["product.product"].search([
+            categories = api_env["product.product"].sudo().search([
                 ("can_be_expensed", "=", True)
             ])
             
@@ -47,7 +38,7 @@ class ExpenseAPI(http.Controller):
                 "data": data
             }
         except Exception as e:
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/expense/list", type="json", auth="user", methods=["POST"])
     def expense_list(self, **payload):
@@ -60,7 +51,7 @@ class ExpenseAPI(http.Controller):
             if not employee_id:
                 raise ValidationError("employee_id is required.")
                 
-            employee = api_env["hr.employee"].browse(int(employee_id))
+            employee = api_env["hr.employee"].sudo().browse(int(employee_id))
             if not employee.exists():
                 raise ValidationError("Employee not found.")
 
@@ -68,14 +59,14 @@ class ExpenseAPI(http.Controller):
             
             if mode == "pending":
                 # Find all submitted sheets
-                submitted_sheets = api_env["hr.expense.sheet"].search([
+                submitted_sheets = api_env["hr.expense.sheet"].sudo().search([
                     ("state", "=", "submit")
                 ])
                 # Filter sheets where the current user has approval rights
                 pending_sheets = submitted_sheets.filtered(lambda s: s.can_approve)
                 expenses = pending_sheets.mapped("expense_line_ids")
             else:
-                expenses = api_env["hr.expense"].search([
+                expenses = api_env["hr.expense"].sudo().search([
                     ("employee_id", "=", employee.id)
                 ], order="date desc, id desc")
 
@@ -114,7 +105,7 @@ class ExpenseAPI(http.Controller):
                 "data": data
             }
         except Exception as e:
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/expense/approve", type="json", auth="user", methods=["POST"])
     def expense_approve(self, **payload):
@@ -128,9 +119,9 @@ class ExpenseAPI(http.Controller):
                 raise ValidationError("sheet_id or expense_id is required.")
                 
             if sheet_id:
-                sheet = api_env["hr.expense.sheet"].browse(int(sheet_id))
+                sheet = api_env["hr.expense.sheet"].sudo().browse(int(sheet_id))
             else:
-                expense = api_env["hr.expense"].browse(int(expense_id))
+                expense = api_env["hr.expense"].sudo().browse(int(expense_id))
                 if not expense.exists():
                     raise ValidationError("Expense record not found.")
                 sheet = expense.sheet_id
@@ -148,8 +139,7 @@ class ExpenseAPI(http.Controller):
                 "message": "Expense report approved successfully."
             }
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/expense/refuse", type="json", auth="user", methods=["POST"])
     def expense_refuse(self, **payload):
@@ -166,9 +156,9 @@ class ExpenseAPI(http.Controller):
                 raise ValidationError("sheet_id or expense_id is required.")
                 
             if sheet_id:
-                sheet = api_env["hr.expense.sheet"].browse(int(sheet_id))
+                sheet = api_env["hr.expense.sheet"].sudo().browse(int(sheet_id))
             else:
-                expense = api_env["hr.expense"].browse(int(expense_id))
+                expense = api_env["hr.expense"].sudo().browse(int(expense_id))
                 if not expense.exists():
                     raise ValidationError("Expense record not found.")
                 sheet = expense.sheet_id
@@ -186,8 +176,7 @@ class ExpenseAPI(http.Controller):
                 "message": "Expense report refused successfully."
             }
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/expense/drafts", type="json", auth="user", methods=["POST"])
     def expense_drafts(self, **payload):
@@ -199,11 +188,11 @@ class ExpenseAPI(http.Controller):
             if not employee_id:
                 raise ValidationError("employee_id is required.")
                 
-            employee = api_env["hr.employee"].browse(int(employee_id))
+            employee = api_env["hr.employee"].sudo().browse(int(employee_id))
             if not employee.exists():
                 raise ValidationError("Employee not found.")
 
-            expenses = api_env["hr.expense"].search([
+            expenses = api_env["hr.expense"].sudo().search([
                 ("employee_id", "=", employee.id),
                 ("sheet_id", "=", False),
                 ("state", "=", "draft")
@@ -228,7 +217,7 @@ class ExpenseAPI(http.Controller):
                 "data": data
             }
         except Exception as e:
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/expense/sheet/create", type="json", auth="user", methods=["POST"])
     def expense_sheet_create(self, **payload):
@@ -243,13 +232,13 @@ class ExpenseAPI(http.Controller):
             if not employee_id:
                 raise ValidationError("employee_id is required.")
 
-            employee = api_env["hr.employee"].browse(int(employee_id))
+            employee = api_env["hr.employee"].sudo().browse(int(employee_id))
             if not employee.exists():
                 raise ValidationError("Employee not found.")
 
             # Create the sheet
             sheet_title = title or f"Expense Report - {fields.Date.context_today(employee)}"
-            sheet = api_env["hr.expense.sheet"].create({
+            sheet = api_env["hr.expense.sheet"].sudo().create({
                 "name": sheet_title,
                 "employee_id": employee.id,
                 "request_source": "app",
@@ -260,7 +249,7 @@ class ExpenseAPI(http.Controller):
             for item in expenses_data:
                 if item.get("id"):
                     # Existing expense (to be updated and linked)
-                    expense = api_env["hr.expense"].browse(int(item["id"]))
+                    expense = api_env["hr.expense"].sudo().browse(int(item["id"]))
                     if not expense.exists() or expense.employee_id != employee or expense.sheet_id:
                         raise ValidationError(f"Invalid or already submitted expense ID: {item['id']}")
                     
@@ -285,7 +274,7 @@ class ExpenseAPI(http.Controller):
                     category_id = item.get("category_id")
                     if not category_id:
                         raise ValidationError("category_id is required for new expenses.")
-                    category = api_env["product.product"].browse(int(category_id))
+                    category = api_env["product.product"].sudo().browse(int(category_id))
                     if not category.exists() or not category.can_be_expensed:
                         raise ValidationError(f"Invalid category ID: {category_id}")
                         
@@ -299,7 +288,7 @@ class ExpenseAPI(http.Controller):
                         "description": item.get("description", ""),
                         "sheet_id": sheet.id,
                     }
-                    api_env["hr.expense"].create(expense_vals)
+                    api_env["hr.expense"].sudo().create(expense_vals)
 
             # Submit the sheet
             sheet.action_submit_sheet()
@@ -316,8 +305,7 @@ class ExpenseAPI(http.Controller):
                 }
             }
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/expense/sheet/list", type="json", auth="user", methods=["POST"])
     def expense_sheet_list(self, **payload):
@@ -333,7 +321,7 @@ class ExpenseAPI(http.Controller):
             if not employee_id:
                 raise ValidationError("employee_id is required.")
                 
-            employee = api_env["hr.employee"].browse(int(employee_id))
+            employee = api_env["hr.employee"].sudo().browse(int(employee_id))
             if not employee.exists():
                 raise ValidationError("Employee not found.")
 
@@ -360,7 +348,7 @@ class ExpenseAPI(http.Controller):
             if end_date_str:
                 domain.append(("create_date", "<=", fields.Datetime.to_datetime(f"{end_date_str} 23:59:59")))
 
-            sheets = api_env["hr.expense.sheet"].search(domain, order="create_date desc, id desc")
+            sheets = api_env["hr.expense.sheet"].sudo().search(domain, order="create_date desc, id desc")
             
             # Resolve current employee/user for manager check
             mobile_api_user_id = api_env.context.get('mobile_api_user_id')
@@ -404,7 +392,7 @@ class ExpenseAPI(http.Controller):
                 "data": data
             }
         except Exception as e:
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/expense/sheet/details", type="json", auth="user", methods=["POST"])
     def expense_sheet_details(self, **payload):
@@ -416,7 +404,7 @@ class ExpenseAPI(http.Controller):
             if not sheet_id:
                 raise ValidationError("sheet_id is required.")
                 
-            sheet = api_env["hr.expense.sheet"].browse(int(sheet_id))
+            sheet = api_env["hr.expense.sheet"].sudo().browse(int(sheet_id))
             if not sheet.exists():
                 raise ValidationError("Expense sheet not found.")
 
@@ -479,4 +467,4 @@ class ExpenseAPI(http.Controller):
                 "data": data
             }
         except Exception as e:
-            return error_response(400, str(e))
+            return handle_api_exception(e)

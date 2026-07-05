@@ -30,8 +30,8 @@ class MetaSSScrapController(http.Controller):
     def prepare_scrap(self, **payload):
         """Fetch distributor scrap location, destination scrap location, and available stock."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            result = serialize_scrap_prepare(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            result = serialize_scrap_prepare(api_env, payload)
             return {
                 "success": True,
                 "api_version": "v1",
@@ -48,16 +48,16 @@ class MetaSSScrapController(http.Controller):
     def get_scraps(self, **payload):
         """Get list of scrap deliveries."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            domain = build_scrap_domain(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            domain = build_scrap_domain(api_env, payload)
             
             limit, offset, _, _ = get_pagination(payload)
             order = payload.get("order", "id desc")
                 
-            pickings = request.env["stock.picking"].sudo().search(
+            pickings = api_env["stock.picking"].sudo().search(
                 domain, limit=limit, offset=offset, order=order
             )
-            total_count = request.env["stock.picking"].sudo().search_count(domain)
+            total_count = api_env["stock.picking"].sudo().search_count(domain)
             
             result = serialize_scraps(pickings)
             
@@ -82,11 +82,11 @@ class MetaSSScrapController(http.Controller):
     def get_scrap_products(self, **payload):
         """Get available products for scrap from distributor scrap location."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            source_location, domain = build_scrap_product_domain(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            source_location, domain = build_scrap_product_domain(api_env, payload)
             
-            products = request.env["product.product"].sudo().search(domain, order="name")
-            result = serialize_scrap_products(request.env, products, source_location)
+            products = api_env["product.product"].sudo().search(domain, order="name")
+            result = serialize_scrap_products(api_env, products, source_location)
             
             return {
                 "success": True,
@@ -104,8 +104,8 @@ class MetaSSScrapController(http.Controller):
     def get_scrap_product_lots(self, product_id, **payload):
         """Get available lots for a product in distributor scrap location."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            result = serialize_scrap_product_lots(request.env, payload, product_id)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            result = serialize_scrap_product_lots(api_env, payload, product_id)
             return {
                 "success": True,
                 "api_version": "v1",
@@ -122,8 +122,8 @@ class MetaSSScrapController(http.Controller):
     def create_scrap(self, **payload):
         """Create a scrap picking from distributor scrap location to virtual scrap location."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            picking = create_scrap_delivery(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = create_scrap_delivery(api_env, payload)
             result = serialize_scrap_delivery(picking)
             
             return {
@@ -142,8 +142,8 @@ class MetaSSScrapController(http.Controller):
     def get_scrap_details(self, picking_id, **payload):
         """Get details of a specific scrap delivery."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            picking = get_scrap_delivery_for_employee(request.env, picking_id, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = get_scrap_delivery_for_employee(api_env, picking_id, payload)
             result = serialize_scrap_delivery(picking)
             return {
                 "success": True,
@@ -161,8 +161,8 @@ class MetaSSScrapController(http.Controller):
     def update_scrap(self, picking_id, **payload):
         """Update lines of an existing draft/assigned scrap delivery."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            picking = update_scrap_delivery(request.env, picking_id, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = update_scrap_delivery(api_env, picking_id, payload)
             result = serialize_scrap_delivery(picking)
             return {
                 "success": True,

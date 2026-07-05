@@ -4,23 +4,13 @@ from odoo import http, fields
 from odoo.http import request
 from odoo.exceptions import ValidationError
 
-try:
-    from odoo.addons.meta_ss_rest_api.utils.common import (
-        API_PREFIX,
-        API_VERSION,
-        error_response,
-        get_mobile_api_context,
-    )
-except ImportError:
-    # Fallback if meta_ss_rest_api is somehow not loaded first, though it's in depends
-    API_PREFIX = "/api/v1"
-    API_VERSION = "v1"
-    
-    def error_response(code, message, data=None):
-        return {"success": False, "error": code, "message": str(message)}
-        
-    def get_mobile_api_context(payload):
-        return request.env.user, request.env, payload
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+    handle_api_exception,
+)
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
@@ -122,8 +112,7 @@ class AttendanceAPI(http.Controller):
                 }
             }
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/attendance/history", type="json", auth="user", methods=["POST"])
     def attendance_history(self, **payload):
@@ -174,8 +163,7 @@ class AttendanceAPI(http.Controller):
                 }
             }
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/attendance/action", type="json", auth="user", methods=["POST"])
     def attendance_action(self, **payload):
@@ -306,5 +294,4 @@ class AttendanceAPI(http.Controller):
                 raise ValidationError("Invalid action. Must be 'check_in' or 'check_out'.")
 
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)

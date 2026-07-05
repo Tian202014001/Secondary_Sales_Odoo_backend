@@ -3,24 +3,15 @@ import json
 from odoo import http, fields
 from odoo.exceptions import ValidationError, UserError, AccessError
 from odoo.http import request
-try:
-    from odoo.addons.meta_ss_rest_api.utils.common import (
-        API_PREFIX,
-        API_VERSION,
-        error_response,
-        get_mobile_api_context,
-    )
-except ImportError:
-    # Fallback if meta_ss_rest_api is somehow not loaded first, though it's in depends
-    API_PREFIX = "/api/v1"
-    API_VERSION = "v1"
-    
-    def error_response(code, message, data=None):
-        return {"success": False, "error": code, "message": str(message)}
-        
-    def get_mobile_api_context(payload):
-        return request.env.user, request.env, payload
-        
+from odoo.addons.meta_ss_rest_api.utils.common import (
+    API_PREFIX,
+    API_VERSION,
+    error_response,
+    get_mobile_api_context,
+    handle_api_exception,
+)
+
+
 class LeaveAPI(http.Controller):
 
     @http.route(f"{API_PREFIX}/hr/leave/types", type="json", auth="user", methods=["POST"])
@@ -33,11 +24,11 @@ class LeaveAPI(http.Controller):
             if not employee_id:
                 return error_response(400, "employee_id is required")
                 
-            employee = api_env['hr.employee'].browse(int(employee_id))
+            employee = api_env['hr.employee'].sudo().browse(int(employee_id))
             if not employee.exists():
                 return error_response(404, "Employee not found")
 
-            lang = api_env.user.lang or 'en_US'
+            lang = api_env.user.sudo().lang or 'en_US'
 
             query = """
                 SELECT
@@ -102,8 +93,7 @@ class LeaveAPI(http.Controller):
             return {"success": True, "data": data}
             
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/leave/request", type="json", auth="user", methods=["POST"])
     def submit_leave_request(self, **payload):
@@ -133,13 +123,14 @@ class LeaveAPI(http.Controller):
                 'request_source': 'app',
             }
             
-            # Create the leave record
-            leave = api_env['hr.leave'].create(leave_vals)
-            
+            # Create the leave record (sudo: the integration user is locked down,
+            # and creating a leave triggers manager/user computes that read res.users)
+            leave = api_env['hr.leave'].sudo().create(leave_vals)
+
             # Process attachment if present
             if attachment_b64:
                 filename = attachment_name or f"Leave_Attachment_{leave.id}.pdf"
-                attachment = api_env['ir.attachment'].create({
+                attachment = api_env['ir.attachment'].sudo().create({
                     'name': filename,
                     'type': 'binary',
                     'datas': attachment_b64,
@@ -167,8 +158,7 @@ class LeaveAPI(http.Controller):
             }
             
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/leave/list", type="json", auth="user", methods=["POST"])
     def list_leaves(self, **payload):
@@ -185,7 +175,7 @@ class LeaveAPI(http.Controller):
             if not employee_id:
                 return error_response(400, "employee_id is required")
                 
-            current_employee = api_env['hr.employee'].browse(int(employee_id))
+            current_employee = api_env['hr.employee'].sudo().browse(int(employee_id))
             
             domain = []
             
@@ -210,11 +200,11 @@ class LeaveAPI(http.Controller):
             if search_query:
                 domain.append('|', ('employee_id.name', 'ilike', search_query), ('id', 'ilike', search_query))
                 
-            leaves = api_env['hr.leave'].search(domain, order="id desc")
+            leaves = api_env['hr.leave'].sudo().search(domain, order="id desc")
             
             data = []
             for leave in leaves:
-                attachments = api_env['ir.attachment'].search([
+                attachments = api_env['ir.attachment'].sudo().search([
                     ('res_model', '=', 'hr.leave'),
                     ('res_id', '=', leave.id)
                 ])
@@ -240,8 +230,7 @@ class LeaveAPI(http.Controller):
             return {"success": True, "data": data}
             
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)
 
     @http.route(f"{API_PREFIX}/hr/leave/action", type="json", auth="user", methods=["POST"])
     def action_leave(self, **payload):
@@ -256,12 +245,12 @@ class LeaveAPI(http.Controller):
             if not all([employee_id, leave_id, action]):
                 return error_response(400, "employee_id, leave_id, and action are required")
                 
-            leave = api_env['hr.leave'].browse(int(leave_id))
+            leave = api_env['hr.leave'].sudo().browse(int(leave_id))
             if not leave.exists():
                 return error_response(404, "Leave request not found")
                 
             # Verify the current user is the manager
-            current_employee = api_env['hr.employee'].browse(int(employee_id))
+            current_employee = api_env['hr.employee'].sudo().browse(int(employee_id))
             if leave.employee_id.parent_id != current_employee:
                 return error_response(403, "You are not authorized to approve/reject this leave")
                 
@@ -279,5 +268,4 @@ class LeaveAPI(http.Controller):
             }
             
         except Exception as e:
-            request.env.cr.rollback()
-            return error_response(400, str(e))
+            return handle_api_exception(e)

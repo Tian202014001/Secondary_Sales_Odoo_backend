@@ -22,6 +22,7 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     API_VERSION,
     error_response,
     get_mobile_api_context,
+    handle_api_exception,
 )
 from odoo.addons.meta_ss_route_management.utils.routes import (
     build_employee_route_domain,
@@ -746,8 +747,7 @@ class MetaSSRouteController(http.Controller):
         except (AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception as exc:
-            request.env.cr.rollback()
-            return error_response("server_error", f"An unexpected error occurred: {str(exc)}")
+            return handle_api_exception(exc)
 
     @http.route(f"{API_PREFIX}/visits/create", type="json", auth="user", methods=["POST"], csrf=False)
     def create_visit(self, **payload):
@@ -814,8 +814,7 @@ class MetaSSRouteController(http.Controller):
         except (AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception as exc:
-            request.env.cr.rollback()
-            return error_response("server_error", f"An unexpected error occurred: {str(exc)}")
+            return handle_api_exception(exc)
 
     @http.route(f"{API_PREFIX}/visits/<int:visit_id>/update", type="json", auth="user", methods=["POST"], csrf=False)
     def update_visit(self, visit_id, **payload):
@@ -886,8 +885,7 @@ class MetaSSRouteController(http.Controller):
         except (AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception as exc:
-            request.env.cr.rollback()
-            return error_response("server_error", f"An unexpected error occurred: {str(exc)}")
+            return handle_api_exception(exc)
 
     @http.route(f"{API_PREFIX}/visits/today", type="json", auth="user", methods=["POST"], csrf=False)
     def get_today_visits(self, **payload):
@@ -941,5 +939,4 @@ class MetaSSRouteController(http.Controller):
         except (AccessError, MissingError, UserError, ValidationError) as exc:
             return error_response("validation_error", str(exc))
         except Exception as exc:
-            request.env.cr.rollback()
-            return error_response("server_error", f"An unexpected error occurred: {str(exc)}")
+            return handle_api_exception(exc)

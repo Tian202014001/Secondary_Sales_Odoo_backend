@@ -2,7 +2,7 @@
 
 import logging
 from odoo.http import request
-from odoo.exceptions import AccessDenied
+from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 
 from odoo.addons.meta_ss_rest_api.utils.mobile_policy import MobilePolicy
 
@@ -29,6 +29,25 @@ def error_response(code, message, data=None):
     if data is not None:
         response["data"] = data
     return response
+
+
+def handle_api_exception(exc, message=None):
+    """Map an exception to a safe API error response (matches the app convention).
+
+    Known, user-facing errors (Validation/User/Access/Missing) are surfaced with
+    their own message under the ``"validation_error"`` code. Anything else is
+    treated as unexpected: a full traceback is logged server-side and a generic
+    ``"server_error"`` message is returned so no internal detail leaks to the
+    client. The transaction is always rolled back so no partial writes persist.
+    """
+    try:
+        request.env.cr.rollback()
+    except Exception:  # pragma: no cover - rollback must never mask the original error
+        pass
+    if isinstance(exc, (AccessDenied, AccessError, MissingError, UserError, ValidationError)):
+        return error_response("validation_error", str(exc))
+    _logger.exception("Unhandled API error")
+    return error_response("server_error", message or "An unexpected error occurred.")
 
 
 def check_api_permission():

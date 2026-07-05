@@ -30,8 +30,8 @@ class MetaSSReturnController(http.Controller):
     def prepare_return(self, **payload):
         """Fetch distributor location, destination warehouse, and available stock."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            result = serialize_return_prepare(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            result = serialize_return_prepare(api_env, payload)
             return {
                 "success": True,
                 "api_version": "v1",
@@ -48,16 +48,16 @@ class MetaSSReturnController(http.Controller):
     def get_returns(self, **payload):
         """Get list of return deliveries."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            domain = build_return_domain(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            domain = build_return_domain(api_env, payload)
             
             limit, offset, _, _ = get_pagination(payload)
             order = payload.get("order", "id desc")
                 
-            pickings = request.env["stock.picking"].sudo().search(
+            pickings = api_env["stock.picking"].sudo().search(
                 domain, limit=limit, offset=offset, order=order
             )
-            total_count = request.env["stock.picking"].sudo().search_count(domain)
+            total_count = api_env["stock.picking"].sudo().search_count(domain)
             
             result = serialize_returns(pickings)
             
@@ -82,11 +82,11 @@ class MetaSSReturnController(http.Controller):
     def get_return_products(self, **payload):
         """Get available products for return from distributor customer location."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            source_location, domain = build_return_product_domain(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            source_location, domain = build_return_product_domain(api_env, payload)
             
-            products = request.env["product.product"].sudo().search(domain, order="name")
-            result = serialize_return_products(request.env, products, source_location)
+            products = api_env["product.product"].sudo().search(domain, order="name")
+            result = serialize_return_products(api_env, products, source_location)
             
             return {
                 "success": True,
@@ -104,8 +104,8 @@ class MetaSSReturnController(http.Controller):
     def get_return_product_lots(self, product_id, **payload):
         """Get available lots for a product in distributor customer location."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            result = serialize_return_product_lots(request.env, payload, product_id)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            result = serialize_return_product_lots(api_env, payload, product_id)
             return {
                 "success": True,
                 "api_version": "v1",
@@ -122,8 +122,8 @@ class MetaSSReturnController(http.Controller):
     def create_return(self, **payload):
         """Create a return picking from distributor customer location to warehouse."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            picking = create_return_delivery(request.env, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = create_return_delivery(api_env, payload)
             result = serialize_return_delivery(picking)
             
             return {
@@ -142,8 +142,8 @@ class MetaSSReturnController(http.Controller):
     def get_return_details(self, picking_id, **payload):
         """Get details of a specific return delivery."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            picking = get_return_delivery_for_employee(request.env, picking_id, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = get_return_delivery_for_employee(api_env, picking_id, payload)
             result = serialize_return_delivery(picking)
             return {
                 "success": True,
@@ -161,8 +161,8 @@ class MetaSSReturnController(http.Controller):
     def update_return(self, picking_id, **payload):
         """Update lines of an existing draft/assigned return delivery."""
         try:
-            get_mobile_api_context(payload, require_employee=True)
-            picking = update_return_delivery(request.env, picking_id, payload)
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            picking = update_return_delivery(api_env, picking_id, payload)
             result = serialize_return_delivery(picking)
             return {
                 "success": True,

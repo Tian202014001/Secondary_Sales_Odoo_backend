@@ -18,23 +18,25 @@ class HrExpenseSheet(models.Model):
         Only the employee's direct manager (parent_id) can approve/refuse.
         """
         for sheet in self:
-            # Bypass logic if the current user is a superuser/admin to prevent getting stuck
-            if not self.env.is_admin():
-                mobile_api_user_id = self.env.context.get('mobile_api_user_id')
-                if mobile_api_user_id:
-                    mobile_user = self.env['res.mobile.user'].sudo().browse(mobile_api_user_id)
-                    current_employee = mobile_user.employee_id
-                else:
-                    current_employee = self.env.user.employee_id
+            mobile_api_user_id = self.env.context.get('mobile_api_user_id')
+            if mobile_api_user_id:
+                # App-originated action: always enforce manager-only, even when the
+                # ORM runs as sudo (env.is_admin() would otherwise bypass the check).
+                current_employee = self.env['res.mobile.user'].sudo().browse(mobile_api_user_id).employee_id
+            elif not self.env.is_admin():
+                current_employee = self.env.user.employee_id
+            else:
+                # Genuine backend administrator: no restriction.
+                continue
 
-                if not current_employee:
-                    raise ValidationError(_("You must be linked to an employee to %s expenses.") % action_name)
-                
-                if sheet.employee_id.parent_id != current_employee:
-                    raise ValidationError(
-                        _("Strict Policy: Only %s (Direct Manager) can %s this expense sheet.") 
-                        % (sheet.employee_id.parent_id.name, action_name)
-                    )
+            if not current_employee:
+                raise ValidationError(_("You must be linked to an employee to %s expenses.") % action_name)
+
+            if sheet.employee_id.parent_id != current_employee:
+                raise ValidationError(
+                    _("Strict Policy: Only %s (Direct Manager) can %s this expense sheet.")
+                    % (sheet.employee_id.parent_id.name, action_name)
+                )
 
     def action_approve_expense_sheets(self):
         self._check_app_workflow_policy('approve')

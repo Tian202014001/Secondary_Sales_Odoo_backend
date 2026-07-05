@@ -7,6 +7,7 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     API_VERSION,
     error_response,
     get_mobile_api_context,
+    handle_api_exception,
 )
 
 
@@ -53,8 +54,7 @@ class MobileDeviceController(http.Controller):
                 "message": "Device registered successfully.",
             }
         except Exception as str_exc:
-            request.env.cr.rollback()
-            return error_response("server_error", str(str_exc))
+            return handle_api_exception(str_exc)
 
     @http.route(f"{API_PREFIX}/mobile/device/unregister", type="json", auth="user", methods=["POST"])
     def unregister_device(self, **payload):
@@ -76,5 +76,4 @@ class MobileDeviceController(http.Controller):
                 "message": "Device unregistered successfully.",
             }
         except Exception as str_exc:
-            request.env.cr.rollback()
-            return error_response("server_error", str(str_exc))
+            return handle_api_exception(str_exc)
