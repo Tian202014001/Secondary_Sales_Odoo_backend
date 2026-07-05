@@ -59,6 +59,50 @@ class OutletVisit(models.Model):
         store=True,
     )
 
+    is_in_recommanded_route = fields.Boolean(
+        string="Is In Recommended Route",
+        compute="_compute_is_in_recommanded_route",
+        store=True,
+    )
+
+    @api.depends('employee_id', 'check_in_time', 'route_id')
+    def _compute_is_in_recommanded_route(self):
+        for visit in self:
+            if not visit.employee_id or not visit.check_in_time or not visit.route_id:
+                visit.is_in_recommanded_route = False
+                continue
+
+            # Convert check_in_time to user's local timezone to get the correct weekday
+            local_time = fields.Datetime.context_timestamp(visit, visit.check_in_time)
+            weekday = str(local_time.weekday())
+
+            # Find distributor contacts for this employee
+            distributors = visit.employee_id.distributor_contact_ids
+            if not distributors:
+                visit.is_in_recommanded_route = False
+                continue
+
+            # Search active route planners for the employee's distributors
+            planners = self.env['route.planner'].search([
+                ('distributor_id', 'in', distributors.ids),
+                ('active', '=', True),
+            ])
+            if not planners:
+                visit.is_in_recommanded_route = False
+                continue
+
+            # Get the planner lines for the specific weekday
+            planner_lines = self.env['route.planner.line'].search([
+                ('planner_id', 'in', planners.ids),
+                ('day_of_week', '=', weekday),
+            ])
+
+            # Get all recommended routes for this weekday
+            recommended_routes = planner_lines.mapped('route_ids')
+
+            # Verify if the visit's route is in the recommended routes list
+            visit.is_in_recommanded_route = visit.route_id in recommended_routes
+
     @api.model_create_multi
     def create(self, vals_list):
         visits = super().create(vals_list)
