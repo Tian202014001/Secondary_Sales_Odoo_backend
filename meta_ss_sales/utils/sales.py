@@ -4,8 +4,6 @@ from odoo.addons.meta_ss_rest_api.utils.helpers import _get_float, _get_positive
 from odoo.exceptions import ValidationError
 from odoo.osv import expression
 
-from odoo.addons.meta_ss_rest_api.utils.mobile_policy import MobilePolicy
-
 
 def get_sales_pagination(payload):
     """Return pagination values from API payload."""
@@ -108,7 +106,15 @@ def get_distributor(env, distributor_id, employee=None):
     if distributor.customer_type != "distributor":
         raise ValidationError("'distributor_id' must be a distributor contact.")
     if employee:
-        visible_distributor_ids = MobilePolicy.visible_distributor_ids(env, employee)
+        # Same manager-hierarchy scope as the dealer list domain
+        # (meta_ss_contact.utils.contacts.build_contact_domain): distributors
+        # assigned to the employee or anyone below them in the parent_id chain.
+        team_employees = env["hr.employee"].sudo().search([
+            ("id", "child_of", employee.id),
+        ])
+        visible_distributor_ids = team_employees.mapped("distributor_contact_ids").filtered(
+            lambda partner: partner.customer_type == "distributor"
+        ).ids
         if not visible_distributor_ids:
             raise ValidationError(
                 "No distributors are assigned to the requesting employee or their team."

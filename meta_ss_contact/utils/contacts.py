@@ -2,7 +2,6 @@
 
 from odoo.exceptions import ValidationError
 from odoo.addons.meta_ss_rest_api.utils.helpers import _get_employee, _get_integer_id
-from odoo.addons.meta_ss_rest_api.utils.mobile_policy import MobilePolicy
 from odoo.osv import expression
 
 from odoo.addons.meta_ss_rest_api.utils.outlets import (
@@ -62,12 +61,18 @@ def build_contact_domain(env, payload, customer_type=None):
         domain.append(("customer_type", "=", customer_type))
 
     if customer_type == "distributor" and payload.get("employee_id"):
+        # Scope distributors to the requesting employee's manager hierarchy,
+        # inline like the other list APIs (see build_employee_outlet_domain):
+        # every distributor assigned to the employee or anyone below them in
+        # the hr.employee parent_id chain. Empty set -> "in []" shows none.
         employee = _get_employee(env, payload.get("employee_id"))
-        distributor_ids = MobilePolicy.visible_distributor_ids(env, employee)
-        if distributor_ids:
-            domain.append(("id", "in", distributor_ids))
-        else:
-            domain.append(("id", "=", 0))
+        team_employees = env["hr.employee"].sudo().search([
+            ("id", "child_of", employee.id),
+        ])
+        distributor_ids = team_employees.mapped("distributor_contact_ids").filtered(
+            lambda partner: partner.customer_type == "distributor"
+        ).ids
+        domain.append(("id", "in", distributor_ids))
 
     distributor_id = payload.get("distributor_id")
     if distributor_id:
