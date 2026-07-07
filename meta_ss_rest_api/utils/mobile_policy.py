@@ -86,13 +86,21 @@ class MobilePolicy:
 
     @staticmethod
     def visible_distributor_ids(env, employee):
-        employee = employee.sudo()
-        if "effective_distributor_contact_ids" in employee._fields:
-            return employee.effective_distributor_contact_ids.ids
+        """Distributors visible to an employee via the manager hierarchy.
 
+        Walks the hr.employee ``parent_id`` chain with ``child_of``: a manager
+        sees the distributors assigned to all of their subordinates; an
+        employee with no subordinates sees their own assigned distributors.
+        Deliberately does NOT use ``effective_distributor_contact_ids`` so the
+        list always reflects the live employee manager hierarchy.
+        """
+        employee = employee.sudo()
         subordinate_employees = env["hr.employee"].sudo().search([
             ("id", "child_of", employee.id),
         ]) - employee
         if not subordinate_employees:
             subordinate_employees = employee
-        return subordinate_employees.mapped("distributor_contact_ids").ids
+        distributors = subordinate_employees.mapped("distributor_contact_ids")
+        return distributors.filtered(
+            lambda partner: partner.customer_type == "distributor"
+        ).ids
