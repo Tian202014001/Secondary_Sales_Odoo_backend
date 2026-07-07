@@ -137,7 +137,7 @@ export class RouteMapDashboard extends Component {
             const points = await this.orm.searchRead(
                 "sales.employee.location",
                 [["attendance_id", "=", attendanceId]],
-                ["id", "latitude", "longitude", "accuracy", "speed", "battery_level", "recorded_at", "is_mock"],
+                ["id", "latitude", "longitude", "recorded_at", "is_mock"],
                 { order: "recorded_at asc" }
             );
             this.state.locationPoints = points || [];
@@ -198,9 +198,6 @@ export class RouteMapDashboard extends Component {
                     <strong style="color: ${markerColor}">${popupTitle}</strong><br/>
                     <b>Time:</b> ${timeStr}<br/>
                     <b>Lat/Lng:</b> ${pt.latitude.toFixed(5)}, ${pt.longitude.toFixed(5)}<br/>
-                    <b>Accuracy:</b> ${pt.accuracy ? pt.accuracy.toFixed(1) + ' m' : 'N/A'}<br/>
-                    <b>Speed:</b> ${pt.speed ? (pt.speed * 3.6).toFixed(1) + ' km/h' : 'N/A'}<br/>
-                    <b>Battery:</b> ${pt.battery_level ? pt.battery_level + '%' : 'N/A'}<br/>
                     ${pt.is_mock ? '<strong style="color: red; display: block; margin-top: 4px;">⚠️ Fake GPS Detected!</strong>' : ''}
                 </div>
             `;

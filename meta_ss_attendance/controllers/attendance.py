@@ -100,6 +100,14 @@ class AttendanceAPI(http.Controller):
                 ("check_out", "=", False)
             ], limit=1)
 
+            # Get the location tracking interval configuration
+            params = api_env["ir.config_parameter"].sudo()
+            interval_str = params.get_param("meta_ss_location_tracking.location_tracking_interval", "1800")
+            try:
+                interval = int(interval_str)
+            except ValueError:
+                interval = 1800
+
             return {
                 "success": True,
                 "api_version": API_VERSION,
@@ -109,6 +117,7 @@ class AttendanceAPI(http.Controller):
                     "active_id": active_attendance.id if active_attendance else None,
                     "active_check_in": active_attendance.check_in.strftime("%Y-%m-%d %H:%M:%S") if active_attendance else None,
                     "check_in_address": (active_attendance.check_in_address or "") if active_attendance else "",
+                    "location_tracking_interval": interval,
                 }
             }
         except Exception as e:

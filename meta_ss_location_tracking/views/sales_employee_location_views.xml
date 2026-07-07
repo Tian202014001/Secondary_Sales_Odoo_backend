@@ -27,9 +27,6 @@
                 <field name="attendance_id"/>
                 <field name="latitude"/>
                 <field name="longitude"/>
-                <field name="accuracy"/>
-                <field name="speed"/>
-                <field name="battery_level" string="Battery %"/>
                 <field name="recorded_at"/>
                 <field name="is_mock" widget="boolean_toggle"/>
             </list>
@@ -52,13 +49,10 @@
                         <group string="GPS Coordinate">
                             <field name="latitude" readonly="1"/>
                             <field name="longitude" readonly="1"/>
-                            <field name="accuracy" readonly="1"/>
-                            <field name="speed" readonly="1"/>
                         </group>
                         <group string="Context Details">
                             <field name="attendance_id" readonly="1"/>
                             <field name="recorded_at" readonly="1"/>
-                            <field name="battery_level" readonly="1"/>
                             <field name="is_mock" readonly="1"/>
                         </group>
                     </group>

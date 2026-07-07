@@ -28,8 +28,5 @@ class SalesEmployeeLocation(models.Model):
     )
     latitude = fields.Float(string="Latitude", digits=(10, 7), required=True)
     longitude = fields.Float(string="Longitude", digits=(10, 7), required=True)
-    accuracy = fields.Float(string="Accuracy (meters)")
-    speed = fields.Float(string="Speed (m/s)")
-    battery_level = fields.Integer(string="Battery Level (%)")
     recorded_at = fields.Datetime(string="Recorded Timestamp", required=True, index=True)
     is_mock = fields.Boolean(string="Mock Location", default=False)

@@ -16,6 +16,15 @@
                             <field name="map_tile_url"/>
                         </setting>
                     </block>
+                    <block title="Tracking Intervals">
+                        <setting id="meta_ss_location_tracking_interval">
+                            <label for="location_tracking_interval"/>
+                            <div class="text-muted">
+                                Define the frequency (in seconds) at which mobile apps log and sync user GPS coordinates.
+                            </div>
+                            <field name="location_tracking_interval"/>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>
