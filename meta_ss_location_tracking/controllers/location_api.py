@@ -92,7 +92,7 @@ class MetaSSLocationApiController(http.Controller):
         """Get all direct and indirect subordinates with their status for a date."""
         try:
             mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            check_mobile_model_access(mobile_user, "sales.employee.location", "read")
+            # check_mobile_model_access(mobile_user, "sales.employee.location", "read")
 
             manager_employee = mobile_user.employee_id
             subordinates = api_env["hr.employee"].sudo().search([
@@ -153,7 +153,7 @@ class MetaSSLocationApiController(http.Controller):
         """Get checkpoints and attendance shifts of a subordinate for a specific date."""
         try:
             mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            check_mobile_model_access(mobile_user, "sales.employee.location", "read")
+            # check_mobile_model_access(mobile_user, "sales.employee.location", "read")
 
             manager_employee = mobile_user.employee_id
             
