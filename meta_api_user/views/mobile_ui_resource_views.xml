@@ -26,54 +26,22 @@
         <field name="name">mobile.ui.resource.list</field>
         <field name="model">mobile.ui.resource</field>
         <field name="arch" type="xml">
-            <list>
+            <list editable="bottom">
                 <field name="key" />
                 <field name="res_type" />
                 <field name="module" />
                 <field name="label" />
                 <field name="module_ids" widget="many2many_tags" />
-                <field name="last_seen" optional="hide" />
+                <field name="last_seen" optional="hide" readonly="1" />
                 <field name="active" widget="boolean_toggle" optional="hide" />
             </list>
-        </field>
-    </record>
-
-    <record id="view_mobile_ui_resource_form" model="ir.ui.view">
-        <field name="name">mobile.ui.resource.form</field>
-        <field name="model">mobile.ui.resource</field>
-        <field name="arch" type="xml">
-            <form>
-                <sheet>
-                    <div class="oe_title">
-                        <label for="label" />
-                        <h1>
-                            <field name="label" placeholder="Human label" />
-                        </h1>
-                    </div>
-                    <group>
-                        <group>
-                            <field name="key" placeholder="screen.sales.order_create" />
-                            <field name="res_type" />
-                            <field name="module" />
-                        </group>
-                        <group>
-                            <field name="active" />
-                            <field name="last_seen" readonly="1" />
-                        </group>
-                    </group>
-                    <group string="Assigned Modules"
-                        help="Modules containing this resource. If none, the resource is visible to everyone by default.">
-                        <field name="module_ids" nolabel="1" widget="many2many_tags" />
-                    </group>
-                </sheet>
-            </form>
         </field>
     </record>
 
     <record id="action_mobile_ui_resource" model="ir.actions.act_window">
         <field name="name">UI Access Catalog</field>
         <field name="res_model">mobile.ui.resource</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">list</field>
         <field name="search_view_id" ref="meta_api_user.view_mobile_ui_resource_search" />
         <field name="context">{'search_default_group_module': 1}</field>
     </record>

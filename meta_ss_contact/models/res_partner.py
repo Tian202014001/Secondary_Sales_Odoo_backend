@@ -20,7 +20,15 @@ class ResPartner(models.Model):
         help='Scrap location for the partner'
     )
 
-    db_code = fields.Char(string='DB Code', store=True)
+    db_code = fields.Char(string='DB Code', required=True, store=True)
+
+    @api.depends('db_code')
+    def _compute_display_name(self):
+        super()._compute_display_name()
+        for partner in self:
+            if partner.db_code:
+                partner.display_name = f"[{partner.db_code}] {partner.display_name}"
+
     
     @api.model_create_multi
     def create(self, vals_list):
