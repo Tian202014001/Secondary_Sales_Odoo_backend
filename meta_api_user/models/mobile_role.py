@@ -107,7 +107,8 @@ class ResMobileUserGroup(models.Model):
         string="Effective UI Access",
         help="Screens & buttons this group actually gets: the resources of its "
         "assigned modules minus its Hidden Menus and Hidden Buttons. This is the "
-        "same set delivered to the app as 'granted'.",
+        "same set delivered to the app as 'granted'. Resolved from THIS group's "
+        "own config (implied groups are copied in via the button, not live).",
     )
 
     def _get_effective_mobile_groups(self):
@@ -132,10 +133,31 @@ class ResMobileUserGroup(models.Model):
         "hidden_button_ids",
     )
     def _compute_effective_ui_access(self):
+        # UI access is materialized onto each group's own fields via the
+        # "Copy from implied groups" button, so the effective set is resolved
+        # from THIS group's own config only (add/remove edits therefore stick).
         for group in self:
             module_resources = group.module_ids.mapped("resource_ids").filtered("active")
             hidden = group.hidden_menu_ids | group.hidden_button_ids
             group.effective_resource_ids = module_resources - hidden
+
+    def action_copy_ui_from_implied(self):
+        """Seed this group's own UI config from its implied groups.
+
+        Copies the implied groups' resolved modules and hidden lists into this
+        group's own editable fields, overwriting the current values, so an admin
+        can start from the inherited configuration and then add/remove directly.
+        A one-time snapshot: later changes to an implied group do not propagate
+        until this button is pressed again. (Model access and record rules stay
+        live-inherited through implied groups.)
+        """
+        for group in self:
+            source_groups = group.implied_group_ids._get_effective_mobile_groups()
+            group.module_ids = [(6, 0, source_groups.mapped("module_ids").ids)]
+            group.hidden_menu_ids = [(6, 0, source_groups.mapped("hidden_menu_ids").ids)]
+            group.hidden_button_ids = [(6, 0, source_groups.mapped("hidden_button_ids").ids)]
+        return True
+
 
     def get_mobile_access_summary(self):
         self.ensure_one()
