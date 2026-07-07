@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_gc_sales_employee_location" model="ir.cron">
+            <field name="name">Secondary Sales: Purge Historical Location Logs</field>
+            <field name="model_id" ref="model_sales_employee_location"/>
+            <field name="state">code</field>
+            <field name="code">model._gc_location_logs()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">weeks</field>
+            <field name="numbercall">-1</field>
+            <field name="doall" eval="False"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

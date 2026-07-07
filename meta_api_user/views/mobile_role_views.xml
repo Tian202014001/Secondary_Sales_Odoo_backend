@@ -6,9 +6,9 @@
         <field name="model">res.mobile.user.group</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
-                <field name="code"/>
-                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+                <field name="name" />
+                <field name="code" />
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]" />
             </search>
         </field>
     </record>
@@ -18,9 +18,9 @@
         <field name="model">res.mobile.user.group</field>
         <field name="arch" type="xml">
             <list>
-                <field name="name"/>
-                <field name="code"/>
-                <field name="active" widget="boolean_toggle"/>
+                <field name="name" />
+                <field name="code" />
+                <field name="active" widget="boolean_toggle" />
             </list>
         </field>
     </record>
@@ -32,82 +32,137 @@
             <form>
                 <sheet>
                     <div class="oe_title">
-                        <label for="name"/>
+                        <label for="name" />
                         <h1>
-                            <field name="name" placeholder="Group Name"/>
+                            <field name="name" placeholder="Group Name" />
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="code" placeholder="e.g. tsm"/>
-                            <field name="active"/>
+                            <field name="code" placeholder="e.g. tsm" />
+                            <field name="active" />
                         </group>
                         <group>
-                            <field name="implied_group_ids" widget="many2many_tags" placeholder="Implied Groups..."/>
+                            <field name="implied_group_ids" widget="many2many_tags"
+                                placeholder="Implied Groups..." />
                         </group>
                     </group>
                     <notebook>
+                        <page string="Configuration" name="configuration">
+                            <group string="Returns &amp; Scraps">
+                                <group>
+                                    <field name="can_view_all_returns" />
+                                    <field name="can_edit_so_qty" />
+                                    <field name="can_edit_qc_qty" />
+                                    <field name="can_edit_effective_qty" />
+                                </group>
+                            </group>
+                            <group string="Access Administration">
+                                <group>
+                                    <field name="can_manage_access" />
+                                </group>
+                            </group>
+                        </page>
+                        <page string="UI Access" name="ui_access">
+                            <div class="text-muted mb-3">
+                                Assign modules to this group. Any screens or actions inside the assigned modules will be visible to the users, except those added to the <b>Hidden Menus</b> or <b>Hidden Buttons</b> denylists below.
+                            </div>
+                            <group string="Assigned Modules">
+                                <field name="module_ids" widget="many2many_tags" placeholder="Select modules..."/>
+                            </group>
+                            <group>
+                                <group string="Hidden Menus (Denylist)">
+                                    <field name="hidden_menu_ids" nolabel="1" colspan="2"
+                                        domain="[('res_type', '=', 'screen'), ('module_ids', 'in', module_ids)]">
+                                        <list>
+                                            <field name="key"/>
+                                            <field name="label"/>
+                                            <field name="module"/>
+                                        </list>
+                                    </field>
+                                </group>
+                                <group string="Hidden Buttons (Denylist)">
+                                    <field name="hidden_button_ids" nolabel="1" colspan="2"
+                                        domain="[('res_type', '=', 'action'), ('module_ids', 'in', module_ids)]">
+                                        <list>
+                                            <field name="key"/>
+                                            <field name="label"/>
+                                            <field name="module"/>
+                                        </list>
+                                    </field>
+                                </group>
+                            </group>
+                            <separator string="Effective Access (resolved: modules − hidden = what the app receives as 'granted')"/>
+                            <field name="effective_resource_ids" nolabel="1" readonly="1">
+                                <list create="0" edit="0" delete="0" default_order="res_type,key">
+                                    <field name="res_type"/>
+                                    <field name="key"/>
+                                    <field name="label"/>
+                                    <field name="module"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Model Access">
                             <field name="model_access_ids">
                                 <list>
-                                    <field name="name"/>
-                                    <field name="model_id"/>
-                                    <field name="group_id"/>
-                                    <field name="perm_read"/>
-                                    <field name="perm_create"/>
-                                    <field name="perm_write"/>
-                                    <field name="perm_unlink"/>
+                                    <field name="name" />
+                                    <field name="model_id" />
+                                    <field name="group_id" />
+                                    <field name="perm_read" />
+                                    <field name="perm_create" />
+                                    <field name="perm_write" />
+                                    <field name="perm_unlink" />
                                 </list>
                             </field>
                         </page>
                         <page string="Record Rules">
                             <field name="rule_ids">
                                 <list>
-                                    <field name="name"/>
-                                    <field name="model_id"/>
-                                    <field name="domain_force"/>
-                                    <field name="perm_read"/>
-                                    <field name="perm_create"/>
-                                    <field name="perm_write"/>
-                                    <field name="perm_unlink"/>
-                                    <field name="active"/>
+                                    <field name="name" />
+                                    <field name="model_id" />
+                                    <field name="domain_force" />
+                                    <field name="perm_read" />
+                                    <field name="perm_create" />
+                                    <field name="perm_write" />
+                                    <field name="perm_unlink" />
+                                    <field name="active" />
                                 </list>
                             </field>
                         </page>
                         <page string="Effective Access">
                             <field name="effective_model_access_ids" readonly="1">
                                 <list create="0" edit="0" delete="0">
-                                    <field name="name"/>
-                                    <field name="model_id"/>
-                                    <field name="group_id"/>
-                                    <field name="perm_read"/>
-                                    <field name="perm_create"/>
-                                    <field name="perm_write"/>
-                                    <field name="perm_unlink"/>
+                                    <field name="name" />
+                                    <field name="model_id" />
+                                    <field name="group_id" />
+                                    <field name="perm_read" />
+                                    <field name="perm_create" />
+                                    <field name="perm_write" />
+                                    <field name="perm_unlink" />
                                 </list>
                             </field>
                         </page>
                         <page string="Effective Rules">
                             <field name="effective_rule_ids" readonly="1">
                                 <list create="0" edit="0" delete="0">
-                                    <field name="name"/>
-                                    <field name="model_id"/>
-                                    <field name="domain_force"/>
-                                    <field name="perm_read"/>
-                                    <field name="perm_create"/>
-                                    <field name="perm_write"/>
-                                    <field name="perm_unlink"/>
-                                    <field name="active"/>
+                                    <field name="name" />
+                                    <field name="model_id" />
+                                    <field name="domain_force" />
+                                    <field name="perm_read" />
+                                    <field name="perm_create" />
+                                    <field name="perm_write" />
+                                    <field name="perm_unlink" />
+                                    <field name="active" />
                                 </list>
                             </field>
                         </page>
                         <page string="Users">
                             <field name="user_ids" readonly="1">
                                 <list>
-                                    <field name="name"/>
-                                    <field name="phone"/>
-                                    <field name="email"/>
-                                    <field name="active"/>
+                                    <field name="name" />
+                                    <field name="phone" />
+                                    <field name="email" />
+                                    <field name="active" />
                                 </list>
                             </field>
                         </page>
@@ -121,6 +176,6 @@
         <field name="name">Mobile User Groups</field>
         <field name="res_model">res.mobile.user.group</field>
         <field name="view_mode">list,form</field>
-        <field name="search_view_id" ref="meta_api_user.view_res_mobile_user_group_search"/>
+        <field name="search_view_id" ref="meta_api_user.view_res_mobile_user_group_search" />
     </record>
 </odoo>

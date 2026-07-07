@@ -293,6 +293,9 @@ class MobileAuthSession(models.Model):
                 - group (dict/bool): Mobile user group details containing id, code, name.
                 - employee_id (int/bool): Associated employee ID.
                 - employee_name (str/bool): Associated employee name.
+            - access (dict): Mobile UI access for the user's group:
+                - enforced (list[str]): resource keys currently gated (global).
+                - granted (list[str]): keys granted directly to the user's group.
         """
         mobile_user = self.env["res.mobile.user"].authenticate_mobile_user(login, password)
         employee = self._get_mobile_user_employee_payload(mobile_user)
@@ -318,9 +321,17 @@ class MobileAuthSession(models.Model):
                     "code": group.code,
                     "name": group.name,
                 } if group else False,
+                "permissions": {
+                    "can_view_all_returns": bool(group and group.can_view_all_returns),
+                    "can_edit_so_qty": bool(group and group.can_edit_so_qty),
+                    "can_edit_qc_qty": bool(group and group.can_edit_qc_qty),
+                    "can_edit_effective_qty": bool(group and group.can_edit_effective_qty),
+                    "skip_attendance_geolocation": bool(group and getattr(group, "skip_attendance_geolocation", False)),
+                } if group else {},
                 "employee_id": employee["id"] if employee else False,
                 "employee_name": employee["name"] if employee else False,
             },
+            "access": self.env["mobile.ui.resource"].get_access_payload(group),
         }
 
     @api.model

@@ -19,6 +19,8 @@ class ResPartner(models.Model):
         string='Scrap Location',
         help='Scrap location for the partner'
     )
+
+    db_code = fields.Char(string='DB Code', store=True)
     
     @api.model_create_multi
     def create(self, vals_list):

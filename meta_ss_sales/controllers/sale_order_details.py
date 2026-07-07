@@ -26,7 +26,7 @@ class MetaSSSaleOrderDetailsController(http.Controller):
         """Return one sale order detail, optionally filtered by sale_type."""
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            check_mobile_model_access(_mobile_user, "sale.order", "read")
+            # check_mobile_model_access(_mobile_user, "sale.order", "read")
 
             rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", [("id", "=", order_id)])
             if not api_env["sale.order"].sudo().search_count(rule_domain):
@@ -66,7 +66,7 @@ class MetaSSSaleOrderDetailsController(http.Controller):
         """
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            check_mobile_model_access(_mobile_user, "sale.order", "write")
+            # check_mobile_model_access(_mobile_user, "sale.order", "write")
 
             rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "write", [("id", "=", order_id)])
             if not api_env["sale.order"].sudo().search_count(rule_domain):
@@ -97,7 +97,7 @@ class MetaSSSaleOrderDetailsController(http.Controller):
         try:
             import base64
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            check_mobile_model_access(_mobile_user, "sale.order", "read")
+            # check_mobile_model_access(_mobile_user, "sale.order", "read")
 
             rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", [("id", "=", order_id)])
             if not api_env["sale.order"].sudo().search_count(rule_domain):

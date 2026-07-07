@@ -5,8 +5,10 @@
         <field name="model">res.mobile.user.group</field>
         <field name="inherit_id" ref="meta_api_user.view_res_mobile_user_group_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='active']" position="after">
-                <field name="skip_attendance_geolocation"/>
+            <xpath expr="//page[@name='configuration']" position="inside">
+                <group string="Attendance &amp; Geolocation">
+                    <field name="skip_attendance_geolocation" widget="boolean_toggle"/>
+                </group>
             </xpath>
         </field>
     </record>

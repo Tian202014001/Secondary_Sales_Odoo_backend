@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_inherit_meta_ss_location_tracking" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.meta.ss.location.tracking</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="Location Tracking" name="meta_ss_location_tracking" groups="base.group_system">
+                    <block title="Map Configurations">
+                        <setting id="meta_ss_location_map_tile">
+                            <label for="map_tile_url"/>
+                            <div class="text-muted">
+                                The URL template for Leaflet/OSM map background tiles (e.g. https://tile.openstreetmap.org/{z}/{x}/{y}.png).
+                            </div>
+                            <field name="map_tile_url"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

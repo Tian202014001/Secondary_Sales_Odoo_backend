@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_sales_employee_location_user,sales.employee.location user,model_sales_employee_location,meta_api_user.group_mobile_auth_user,1,0,1,0
+access_sales_employee_location_manager,sales.employee.location manager,model_sales_employee_location,meta_api_user.group_mobile_auth_manager,1,1,1,1

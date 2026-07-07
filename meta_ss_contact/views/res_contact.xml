@@ -8,6 +8,7 @@
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='category_id']" position="after">
                     <field name="customer_type"/>
+                    <field name="db_code"/>
                 </xpath>
                 <xpath expr="//field[@name='property_stock_customer']" position="after">
                     <field name="scrap_location_id"

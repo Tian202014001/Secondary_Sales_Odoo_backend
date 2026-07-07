@@ -34,7 +34,7 @@ class MetaSSSalesController(http.Controller):
         """Return sale orders filtered by sale_type and common dashboard filters."""
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            check_mobile_model_access(_mobile_user, "sale.order", "read")
+            # check_mobile_model_access(_mobile_user, "sale.order", "read")
 
             domain = build_sale_order_domain(payload)
             domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", domain)
@@ -98,7 +98,7 @@ class MetaSSSalesController(http.Controller):
         """
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            check_mobile_model_access(_mobile_user, "sale.order", "create")
+            # check_mobile_model_access(_mobile_user, "sale.order", "create")
 
             sale_type = (payload.get("sale_type") or "primary").strip()
             if sale_type not in ("primary", "secondary"):
@@ -134,7 +134,7 @@ class MetaSSSalesController(http.Controller):
         """Update a sale order with draft/sale restrictions."""
         try:
             _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
-            check_mobile_model_access(_mobile_user, "sale.order", "write")
+            # check_mobile_model_access(_mobile_user, "sale.order", "write")
 
             if not order_id:
                 raise ValidationError("'order_id' is required for updating.")

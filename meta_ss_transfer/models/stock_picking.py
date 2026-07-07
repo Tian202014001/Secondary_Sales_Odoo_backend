@@ -30,6 +30,19 @@ class StockPicking(models.Model):
         required=True,
     )
 
+    db_code = fields.Char(related="ss_distributor_id.db_code", readonly=True, string='DB Code', store=True)
+
+    challan_number = fields.Char(string='Challan Number')
+
+    damage_type = fields.Selection(
+        [
+            ("non_salable", "Non Salable"),
+            ("quality", "Quality"),
+            ("saleable", "Saleable"),
+        ],
+        string="Damage Type",
+    )
+
     def _get_virtual_location_transfer_picking_type(self):
         """Return the custom operation type used for virtual location transfers."""
         return self.env.ref(

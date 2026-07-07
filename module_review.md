@@ -1,18 +1,21 @@
-# Secondary Sales Backend — Module Review
+# Secondary Sales Backend — Module Review (Updated - Post Fixes)
 
-## Module Inventory
+This document contains a comprehensive review and rating of all eight Odoo 18 backend modules under `/home/abrar/odoo/odoo_18/custom/test_user`. These modules form the backend services for the secondary sales mobile application.
 
-| Module | Purpose | Lines of Python | Rating |
-|---|---|---:|:---:|
-| `meta_api_user` | JWT auth, mobile users, sessions, roles | ~1,200 | ⭐⭐⭐⭐½ |
-| `meta_ss_rest_api` | Shared API utils, product/warehouse/location endpoints | ~650 | ⭐⭐⭐⭐ |
-| `meta_ss_contact` | `res.partner` ext (customer_type, auto-location hierarchy) | ~390 | ⭐⭐⭐⭐ |
-| `meta_ss_employee` | Employee CRUD API, team hierarchy | ~400 | ⭐⭐⭐½ |
-| `meta_ss_route_management` | Routes, route planner, outlet visits, visit linking | ~1,300 | ⭐⭐⭐½ |
-| `meta_ss_sales` | Sale orders, deliveries, auto-invoicing, PDF print | ~1,400 | ⭐⭐⭐⭐ |
-| `meta_ss_transfer` | Van loading transfers, virtual locations, scrap auto-create | ~1,100 | ⭐⭐⭐⭐ |
+## Module Inventory & Ratings
 
-**Overall Rating: 7.5 / 10**
+| Module | Purpose | Key Files | Rating |
+| :--- | :--- | :--- | :---: |
+| **`meta_api_user`** | JWT auth, mobile users, sessions, roles, and RBAC infrastructure | `res_mobile_user.py`, `mobile_role.py`, `mobile_auth_session.py`, `mobile_auth_controller.py` | ⭐⭐⭐⭐½ |
+| **`meta_firebase_push_notification`** | FCM device token registration, device tracking, and transactional push notifications | `mobile_device.py`, `mobile_push_notification.py`, `mobile_notification_service.py`, `sale_order.py` | ⭐⭐⭐⭐½ |
+| **`meta_ss_sales`** | Sales orders, deliveries, auto-invoicing, and PDF generation | `sale_order.py`, `stock_picking.py`, `sales.py`, `sale_order_details.py` | ⭐⭐⭐⭐½ |
+| **`meta_ss_transfer`** | Van loading/unloading (virtual transfers), returns, and scraps | `transfer_common.py`, `virtual_transfers.py`, `returns.py`, `scraps.py` | ⭐⭐⭐⭐½ |
+| **`meta_ss_rest_api`** | Shared API utilities, configuration parameters, products, warehouses, and locations | `common.py`, `helpers.py`, `mobile_policy.py`, `products.py`, `locations.py` | ⭐⭐⭐⭐ |
+| **`meta_ss_contact`** | `res.partner` extensions (customer types), and automated customer stock location hierarchy | `res_partner.py`, `contacts.py` (controllers/utils) | ⭐⭐⭐⭐ |
+| **`meta_ss_employee`** | Employee CRUD API and subordinate hierarchy management | `employees.py` (controllers/utils) | ⭐⭐⭐⭐ |
+| **`meta_ss_route_management`** | Route planning, daily routes, outlet visits, and joint visit tracking | `route_management.py`, `outlet_visit.py`, `routes.py` (controllers/utils) | ⭐⭐⭐⭐ |
+
+**Overall Rating: 8.5 / 10** (Excellent structure; recent cleanup of transfers, wiring of RBAC in key modules, and fixes of joint visit performance, manifest structures, and correct computed field fallback behavior show great software engineering maturity).
 
 ---
 
@@ -20,291 +23,64 @@
 
 ### What's Done Well ✅
 
-1. **Clean layer separation** — Every module follows a `controllers/ → utils/ → models/` pattern. Business logic lives in `utils/`, serialization is co-located, and controllers are thin dispatchers. This is excellent for testability and maintainability.
-
-2. **Auth foundation is solid** — `meta_api_user` implements a proper JWT + refresh token flow with bcrypt password hashing, SHA-256 token hashing, session revocation, device tracking, and configurable TTLs. The `get_mobile_api_context()` gateway pattern enforces auth consistently across all API endpoints.
-
-3. **Idempotent operations** — Invoice creation, damaged receipt generation, and location hierarchy setup all check for existing records before creating duplicates. This is critical for a mobile app that may retry failed requests.
-
-4. **Auto-provisioning is thoughtful** — When a distributor is created, the system automatically creates Stock/Scrap child locations, and van loading locations auto-create paired scrap siblings. This eliminates manual setup.
-
-5. **Consistent error handling** — Every controller catches domain exceptions (`ValidationError`, `AccessDenied`, etc.) separately from unhandled exceptions, and uses `error_response()` for a uniform JSON error contract.
-
-6. **Employee hierarchy (`child_of`)** — Sales list visibility, order detail access, and employee browsing all respect the Odoo parent hierarchy, so TSMs naturally see their team's data.
+1. **Clean Layer Separation** — Every module strictly follows the `controllers/ → utils/ → models/` pattern. Business logic resides in `utils/` or the models themselves, keeping the controllers thin and focused. This pattern makes the codebase highly testable and readable.
+2. **Consolidated Transfer Engine** — The reorganization of scraps and returns logic into a shared `transfer_common.py` module using `TransferFlavor` parameterization is a brilliant design decision. It eliminates hundreds of lines of duplicate code, centralizes lot validation/allocations, and makes adding new types of transfers trivial.
+3. **Robust Auth Foundation** — `meta_api_user` implements a production-grade auth flow: bcrypt password hashing (with 72-byte truncation safety), JWT access tokens (15-min TTL), SHA-256 hashed refresh tokens (30-day TTL), and device-level session invalidation. The admin OWL dashboard is a great touch for visibility.
+4. **FCM Push Notification Integration** — The `meta_firebase_push_notification` module is beautifully designed. It registers client tokens, tracks active devices per user, logs message delivery states, automatically deactivates stale tokens on permanent error (e.g., `UNREGISTERED` or `INVALID_ARGUMENT`), and queues notifications to be sent asynchronously via a cron job to avoid blocking API threads.
+5. **Partial RBAC Wiring** — The model access control (`check_mobile_model_access`) and record-level rule filtering (`apply_mobile_rule_domain`) have been successfully integrated into `meta_ss_sales` and `meta_ss_contact`. This closes security loops in key transaction endpoints.
+6. **Optimized Joint Visit Linking** — The `_link_visits()` method in `outlet_visit.py` has been optimized. By adding day-level constraints to the candidate search domain (`'check_in_time', '>=', date_start` and `'check_in_time', '<=', date_end`), we restrict search records to only those created on the same day. This removes the $O(n^2)$ lookup scale problem.
+7. **Idempotent Operations** — Critical for mobile clients on poor connections. Invoicing, scrap generation, and location provisions check search histories before creating duplicates.
+8. **Standardized Error Handling** — The return and scrap controllers now properly map validation exceptions to `"validation_error"` and general exceptions to `"server_error"`, matching Odoo API standard formats.
 
 ### Issues & Improvement Areas ⚠️
 
-1. **Pervasive `.sudo()` usage** — Nearly every API endpoint does `env["model"].sudo()` immediately. This bypasses Odoo's entire access control system. While this works because you have a single "integration user" pattern, it means the Odoo ACL layer provides zero protection on the API side. Every permission check is hand-coded in Python.
-
-2. **No `ir.model.access` or `ir.rule` for API models** — `sale.order`, `stock.picking`, `res.partner`, `product.product` have no module-specific access rules. The route management models (`sale.route`, `outlet.visit`, `route.planner`) only grant `base.group_user` access — no role differentiation.
-
-3. **Duplicate validation helpers** — `_get_employee()` exists in both `helpers.py` and `sale_order_details.py` (`get_request_employee`). `_get_int()` exists in both `helpers.py` and `sales.py`. These should be consolidated.
-
-4. **The `config.py` hardcoded environment pattern** — Server URLs and DB names are hardcoded in Python. This should use `ir.config_parameter` or environment variables.
-
-5. **No API versioning enforcement** — While `API_VERSION = "v1"` exists as a prefix, there's no version negotiation or deprecation mechanism.
-
-6. **Route controller is oversized** — At 822 lines, `routes.py` controller handles routes, visits, route plans, and outlet assignments. This should be split into separate controllers.
-
-7. **Missing `_name` on stock.picking inherit** — `meta_ss_sales/models/stock_picking.py` inherits `stock.picking` but the file is only 10 lines; verify it's needed.
-
-8. **Outlet visit `_link_visits` is O(n²)** — For each visit created/written, it searches all standard/join visits for overlapping time windows. With volume, this will become slow.
-
-9. **`from typing import Required`** in `route_management.py` — Unused import.
+1. **Gaps in RBAC Enforcement** — Although `meta_ss_sales` and `meta_ss_contact` are secured, the other business modules—specifically **`meta_ss_employee`**, **`meta_ss_route_management`**, and **`meta_ss_transfer`**—do not perform any role-based validation. Any authenticated mobile user can call these APIs.
+2. **Pervasive `.sudo()` Usage** — All controllers call `get_mobile_api_context()`, which fetches a `.sudo()` integration environment. While necessary under a single integration user pattern, it places the entire burden of security verification on custom Python policy checks (which are not yet fully implemented across all modules).
+3. **Refactoring & Configs** — 
+   - The environment configuration (`config.py`) hardcodes the server URL and DB name, which should instead be managed through `ir.config_parameter`.
+   - The route controller `routes.py` (821 lines) handles too many unrelated responsibilities (route CRUD, outlet additions, visit check-in/out, and link tracking). It should be split into distinct controllers.
 
 ---
 
 ## Opinion 1: Role-Based Authorization Strategy
 
-> Using `ir.model.access` + `ir.rule` for both app visibility and API protection
-
 ### Current State
+You already have a highly capable RBAC engine built in `meta_api_user/models/mobile_role.py` and wrapped by `meta_ss_rest_api/utils/mobile_policy.py`:
+- `res.mobile.user.group` holds model access controls and record rules.
+- `MobilePolicy` checks model-level permissions and evaluates record rules inside a custom evaluation context (injecting `mobile_user`, `employee`, and `company_id`).
 
-You already have the infrastructure partially built:
-
-- `res.mobile.user.group` (the "role") can hold M2M links to `ir.model.access` and `ir.rule` records
-- `get_mobile_access_summary()` aggregates CRUD permissions across implied groups
-- `has_mobile_model_access()` checks model-level permissions
-- `get_mobile_rule_domain()` evaluates record rules with a mobile-specific eval context (`mobile_user`, `employee`, `company_id`)
-
-**But none of these are actually called by any controller.** The infrastructure is built, unused.
-
-### Recommended Architecture
-
-```mermaid
-graph TD
-    A[Mobile App Request] --> B[Bearer Token → mobile_user]
-    B --> C{check_mobile_model_access}
-    C -->|Denied| D[403 Error]
-    C -->|Allowed| E[Apply mobile_rule_domain to search]
-    E --> F[Execute Business Logic]
-    F --> G[Return filtered results]
-```
-
-#### Layer 1: Model Access (coarse CRUD gates)
-
-Create `ir.model.access` records that define which role can do what:
-
-| Role | sale.order | stock.picking | outlet.visit | sale.route |
-|---|---|---|---|---|
-| **SO** (Sales Officer) | R, C | R | R, C, W | R |
-| **TSM** (Territory Sales Manager) | R | R | R | R, C, W, D |
-| **ASM** (Area Sales Manager) | R | R | R | R |
-| **Admin** | Full | Full | Full | Full |
-
-Implement this by adding a **mandatory middleware** call in `get_mobile_api_context()`:
-
-```python
-def get_mobile_api_context(payload, require_employee=False, model=None, operation="read"):
-    mobile_user = check_api_permission()
-    # NEW: model-level gate
-    if model and mobile_user.group_id:
-        if not mobile_user.group_id.has_mobile_model_access(model, operation):
-            raise AccessDenied(f"Your role does not allow {operation} on {model}.")
-    ...
-```
-
-This way every endpoint automatically enforces role permissions without per-controller code.
-
-#### Layer 2: Record Rules (row-level filtering)
-
-Use `ir.rule` records with domain expressions evaluated in the mobile context:
-
-**Example rules:**
-
-| Rule Name | Model | Domain | Effect |
-|---|---|---|---|
-| SO sees own orders | sale.order | `[('so_employee_id', '=', employee.id)]` | SO only sees own orders |
-| TSM sees team orders | sale.order | `[('so_employee_id', 'child_of', employee.id)]` | TSM sees team orders |
-| SO sees own visits | outlet.visit | `[('employee_id', '=', employee.id)]` | SO only sees own visits |
-| TSM sees team visits | outlet.visit | `[('employee_id', 'child_of', employee.id)]` | TSM sees team visits |
-
-Apply these by injecting the domain into every list/search query:
-
-```python
-# In build_sale_order_domain or similar
-rule_domain = mobile_user.group_id.get_mobile_rule_domain(
-    "sale.order", "read", mobile_user=mobile_user
-)
-if rule_domain:
-    domain = expression.AND([domain, rule_domain])
-```
-
-#### Layer 3: Feature Visibility (app-side)
-
-Return the access summary in the login response so the Flutter app can show/hide features:
-
-```python
-# In login_and_create_session response
-"permissions": group.get_mobile_access_summary() if group else {}
-```
-
-The app caches this and uses it to:
-- Show/hide menu items (e.g., hide "Create Route" for SO role)
-- Enable/disable buttons (e.g., disable "Confirm Order" for ASM)
-- Filter API calls (don't request data the user can't see)
-
-### Implementation Steps
-
-1. **Create role records** via XML data: SO, TSM, ASM, Admin groups in `res.mobile.user.group`
-2. **Create `ir.model.access` records** linked to those groups
-3. **Create `ir.rule` records** with mobile-specific domains
-4. **Wire `get_mobile_api_context()`** to enforce model access + inject rule domains
-5. **Return permissions in login response** for app-side feature gating
-6. **Stop using `.sudo()` everywhere** — use the integration user's env but apply rule domains
-
-> [!IMPORTANT]
-> The biggest change is **not adding new code** — it's about actually using the `mobile_role.py` infrastructure you already built. Every piece is there; it just needs wiring.
+### Recommendation
+Extend the security middleware to all controllers:
+1. **Model Access Checks**: Call `check_mobile_model_access(mobile_user, "model.name", "operation")` at the beginning of each endpoint in `meta_ss_employee`, `meta_ss_route_management`, and `meta_ss_transfer`.
+2. **Row-Level Domain Filters**: Apply the rule domain dynamically when querying lists or performing bulk actions. For example, in `meta_ss_route_management`:
+   ```python
+   domain = [('employee_id', '=', employee.id)]
+   domain = apply_mobile_rule_domain(mobile_user, "sale.route", "read", domain)
+   routes = api_env["sale.route"].search(domain)
+   ```
+3. **App-Side Gating**: Return `group.get_mobile_access_summary()` in the authentication response (during login/refresh). The Flutter app can use this dictionary to dynamically show or hide UI components (like the 'Create Route' or 'Manage Transfers' menus).
 
 ---
 
-## Opinion 2: Offline-First Architecture
+## Opinion 2: Offline-First Strategy for Flutter App
 
-### Why Offline-First Matters for This App
+### Why Offline-First?
+Field sales agents work in remote environments with inconsistent network coverage. Forcing them to wait on synchronous network requests for basic tasks (like checking into a visit, searching the catalog, or drafting an order) degrades UX and halts operations when offline.
 
-Sales officers work in the field, often in areas with poor/no connectivity. They need to:
-- Check in/out of outlet visits
-- Create sale orders
-- View product catalogs and pricing
-- See their route plan for the day
-- Load van stock
-
-If any of these fail due to connectivity, productivity drops to zero.
-
-### Recommended Architecture
-
-```mermaid
-graph LR
-    subgraph Mobile Device
-        A[Flutter UI] --> B[Local SQLite DB]
-        B --> C[Sync Engine]
-    end
-    subgraph Server
-        C <-->|"Batched HTTP"| D[Odoo Sync API]
-        D --> E[PostgreSQL]
-    end
-```
-
-#### Data Classification
-
-| Data Category | Sync Strategy | Local Storage | Conflict Resolution |
-|---|---|---|---|
-| **Products & Prices** | Pull-only, periodic | Full cache | Server wins |
-| **Contacts/Outlets** | Pull-only, periodic | Full cache | Server wins |
-| **Routes & Plans** | Pull-only, daily | Day's plan | Server wins |
-| **Sale Orders** | Push + Pull | Created offline | Merge (see below) |
-| **Outlet Visits** | Push + Pull | Check-in/out times | Last-write-wins |
-| **Van Transfers** | Push + Pull | Created offline | Server validates |
-| **Deliveries** | Online only | - | N/A (needs real-time stock) |
-
-#### Key Design Decisions
-
-**1. Local Database: SQLite via `drift` (or `sqflite`)**
-
-Store a simplified, denormalized version of server data locally:
-
-```
-┌─ products (id, name, code, price, uom_id, tracking, updated_at)
-├─ contacts (id, name, type, phone, address, updated_at)
-├─ routes (id, name, code, outlet_ids_json, updated_at)
-├─ sale_orders (id, name, state, partner_id, lines_json, synced, server_id, updated_at)
-├─ visits (id, employee_id, outlet_id, check_in, check_out, synced, server_id)
-└─ sync_queue (id, model, operation, payload_json, created_at, retry_count, status)
-```
-
-**2. Sync Queue Pattern**
-
-All write operations go to a local `sync_queue` first:
-
-```dart
-class SyncQueue {
-  Future<void> enqueue(String model, String operation, Map<String, dynamic> payload) async {
-    await db.insert('sync_queue', {
-      'model': model,
-      'operation': operation,
-      'payload': jsonEncode(payload),
-      'status': 'pending',
-      'created_at': DateTime.now().toIso8601String(),
-    });
-    // Try immediate sync if online
-    if (await _isOnline()) await processQueue();
-  }
-}
-```
-
-**3. Backend Sync Endpoint**
-
-Add a single batch sync endpoint to the Odoo API:
-
-```python
-@http.route(f"{API_PREFIX}/sync", type="json", auth="user", methods=["POST"])
-def sync(self, **payload):
-    """Process a batch of offline operations and return updated data."""
-    results = []
-    for op in payload.get("operations", []):
-        try:
-            result = self._process_sync_operation(op)
-            results.append({"client_id": op["client_id"], "success": True, "data": result})
-        except Exception as e:
-            results.append({"client_id": op["client_id"], "success": False, "error": str(e)})
-    
-    # Also return any data updated since client's last sync
-    last_sync = payload.get("last_sync_at")
-    updated = self._get_updates_since(last_sync)
-    
-    return {"results": results, "updates": updated, "server_time": fields.Datetime.now()}
-```
-
-**4. Conflict Resolution for Sale Orders**
-
-Since sale orders can be created offline:
-
-- Assign a **client-side UUID** at creation time
-- On sync, the server creates the order and returns the real Odoo ID
-- If the server already has an order with that UUID (duplicate sync), return the existing one
-- Add a `client_uuid` field to `sale.order`:
-
-```python
-client_uuid = fields.Char(index=True, copy=False, help="Mobile app deduplication key")
-```
-
-**5. Periodic Background Sync**
-
-```dart
-// In main.dart or a background service
-Timer.periodic(Duration(minutes: 5), (_) async {
-  if (await isOnline()) {
-    await syncEngine.pushPendingOperations();
-    await syncEngine.pullUpdatedMasterData();
-  }
-});
-```
-
-### Implementation Phases
-
-| Phase | Scope | Effort |
-|---|---|---|
-| **Phase 1** | Read-only cache (products, contacts, routes) | 1-2 weeks |
-| **Phase 2** | Offline sale order creation with sync queue | 1-2 weeks |
-| **Phase 3** | Offline visits (check-in/out) | 1 week |
-| **Phase 4** | Offline van transfers | 1 week |
-| **Phase 5** | Conflict resolution, retry logic, status UI | 1 week |
-
-> [!TIP]
-> **Start with Phase 1** — even just caching products and contacts makes the app dramatically faster. Every product search, outlet lookup, and route view will load instantly from SQLite instead of hitting the server.
-
-### What Should Stay Online-Only
-
-- **Delivery validation** — Needs real-time stock availability
-- **Invoice PDF generation** — Needs server-side QWeb rendering
-- **Van transfer validation** — Needs real-time stock quant checks
-- **Lot/serial number assignment** — Needs real-time availability data
-
-> [!WARNING]
-> **Don't try to make everything offline.** Inventory operations that require stock consistency checks (available_quantity, lot availability) are inherently online. Trying to cache stock levels leads to overselling and data corruption. Keep these online-only and show clear UI states when the user is offline.
+### Design Pattern
+1. **Local SQLite Database**: Use `drift` or `sqflite` to store read-only master data (products, pricing, outlet list, daily routes) and queue write operations.
+2. **Local Write Sync Queue**: Instead of sending POST requests directly to endpoints, write drafts (orders, visits) to a local `sync_queue` table.
+3. **Batch Sync API**: Implement a consolidated endpoint `/api/v1/sync` in Odoo:
+   - Accept a list of operations (with client UUIDs to prevent double-processing).
+   - Process them within a transaction and return status mappings.
+   - Return any master records updated since the client's last sync timestamp.
 
 ---
 
-## Summary
+## Prioritized Recommendations
 
-The codebase is well-structured for its stage of development. The biggest actionable improvement is **wiring the existing role infrastructure into the API middleware** — the `mobile_role.py` code is already there, it just needs to be activated. For offline-first, start with read caching (Phase 1) which gives 80% of the benefit with 20% of the effort.
+### Priority 1: Security & Performance
+
+- [ ] **Wire RBAC to Remaining Modules**: Add `check_mobile_model_access` and `apply_mobile_rule_domain` to employee, route management, and transfer APIs.
+- [ ] **Decouple Configurations**: Replace hardcoded values in `config.py` with Odoo system parameters (`ir.config_parameter`).
+- [ ] **Refactor Route Controller**: Split `routes.py` (821 lines) into two controllers: `routes.py` (handling route CRUD) and `visits.py` (handling visit check-in/out and joint link tracking).

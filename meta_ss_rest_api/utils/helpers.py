@@ -39,8 +39,8 @@ def _get_employee(env, employee_id):
         raise ValidationError("Employee not found.")
     return employee
 
-def _create_move_line(env, picking, move, quantity, lot=None):
-    env["stock.move.line"].sudo().create({
+def _create_move_line(env, picking, move, quantity, lot=None, **kwargs):
+    vals = {
         "picking_id": picking.id,
         "move_id": move.id,
         "company_id": picking.company_id.id,
@@ -52,7 +52,9 @@ def _create_move_line(env, picking, move, quantity, lot=None):
         "lot_name": lot.name if lot else False,
         "location_id": move.location_id.id,
         "location_dest_id": move.location_dest_id.id,
-    })
+    }
+    vals.update(kwargs)
+    return env["stock.move.line"].sudo().create(vals)
 
 def _get_lot(env, product, lot_id):
     if not lot_id:

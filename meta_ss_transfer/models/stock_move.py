@@ -11,6 +11,16 @@ class StockMove(models.Model):
         default=0.0,
         digits="Product Unit of Measure",
     )
+    so_qty = fields.Float(
+        string="SO Qty",
+        default=0.0,
+        digits="Product Unit of Measure",
+    )
+    qc_qty = fields.Float(
+        string="QC Qty",
+        default=0.0,
+        digits="Product Unit of Measure",
+    )
 
 
 class StockMoveLine(models.Model):
@@ -20,4 +30,14 @@ class StockMoveLine(models.Model):
         string="Scrap Qty",
         default=0.0,
         digits="Product Unit of Measure",
+    )
+    so_qty = fields.Float(
+        related="move_id.so_qty", 
+        readonly=True,
+        string="SO Qty"
+    )
+    qc_qty = fields.Float(
+        related="move_id.qc_qty", 
+        readonly=True,
+        string="QC Qty"
     )

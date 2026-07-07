@@ -190,28 +190,35 @@ def build_list_domain(env, payload, flavor):
 
     picking_type_filter = payload.get("picking_type") or payload.get("type") or payload.get("sale_type")
     
-    if picking_type_filter == "secondary":
-        # For secondary sales, pickings are tied to the employee.
-        # 'so_employee_id' is computed from 'sale_id' automatically.
-        if employee_id:
-            domain.append(("so_employee_id", "child_of", int(employee_id)))
-    else:
-        # For primary sales, pickings are tied to distributors
-        if dist_id:
-            distributor = env["res.partner"].sudo().browse(int(dist_id)).exists()
-            distributor_ids = [distributor.id]
-        elif employee_id:
-            subordinates = env["hr.employee"].sudo().search([("id", "child_of", int(employee_id))])
-            distributor_ids = subordinates.mapped("distributor_contact_ids").ids
-        else:
-            distributor_ids = []
+    mobile_user_id = env.context.get("mobile_api_user_id")
+    mobile_user = env["res.mobile.user"].sudo().browse(mobile_user_id) if mobile_user_id else env["res.mobile.user"]
 
-        if distributor_ids:
-            domain.extend([
-                "|",
-                ("ss_distributor_id", "in", distributor_ids),
-                ("partner_id", "in", distributor_ids)
-            ])
+    if mobile_user and mobile_user.group_id.can_view_all_returns:
+        # Bypass manager hierarchy completely for this user
+        pass
+    else:
+        if picking_type_filter == "secondary":
+            # For secondary sales, pickings are tied to the employee.
+            # 'so_employee_id' is computed from 'sale_id' automatically.
+            if employee_id:
+                domain.append(("so_employee_id", "child_of", int(employee_id)))
+        else:
+            # For primary sales, pickings are tied to distributors
+            if dist_id:
+                distributor = env["res.partner"].sudo().browse(int(dist_id)).exists()
+                distributor_ids = [distributor.id]
+            elif employee_id:
+                subordinates = env["hr.employee"].sudo().search([("id", "child_of", int(employee_id))])
+                distributor_ids = subordinates.mapped("distributor_contact_ids").ids
+            else:
+                distributor_ids = []
+
+            if distributor_ids:
+                domain.extend([
+                    "|",
+                    ("ss_distributor_id", "in", distributor_ids),
+                    ("partner_id", "in", distributor_ids)
+                ])
 
     if picking_type_filter:
         domain.append(("ss_picking_type", "=", picking_type_filter))
@@ -282,6 +289,8 @@ def create_delivery(env, payload, flavor):
         "partner_id": distributor.id,
         "ss_distributor_id": distributor.id,
         "so_employee_id": employee.id,
+        "challan_number": payload.get("challan_number") or False,
+        "damage_type": payload.get("damage_type") or False,
         "origin": f"{flavor.label} from {distributor.name}",
         "ss_picking_type": payload.get("picking_type") or payload.get("type") or payload.get("sale_type") or "primary",
         "move_ids": [
@@ -292,6 +301,9 @@ def create_delivery(env, payload, flavor):
                     "name": item["product"].display_name,
                     "product_id": item["product"].id,
                     "product_uom_qty": item["quantity"],
+                    "so_qty": item.get("so_qty", 0.0),
+                    "qc_qty": item.get("qc_qty", 0.0),
+                    "ss_scrap_qty": item.get("ss_scrap_qty", 0.0),
                     "product_uom": item["uom"].id,
                     "location_id": source_location.id,
                     "location_dest_id": dest_location.id,
@@ -359,6 +371,8 @@ def update_delivery(env, picking_id, payload, flavor):
         pass
 
     picking.write({
+        "challan_number": payload.get("challan_number") or picking.challan_number,
+        "damage_type": payload.get("damage_type") or picking.damage_type,
         "ss_picking_type": payload.get("picking_type") or payload.get("type") or payload.get("sale_type") or "primary",
         "move_ids": [
             (
@@ -368,6 +382,9 @@ def update_delivery(env, picking_id, payload, flavor):
                     "name": item["product"].display_name,
                     "product_id": item["product"].id,
                     "product_uom_qty": item["quantity"],
+                    "so_qty": item.get("so_qty", 0.0),
+                    "qc_qty": item.get("qc_qty", 0.0),
+                    "ss_scrap_qty": item.get("ss_scrap_qty", 0.0),
                     "product_uom": item["uom"].id,
                     "location_id": source_location.id,
                     "location_dest_id": dest_location.id,
@@ -393,10 +410,13 @@ def update_delivery(env, picking_id, payload, flavor):
 
 def serialize_delivery(picking):
     picking = picking.sudo()
+
     return {
         "id": picking.id,
         "name": picking.name,
         "state": picking.state,
+        "challan_number": picking.challan_number or None,
+        "damage_type": picking.damage_type or None,
         "scheduled_date": str(picking.scheduled_date) if picking.scheduled_date else None,
         "origin": picking.origin or None,
         "distributor": {"id": picking.partner_id.id, "name": picking.partner_id.name} if picking.partner_id else ({"id": picking.ss_distributor_id.id, "name": picking.ss_distributor_id.name} if picking.ss_distributor_id else None),
@@ -428,6 +448,9 @@ def _prepare_transfer_lines(env, lines, source_location):
             "sequence": index * 10,
             "product": product,
             "quantity": quantity,
+            "so_qty": float(line.get("so_qty", quantity)),
+            "qc_qty": float(line.get("qc_qty", 0.0)),
+            "ss_scrap_qty": float(line.get("ss_scrap_qty", line.get("scrap_qty", 0.0))),
             "uom": uom,
             "lot_lines": lot_lines,
             "available_qty": _get_available_qty(env, product, source_location),
@@ -453,7 +476,11 @@ def _prepare_lot_lines(env, product, quantity, lot_lines):
         ) > 0:
             raise ValidationError("Serial-tracked products must move one unit per serial.")
         total += lot_qty
-        prepared.append({"lot": lot, "quantity": lot_qty})
+        prepared.append({
+            "lot": lot, 
+            "quantity": lot_qty,
+            "ss_scrap_qty": float(lot_line.get("ss_scrap_qty", lot_line.get("scrap_qty", 0.0)))
+        })
 
     if float_compare(total, quantity, precision_rounding=product.uom_id.rounding) != 0:
         raise ValidationError("Total lot quantity must match transfer quantity.")
@@ -492,10 +519,10 @@ def _apply_move_lines(env, picking, move, item):
         move.move_line_ids.unlink()
 
     if item["product"].tracking == "none":
-        _create_move_line(env, picking, move, item["quantity"])
+        _create_move_line(env, picking, move, item["quantity"], ss_scrap_qty=item.get("ss_scrap_qty", 0.0))
     else:
         for lot_line in item["lot_lines"]:
-            _create_move_line(env, picking, move, lot_line["quantity"], lot=lot_line["lot"])
+            _create_move_line(env, picking, move, lot_line["quantity"], lot=lot_line["lot"], ss_scrap_qty=lot_line.get("ss_scrap_qty", 0.0))
 
 
 def _get_available_product_ids(env, source_location):
@@ -584,6 +611,8 @@ def _serialize_transfer_move(move):
         "product": _serialize_product(move.product_id),
         "demand_qty": move.product_uom_qty,
         "quantity": move.quantity,
+        "so_qty": move.so_qty,
+        "qc_qty": move.qc_qty,
         "uom": {
             "id": move.product_uom.id,
             "name": move.product_uom.name,

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sales_employee_location_search" model="ir.ui.view">
+        <field name="name">sales.employee.location.search</field>
+        <field name="model">sales.employee.location</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="employee_id"/>
+                <field name="attendance_id"/>
+                <filter name="filter_mock" string="Mocked Locations Only" domain="[('is_mock', '=', True)]"/>
+                <filter name="filter_today" string="Today" domain="[('recorded_at', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('recorded_at', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_by_employee" string="Employee" context="{'group_by': 'employee_id'}"/>
+                    <filter name="group_by_attendance" string="Attendance Session" context="{'group_by': 'attendance_id'}"/>
+                    <filter name="group_by_date" string="Date" context="{'group_by': 'recorded_at:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_sales_employee_location_list" model="ir.ui.view">
+        <field name="name">sales.employee.location.list</field>
+        <field name="model">sales.employee.location</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" duplicate="0" default_order="recorded_at desc">
+                <field name="employee_id"/>
+                <field name="attendance_id"/>
+                <field name="latitude"/>
+                <field name="longitude"/>
+                <field name="accuracy"/>
+                <field name="speed"/>
+                <field name="battery_level" string="Battery %"/>
+                <field name="recorded_at"/>
+                <field name="is_mock" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sales_employee_location_form" model="ir.ui.view">
+        <field name="name">sales.employee.location.form</field>
+        <field name="model">sales.employee.location</field>
+        <field name="arch" type="xml">
+            <form create="0" edit="0" delete="0">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="employee_id" string="Employee"/>
+                        <h1>
+                            <field name="employee_id" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="GPS Coordinate">
+                            <field name="latitude" readonly="1"/>
+                            <field name="longitude" readonly="1"/>
+                            <field name="accuracy" readonly="1"/>
+                            <field name="speed" readonly="1"/>
+                        </group>
+                        <group string="Context Details">
+                            <field name="attendance_id" readonly="1"/>
+                            <field name="recorded_at" readonly="1"/>
+                            <field name="battery_level" readonly="1"/>
+                            <field name="is_mock" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sales_employee_location" model="ir.actions.act_window">
+        <field name="name">Employee GPS Logs</field>
+        <field name="res_model">sales.employee.location</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_sales_employee_location_search"/>
+        <field name="context">{'search_default_group_by_employee': 1, 'search_default_group_by_attendance': 1}</field>
+    </record>
+
+    <!-- Client Action for Leaflet Route Mapping Dashboard -->
+    <record id="action_route_map_dashboard" model="ir.actions.client">
+        <field name="name">Employee Route History Map</field>
+        <field name="tag">meta_ss_location_tracking.route_map_dashboard</field>
+    </record>
+
+    <menuitem
+        id="menu_route_map_dashboard"
+        name="Route History Map"
+        parent="meta_api_user.menu_meta_api_root"
+        action="action_route_map_dashboard"
+        sequence="25"
+        groups="meta_api_user.group_mobile_auth_user"/>
+
+    <menuitem
+        id="menu_sales_employee_location"
+        name="Employee GPS Logs"
+        parent="meta_api_user.menu_meta_api_root"
+        action="action_sales_employee_location"
+        sequence="30"
+        groups="meta_api_user.group_mobile_auth_user"/>
+</odoo>

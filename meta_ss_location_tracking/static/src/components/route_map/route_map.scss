@@ -1,0 +1,60 @@
+.o_route_map_dashboard {
+    height: 100%;
+    width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    .o_route_map_sidebar {
+        width: 320px;
+        min-width: 320px;
+        height: 100%;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+        z-index: 10;
+
+        .o_route_map_sidebar__header {
+            border-bottom: 2px solid #2563eb;
+            
+            h5 {
+                font-weight: 700;
+                letter-spacing: -0.025em;
+            }
+        }
+
+        .list-group-item {
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+
+            &:hover {
+                background-color: #f3f4f6;
+                transform: translateY(-1px);
+            }
+
+            &.active {
+                background-color: #2563eb !important;
+                border-color: #2563eb !important;
+                color: #ffffff !important;
+
+                .text-muted, .x-small {
+                    color: rgba(255, 255, 255, 0.8) !important;
+                }
+            }
+        }
+    }
+
+    .x-small {
+        font-size: 0.75rem;
+    }
+
+    .list-group-item-action {
+        text-align: left;
+    }
+}
+
+/* Ensure Leaflet Container takes full container space */
+.leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
+    font-family: inherit !important;
+}

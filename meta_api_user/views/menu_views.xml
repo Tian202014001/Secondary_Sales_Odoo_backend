@@ -46,4 +46,20 @@
         sequence="10"
         groups="meta_api_user.group_mobile_auth_manager"/>
 
+    <menuitem
+        id="menu_ss_module"
+        name="Modules"
+        parent="menu_meta_api_configuration"
+        action="action_ss_module"
+        sequence="15"
+        groups="meta_api_user.group_mobile_auth_manager"/>
+
+    <menuitem
+        id="menu_meta_api_ui_resources"
+        name="UI Access Catalog"
+        parent="menu_meta_api_configuration"
+        action="action_mobile_ui_resource"
+        sequence="20"
+        groups="meta_api_user.group_mobile_auth_manager"/>
+
 </odoo>

@@ -33,6 +33,36 @@ class MobilePolicy:
 
         return any(access_records.mapped("perm_%s" % operation))
 
+    def has_ui_access(self, key):
+        """Whether the user's group may see/use the UI resource ``key``.
+
+        Allowed if:
+        - Resource is not registered or not associated with any module (not enforced).
+        - User's group has the module containing the resource, AND the resource
+          is not in the group's denylists (hidden_menu_ids / hidden_button_ids).
+        """
+        if not self.mobile_user:
+            return False
+        resource = self.mobile_user.env["mobile.ui.resource"].sudo().search(
+            [("key", "=", key), ("active", "=", True)],
+            limit=1,
+        )
+        if not resource or not resource.module_ids:
+            return True
+        group = self.group
+        if not group:
+            return False
+            
+        group_resources = group.module_ids.mapped("resource_ids")
+        if resource not in group_resources:
+            return False
+            
+        hidden = group.hidden_menu_ids | group.hidden_button_ids
+        if resource in hidden:
+            return False
+            
+        return True
+
     def rule_domain(self, model_name, operation):
         group = self.ensure_group()
         operation = (operation or "").strip()
