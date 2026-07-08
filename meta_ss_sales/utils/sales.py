@@ -381,6 +381,7 @@ def serialize_sale_order(order):
         "amount_untaxed": order.amount_untaxed,
         "amount_tax": order.amount_tax,
         "amount_total": order.amount_total,
+        "currency_symbol": order.currency_id.symbol or "৳",
         "lines": [
             {
                 "id": line.id,
