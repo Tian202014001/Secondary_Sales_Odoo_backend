@@ -5,7 +5,8 @@
         name="Mobile API"
         action="action_mobile_auth_dashboard"
         sequence="80"
-        groups="meta_api_user.group_mobile_auth_user"/>
+        groups="meta_api_user.group_mobile_auth_user"
+        web_icon="meta_api_user,static/description/icon.png"/>
 
     <menuitem
         id="menu_meta_api_dashboard"

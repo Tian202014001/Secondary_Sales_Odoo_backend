@@ -64,7 +64,7 @@
         </record>
 
         <!-- Menu Items -->
-        <menuitem id="menu_sale_route_root" name="Route Management" sequence="10" />
+        <menuitem id="menu_sale_route_root" name="Route Management" sequence="10" web_icon="meta_ss_route_management,static/description/icon.png" />
 
         <menuitem id="menu_sale_route" name="Routes" parent="menu_sale_route_root"
             action="action_sale_route" sequence="10" />
