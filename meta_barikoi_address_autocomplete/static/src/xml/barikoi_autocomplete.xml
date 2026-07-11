@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="meta_barikoi_address_autocomplete.BarikoiAutocomplete" owl="1">
+        <div class="o_field_barikoi_autocomplete dropdown position-relative" t-att-class="{'loading': state.loading}">
+            <input type="text"
+                   t-ref="input"
+                   class="o_input form-control"
+                   t-att-value="state.inputValue"
+                   t-att-placeholder="props.placeholder"
+                   t-att-readonly="props.readonly"
+                   autocomplete="off"
+                   t-on-input="onInput"
+                   t-on-focus="onFocus"
+                   t-on-keydown="onKeyDown"/>
+            
+            <!-- Loading spinner -->
+            <span t-if="state.loading" class="barikoi-loading position-absolute end-0 top-50 translate-middle-y me-2">
+                <i class="fa fa-spinner fa-spin text-muted"></i>
+            </span>
+            
+            <!-- Dropdown menu -->
+            <ul t-if="state.showDropdown and state.suggestions.length > 0"
+                class="dropdown-menu show barikoi-dropdown"
+                role="listbox">
+                <t t-foreach="state.suggestions" t-as="suggestion" t-key="suggestion.id">
+                    <li class="barikoi-suggestion-item"
+                        t-att-class="{'active': suggestion_index === state.selectedIndex}"
+                        t-on-click.prevent.stop="() => this.onSuggestionClick(suggestion_index)"
+                        t-on-mouseenter="() => this.onSuggestionMouseEnter(suggestion_index)">
+                        <div class="barikoi-suggestion">
+                            <span class="barikoi-suggestion-name" t-esc="suggestion.name"/>
+                            <small t-if="suggestion.address and suggestion.address !== suggestion.name" 
+                                   class="barikoi-suggestion-address text-muted d-block" 
+                                   t-esc="suggestion.address"/>
+                        </div>
+                    </li>
+                </t>
+            </ul>
+        </div>
+    </t>
+</templates>

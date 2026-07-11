@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Menu Items for Barikoi App -->
+        <menuitem id="menu_barikoi_root"
+                  name="Barikoi Maps"
+                  sequence="100"
+                  web_icon="meta_barikoi,static/description/icon.png"/>
+
+        <menuitem id="menu_barikoi_config"
+                  name="Configuration"
+                  parent="menu_barikoi_root"
+                  sequence="100"/>
+
+        <menuitem id="menu_barikoi_settings"
+                  name="Settings"
+                  parent="menu_barikoi_config"
+                  action="meta_barikoi_base.action_barikoi_configuration"
+                  sequence="10"/>
+
+        <menuitem id="menu_barikoi_partners"
+                  name="Partners"
+                  parent="menu_barikoi_root"
+                  action="contacts.action_contacts"
+                  sequence="10"/>
+
+        <menuitem id="menu_barikoi_geocode"
+                  name="Batch Geocode"
+                  parent="menu_barikoi_config"
+                  action="meta_barikoi_geolocalize.action_batch_geocode_partners"
+                  sequence="20"/>
+    </data>
+</odoo>

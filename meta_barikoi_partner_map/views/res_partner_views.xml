@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Partner Form View Extension - Add View on Map Button -->
+        <record id="view_partner_form_inherit_barikoi_map" model="ir.ui.view">
+            <field name="name">res.partner.form.inherit.barikoi.map</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="meta_barikoi_geolocalize.view_partner_form_inherit_barikoi_geolocalize"/>
+            <field name="arch" type="xml">
+                <!-- Add map button in button_box -->
+                <xpath expr="//button[@name='action_find_nearby_partners']" position="after">
+                    <button name="action_open_map" type="object" string="View on Map"
+                            class="oe_stat_button" icon="fa-globe"
+                            help="View partner location on Barikoi map (opens in new tab)"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Company Form View Extension -->
+        <record id="view_company_form_inherit_barikoi" model="ir.ui.view">
+            <field name="name">res.company.form.inherit.barikoi</field>
+            <field name="model">res.company</field>
+            <field name="inherit_id" ref="base.view_company_form"/>
+            <field name="arch" type="xml">
+                <!-- Add Bangladesh-specific address fields -->
+                <xpath expr="//group[@name='social_media']" position="after">
+                    <group string="Bangladesh Address Details" name="barikoi_address">
+                        <group>
+                            <field name="barikoi_division"/>
+                            <field name="barikoi_district"/>
+                        </group>
+                        <group>
+                            <field name="barikoi_upazila"/>
+                            <field name="barikoi_union"/>
+                        </group>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

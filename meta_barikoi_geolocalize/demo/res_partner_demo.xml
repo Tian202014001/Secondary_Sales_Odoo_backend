@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Demo Partners with Bangladesh Locations -->
+        
+        <!-- Dhaka Division -->
+        <record id="demo_partner_dhaka_central" model="res.partner">
+            <field name="name">Metamorphosis Ltd.</field>
+            <field name="is_company">1</field>
+            <field name="street">House 12, Road 5, Dhanmondi</field>
+            <field name="street2">R.A. Area</field>
+            <field name="city">Dhaka</field>
+            <field name="zip">1205</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 2-9661234</field>
+            <field name="email">info@metamorphosis.com.bd</field>
+            <field name="website">https://metamorphosis.com.bd</field>
+            <field name="partner_latitude">23.7465</field>
+            <field name="partner_longitude">90.3762</field>
+            <field name="barikoi_division">Dhaka</field>
+            <field name="barikoi_district">Dhaka</field>
+            <field name="barikoi_upazila">Dhanmondi</field>
+            <field name="barikoi_place_id">demo_place_001</field>
+            <field name="geocoding_status">geocoded</field>
+        </record>
+
+        <record id="demo_partner_gulshan" model="res.partner">
+            <field name="name">Tech Solutions BD</field>
+            <field name="is_company">1</field>
+            <field name="street">Gulshan Avenue, Block F</field>
+            <field name="street2">Gulshan-2</field>
+            <field name="city">Dhaka</field>
+            <field name="zip">1212</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 2-8823456</field>
+            <field name="email">contact@techsolutions.bd</field>
+            <field name="website">https://techsolutions.bd</field>
+            <field name="partner_latitude">23.7925</field>
+            <field name="partner_longitude">90.4067</field>
+            <field name="barikoi_division">Dhaka</field>
+            <field name="barikoi_district">Dhaka</field>
+            <field name="barikoi_upazila">Gulshan</field>
+            <field name="barikoi_place_id">demo_place_002</field>
+            <field name="geocoding_status">geocoded</field>
+            
+        </record>
+
+        <record id="demo_partner_mirpur" model="res.partner">
+            <field name="name">Mirpur Electronics</field>
+            <field name="is_company">1</field>
+            <field name="street">Section 10, Main Road</field>
+            <field name="street2">Mirpur DOHS</field>
+            <field name="city">Dhaka</field>
+            <field name="zip">1216</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 2-8012345</field>
+            <field name="email">sales@mirpurelectronics.com</field>
+            <field name="partner_latitude">23.8069</field>
+            <field name="partner_longitude">90.3687</field>
+            <field name="barikoi_division">Dhaka</field>
+            <field name="barikoi_district">Dhaka</field>
+            <field name="barikoi_upazila">Mirpur</field>
+            <field name="barikoi_place_id">demo_place_003</field>
+            <field name="geocoding_status">geocoded</field>
+            
+        </record>
+
+        <record id="demo_partner_uttara" model="res.partner">
+            <field name="name">Uttara Trading Corporation</field>
+            <field name="is_company">1</field>
+            <field name="street">Sector 7, Road 4</field>
+            <field name="street2">Uttara Model Town</field>
+            <field name="city">Dhaka</field>
+            <field name="zip">1230</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 2-7912345</field>
+            <field name="email">info@uttaratrading.com</field>
+            <field name="partner_latitude">23.8759</field>
+            <field name="partner_longitude">90.3795</field>
+            <field name="barikoi_division">Dhaka</field>
+            <field name="barikoi_district">Dhaka</field>
+            <field name="barikoi_upazila">Uttara</field>
+            <field name="barikoi_place_id">demo_place_004</field>
+            <field name="geocoding_status">geocoded</field>
+            
+        </record>
+
+        <!-- Chittagong Division -->
+        <record id="demo_partner_chittagong" model="res.partner">
+            <field name="name">Chittagong Sea Foods Ltd.</field>
+            <field name="is_company">1</field>
+            <field name="street">Agrabad Commercial Area</field>
+            <field name="street2">CDA Avenue</field>
+            <field name="city">Chittagong</field>
+            <field name="zip">4100</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 31-2512345</field>
+            <field name="email">export@ctgseafoods.com</field>
+            <field name="website">https://ctgseafoods.com</field>
+            <field name="partner_latitude">22.3190</field>
+            <field name="partner_longitude">91.8304</field>
+            <field name="barikoi_division">Chittagong</field>
+            <field name="barikoi_district">Chittagong</field>
+            <field name="barikoi_upazila">Double Mooring</field>
+            <field name="barikoi_place_id">demo_place_005</field>
+            <field name="geocoding_status">geocoded</field>
+            
+        </record>
+
+        <!-- Sylhet Division -->
+        <record id="demo_partner_sylhet" model="res.partner">
+            <field name="name">Sylhet Tea Gardens</field>
+            <field name="is_company">1</field>
+            <field name="street">Zindabazar</field>
+            <field name="street2">Sylhet Sadar</field>
+            <field name="city">Sylhet</field>
+            <field name="zip">3100</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 821-712345</field>
+            <field name="email">info@sylhettea.com</field>
+            <field name="partner_latitude">24.8949</field>
+            <field name="partner_longitude">91.8687</field>
+            <field name="barikoi_division">Sylhet</field>
+            <field name="barikoi_district">Sylhet</field>
+            <field name="barikoi_upazila">Sylhet Sadar</field>
+            <field name="barikoi_place_id">demo_place_006</field>
+            <field name="geocoding_status">geocoded</field>
+            
+        </record>
+
+        <!-- Rajshahi Division -->
+        <record id="demo_partner_rajshahi" model="res.partner">
+            <field name="name">Rajshahi Silk Industries</field>
+            <field name="is_company">1</field>
+            <field name="street">Shaheb Bazar</field>
+            <field name="street2">Rajshahi City</field>
+            <field name="city">Rajshahi</field>
+            <field name="zip">6000</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 721-770123</field>
+            <field name="email">sales@rajshahisilk.com</field>
+            <field name="partner_latitude">24.3745</field>
+            <field name="partner_longitude">88.6042</field>
+            <field name="barikoi_division">Rajshahi</field>
+            <field name="barikoi_district">Rajshahi</field>
+            <field name="barikoi_upazila">Rajshahi City</field>
+            <field name="barikoi_place_id">demo_place_007</field>
+            <field name="geocoding_status">geocoded</field>
+            
+        </record>
+
+        <!-- Khulna Division -->
+        <record id="demo_partner_khulna" model="res.partner">
+            <field name="name">Khulna Shipyard Ltd.</field>
+            <field name="is_company">1</field>
+            <field name="street">Shiromoni Industrial Area</field>
+            <field name="street2">Khulna</field>
+            <field name="city">Khulna</field>
+            <field name="zip">9000</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 41-720123</field>
+            <field name="email">info@khulnashipyard.com</field>
+            <field name="partner_latitude">22.8456</field>
+            <field name="partner_longitude">89.5403</field>
+            <field name="barikoi_division">Khulna</field>
+            <field name="barikoi_district">Khulna</field>
+            <field name="barikoi_upazila">Khulna Sadar</field>
+            <field name="barikoi_place_id">demo_place_008</field>
+            <field name="geocoding_status">geocoded</field>
+            
+        </record>
+
+        <!-- Partner without coordinates (for testing geocoding) -->
+        <record id="demo_partner_not_geocoded" model="res.partner">
+            <field name="name">New Business BD</field>
+            <field name="is_company">1</field>
+            <field name="street">Banani Road 11</field>
+            <field name="city">Dhaka</field>
+            <field name="zip">1213</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="phone">+880 2-9876543</field>
+            <field name="email">contact@newbusiness.bd</field>
+            <field name="geocoding_status">not_geocoded</field>
+            
+        </record>
+
+        <!-- Partner with failed geocoding -->
+        <record id="demo_partner_geocode_failed" model="res.partner">
+            <field name="name">Invalid Address Corp</field>
+            <field name="is_company">1</field>
+            <field name="street">Unknown Street 999</field>
+            <field name="city">Unknown City</field>
+            <field name="country_id" ref="base.bd"/>
+            <field name="geocoding_status">failed</field>
+            
+        </record>
+
+    </data>
+</odoo>

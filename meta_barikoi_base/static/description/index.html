@@ -1,0 +1,81 @@
+<section class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="text-center" style="color: #667eea;">Meta Barikoi Base</h2>
+            <p class="text-center lead">Core API connectivity and configuration for Barikoi Maps integration</p>
+        </div>
+    </div>
+    
+    <div class="row mt32">
+        <div class="col-md-6">
+            <h3>Features</h3>
+            <ul>
+                <li><strong>API Key Management</strong> - Configure and validate your Barikoi API key</li>
+                <li><strong>Autocomplete Search</strong> - Real-time address suggestions for Bangladesh</li>
+                <li><strong>Geocoding</strong> - Convert addresses to coordinates</li>
+                <li><strong>Reverse Geocoding</strong> - Convert coordinates to addresses</li>
+                <li><strong>Route Planning</strong> - Get directions between locations</li>
+                <li><strong>Nearby Places</strong> - Find places around a location</li>
+                <li><strong>Place Details</strong> - Get detailed information about a place</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h3>Configuration</h3>
+            <ol>
+                <li>Go to <strong>Settings → Barikoi Maps</strong></li>
+                <li>Enter your Barikoi API key</li>
+                <li>Enable the integration</li>
+                <li>Configure additional options as needed</li>
+            </ol>
+            
+            <div class="alert alert-info">
+                <strong>Note:</strong> This module is required by all other Barikoi modules.
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt32">
+        <div class="col-md-12">
+            <h3>API Methods Available</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>autocomplete(query)</code></td>
+                        <td>Search for address suggestions</td>
+                    </tr>
+                    <tr>
+                        <td><code>geocode(address)</code></td>
+                        <td>Convert address to coordinates</td>
+                    </tr>
+                    <tr>
+                        <td><code>reverse_geocode(lat, lon)</code></td>
+                        <td>Convert coordinates to address</td>
+                    </tr>
+                    <tr>
+                        <td><code>route(coordinates)</code></td>
+                        <td>Get route between points</td>
+                    </tr>
+                    <tr>
+                        <td><code>nearby(lat, lon, radius)</code></td>
+                        <td>Find nearby places</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="row mt32">
+        <div class="col-md-12 text-center">
+            <p>
+                <a href="https://docs.barikoi.com/" target="_blank" class="btn btn-primary">Barikoi API Docs</a>
+                <a href="https://barikoi.com" target="_blank" class="btn btn-default">Get API Key</a>
+            </p>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,126 @@
+/**
+ * Barikoi Autocomplete Styles
+ * Professional dropdown styling with dark mode support
+ */
+
+.o_field_barikoi_autocomplete {
+    position: relative;
+    width: 100%;
+    
+    input.o_input {
+        width: 100%;
+        padding-right: 2rem;
+    }
+    
+    .barikoi-loading {
+        z-index: 5;
+        pointer-events: none;
+    }
+    
+    // Dropdown menu
+    .barikoi-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        min-width: 100%;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 0.5rem 0;
+        margin: 2px 0 0 0;
+        font-size: 0.875rem;
+        background-color: var(--bs-body-bg, #fff);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    // Suggestion items
+    .barikoi-suggestion-item {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.5rem 1rem;
+        transition: background-color 0.15s ease-in-out;
+        
+        &:hover,
+        &.active {
+            background-color: var(--bs-primary, #0d6efd);
+            
+            .barikoi-suggestion-name {
+                color: #fff;
+            }
+            .barikoi-suggestion-address {
+                color: rgba(255, 255, 255, 0.8) !important;
+            }
+        }
+        
+        &:hover:not(.active) {
+            background-color: var(--bs-tertiary-bg, #f8f9fa);
+            
+            .barikoi-suggestion-name {
+                color: var(--bs-body-color, #212529);
+            }
+        }
+    }
+    
+    .barikoi-suggestion {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .barikoi-suggestion-name {
+        font-weight: 500;
+        color: var(--bs-body-color, #212529);
+        line-height: 1.4;
+    }
+    
+    .barikoi-suggestion-address {
+        font-size: 0.85em;
+        color: var(--bs-secondary-color, #6c757d);
+        line-height: 1.3;
+    }
+}
+
+// Dark mode support
+.o_web_dark_mode,
+.o_dark_mode,
+[data-theme="dark"],
+.dark {
+    .o_field_barikoi_autocomplete .barikoi-dropdown {
+        background-color: var(--bs-body-bg, #1f2937) !important;
+        border-color: var(--bs-border-color, #374151) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    .o_field_barikoi_autocomplete .barikoi-suggestion-item {
+        &:hover:not(.active) {
+            background-color: var(--bs-tertiary-bg, #374151) !important;
+        }
+        
+        .barikoi-suggestion-name {
+            color: var(--bs-body-color, #f9fafb);
+        }
+        
+        .barikoi-suggestion-address {
+            color: var(--bs-secondary-color, #9ca3af) !important;
+        }
+    }
+}
+
+// Form view
+.o_form_view .o_field_barikoi_autocomplete .barikoi-dropdown {
+    max-width: 100%;
+}
+
+// List view
+.o_list_view .o_field_barikoi_autocomplete .barikoi-dropdown {
+    min-width: 250px;
+    max-width: 400px;
+}
+
+// Modal
+.modal .o_field_barikoi_autocomplete .barikoi-dropdown {
+    z-index: 1100;
+}

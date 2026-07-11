@@ -21,6 +21,8 @@ from odoo.addons.meta_ss_transfer.utils.returns import (
     get_pagination,
     get_return_delivery_for_employee,
     update_return_delivery,
+    validate_return_delivery,
+    cancel_return_delivery,
 )
 
 
@@ -175,3 +177,39 @@ class MetaSSReturnController(http.Controller):
         except Exception:
             request.env.cr.rollback()
             return error_response("server_error", "An unexpected error occurred while updating return.")
+
+    @http.route(f"{API_PREFIX}/returns/<int:picking_id>/action", type="json", auth="user", methods=["POST"])
+    def return_action(self, picking_id, **payload):
+        """Run a return transfer action such as validate or cancel."""
+        try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            action = (payload.get("action") or "").strip().lower()
+            if action == "validate":
+                picking, result = validate_return_delivery(api_env, picking_id, payload)
+                return {
+                    "success": True,
+                    "api_version": "v1",
+                    "message": "Return delivery validated successfully.",
+                    "data": {
+                        "validation_result": True if result is True else result,
+                        "transfer": serialize_return_delivery(picking),
+                    },
+                }
+            if action == "cancel":
+                picking = cancel_return_delivery(api_env, picking_id, payload)
+                return {
+                    "success": True,
+                    "api_version": "v1",
+                    "message": "Return delivery cancelled successfully.",
+                    "data": serialize_return_delivery(picking),
+                }
+            raise ValidationError("Unsupported return action '%s'." % action)
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response(
+                "server_error",
+                "An unexpected error occurred while running the return action.",
+            )
+

@@ -162,16 +162,14 @@ def serialize_product_lots(env, payload, product_id):
         # Query fresh quants
         fresh_quants = env["stock.quant"].sudo().search([
             ("product_id", "=", product.id),
-            ("location_id", "child_of", source_location.id),
-            ("available_quantity", ">", 0),
+            ("location_id", "=", source_location.id),
             ("lot_id", "!=", False),
         ])
 
         # Query scrap quants
         scrap_quants = env["stock.quant"].sudo().search([
             ("product_id", "=", product.id),
-            ("location_id", "child_of", van_scrap_location.id),
-            ("available_quantity", ">", 0),
+            ("location_id", "=", van_scrap_location.id),
             ("lot_id", "!=", False),
         ]) if van_scrap_location else env["stock.quant"].sudo()
 
@@ -228,33 +226,45 @@ def serialize_product_lots(env, payload, product_id):
     else:
         domain = [
             ("product_id", "=", product.id),
-            ("location_id", "child_of", source_location.id),
-            ("available_quantity", ">", 0),
+            ("location_id", "=", source_location.id),
             ("lot_id", "!=", False),
         ]
         if source_location.ss_location_type != "van_loading":
             domain.append(("location_id.ss_location_type", "!=", "van_loading"))
 
         quants = env["stock.quant"].sudo().search(domain, order="lot_id")
+        
+        lots_dict = {}
+        for q in quants:
+            lid = q.lot_id.id
+            if lid not in lots_dict:
+                lots_dict[lid] = {
+                    "lot_id": lid,
+                    "lot_name": q.lot_id.name,
+                    "available_qty": q.available_quantity,
+                    "scrap_qty": 0.0,
+                    "quantity": q.quantity,
+                    "reserved_quantity": q.reserved_quantity,
+                    "uom": {
+                        "id": q.product_uom_id.id,
+                        "name": q.product_uom_id.name,
+                    } if q.product_uom_id else None,
+                    "location": _serialize_location(q.location_id),
+                }
+            else:
+                lots_dict[lid]["available_qty"] += q.available_quantity
+                lots_dict[lid]["quantity"] += q.quantity
+                lots_dict[lid]["reserved_quantity"] += q.reserved_quantity
+
+        final_lots = [
+            data for data in lots_dict.values()
+            if data["available_qty"] > 0
+        ]
+
         return {
             "product": _serialize_product(product),
             "source_location": _serialize_location(source_location),
-            "data": [
-                {
-                    "lot_id": quant.lot_id.id,
-                    "lot_name": quant.lot_id.name,
-                    "available_qty": quant.available_quantity,
-                    "scrap_qty": 0.0,
-                    "quantity": quant.quantity,
-                    "reserved_quantity": quant.reserved_quantity,
-                    "uom": {
-                        "id": quant.product_uom_id.id,
-                        "name": quant.product_uom_id.name,
-                    } if quant.product_uom_id else None,
-                    "location": _serialize_location(quant.location_id),
-                }
-                for quant in quants
-            ],
+            "data": final_lots,
         }
 
 
@@ -879,21 +889,25 @@ def _apply_move_lines(env, picking, move, item):
 
 def _get_available_product_ids(env, source_location):
     domain = [
-        ("location_id", "child_of", source_location.id),
-        ("available_quantity", ">", 0),
+        ("location_id", "=", source_location.id),
     ]
     if source_location.ss_location_type != "van_loading":
         domain.append(("location_id.ss_location_type", "!=", "van_loading"))
 
     quants = env["stock.quant"].sudo().search(domain)
-    return list(set(quants.mapped("product_id").ids))
+    
+    from collections import defaultdict
+    prod_avail = defaultdict(float)
+    for q in quants:
+        prod_avail[q.product_id.id] += q.available_quantity
+        
+    return [pid for pid, qty in prod_avail.items() if qty > 0]
 
 
 def _get_available_qty(env, product, source_location):
     domain = [
         ("product_id", "=", product.id),
-        ("location_id", "child_of", source_location.id),
-        ("available_quantity", ">", 0),
+        ("location_id", "=", source_location.id),
     ]
     if source_location.ss_location_type != "van_loading":
         domain.append(("location_id.ss_location_type", "!=", "van_loading"))
@@ -906,8 +920,7 @@ def _get_lot_available_qty(env, product, lot, source_location):
     domain = [
         ("product_id", "=", product.id),
         ("lot_id", "=", lot.id),
-        ("location_id", "child_of", source_location.id),
-        ("available_quantity", ">", 0),
+        ("location_id", "=", source_location.id),
     ]
     if source_location.ss_location_type != "van_loading":
         domain.append(("location_id.ss_location_type", "!=", "van_loading"))

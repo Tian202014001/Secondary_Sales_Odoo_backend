@@ -16,13 +16,34 @@
                             <field name="map_tile_url"/>
                         </setting>
                     </block>
-                    <block title="Tracking Intervals">
-                        <setting id="meta_ss_location_tracking_interval">
+                    <block title="Location Tracking Configurations">
+                        <setting id="meta_ss_location_tracking_type">
+                            <label for="location_tracking_type"/>
+                            <div class="text-muted">
+                                Select the method for logging and syncing GPS coordinates (Time-based, Distance-based, or Both).
+                            </div>
+                            <field name="location_tracking_type"/>
+                        </setting>
+                        <setting id="meta_ss_location_tracking_interval" invisible="location_tracking_type == 'distance'">
                             <label for="location_tracking_interval"/>
                             <div class="text-muted">
                                 Define the frequency (in seconds) at which mobile apps log and sync user GPS coordinates.
                             </div>
                             <field name="location_tracking_interval"/>
+                        </setting>
+                        <setting id="meta_ss_location_tracking_distance" invisible="location_tracking_type == 'time'">
+                            <label for="location_tracking_distance"/>
+                            <div class="text-muted">
+                                Define the minimum distance change (in meters) to log and sync user GPS coordinates.
+                            </div>
+                            <field name="location_tracking_distance"/>
+                        </setting>
+                        <setting id="meta_ss_location_tracking_sync_interval">
+                            <label for="location_tracking_sync_interval"/>
+                            <div class="text-muted">
+                                How often (in seconds) the mobile client uploads its buffered GPS coordinates to the server (e.g. 3600 for hourly). Sampling still follows the interval/distance above; this only controls the batch upload cadence.
+                            </div>
+                            <field name="location_tracking_sync_interval"/>
                         </setting>
                     </block>
                 </app>

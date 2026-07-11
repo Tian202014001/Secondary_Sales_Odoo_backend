@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="meta_ss_location_tracking.BarikoiRouteMapDashboard">
+        <div class="o_route_map_dashboard d-flex h-100 w-100">
+            <!-- Sidebar -->
+            <div class="o_route_map_sidebar d-flex flex-column bg-light border-end">
+                <div class="o_route_map_sidebar__header p-3 bg-dark text-white">
+                    <h5 class="m-0"><i class="fa fa-map-marker me-2 text-primary"/>Barikoi Route Tracking</h5>
+                    <p class="small m-0 text-muted mt-1">Select employee &amp; date to trace route history.</p>
+                </div>
+
+                <!-- Date Selector -->
+                <div class="p-3 border-bottom bg-white">
+                    <label class="form-label small fw-bold text-uppercase text-muted">Tracking Date</label>
+                    <input type="date" class="form-control" t-att-value="state.selectedDate" t-on-change="onDateChange"/>
+                </div>
+
+                <!-- Loader Indicator -->
+                <t t-if="state.isLoading">
+                    <div class="text-center p-3">
+                        <i class="fa fa-circle-o-notch fa-spin fa-2x text-primary"/>
+                        <p class="small text-muted mt-2 mb-0">Loading tracking data...</p>
+                    </div>
+                </t>
+
+                <!-- Employee & Session Content -->
+                <div class="flex-grow-1 overflow-auto bg-white">
+                    <!-- Employees Section -->
+                    <div class="p-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted d-block mb-2">Employees</label>
+                        <div class="list-group">
+                            <t t-foreach="state.employees" t-as="emp" t-key="emp.id">
+                                <button type="button" 
+                                        t-attf-class="list-group-item list-group-item-action d-flex align-items-center py-2 #{state.selectedEmployeeId == emp.id ? 'active' : ''}"
+                                        t-on-click="() => this.selectEmployee(emp.id)">
+                                    <!-- Employee Avatar -->
+                                    <img t-if="emp.image_128" 
+                                         t-attf-src="/web/image/hr.employee/#{emp.id}/image_128" 
+                                         class="rounded-circle me-2" 
+                                         style="width: 28px; height: 28px; object-fit: cover;"/>
+                                    <div t-else="" 
+                                         class="rounded-circle me-2 bg-secondary d-flex align-items-center justify-content-center text-white small" 
+                                         style="width: 28px; height: 28px;">
+                                        <t t-esc="emp.name[0]"/>
+                                    </div>
+                                    <div class="text-truncate">
+                                        <div class="fw-bold small" t-esc="emp.name"/>
+                                        <div class="x-small text-muted" t-esc="emp.work_email or 'No email'"/>
+                                    </div>
+                                </button>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Shifts Section -->
+                    <t t-if="state.selectedEmployeeId">
+                        <div class="p-3 border-top">
+                            <label class="form-label small fw-bold text-uppercase text-muted d-block mb-2">Attendance Shifts</label>
+                            <t t-if="!state.attendances.length">
+                                <div class="alert alert-warning py-2 small mb-0">No attendance shift logged today.</div>
+                            </t>
+                            <t t-else="">
+                                <div class="list-group">
+                                    <t t-foreach="state.attendances" t-as="att" t-key="att.id">
+                                        <button type="button" 
+                                                t-attf-class="list-group-item list-group-item-action py-2 #{state.selectedAttendanceId == att.id ? 'border-primary bg-light' : ''}"
+                                                t-on-click="() => this.selectAttendance(att.id)">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="badge bg-success small">Active Shift</span>
+                                                <span class="x-small text-muted" t-esc="att.id"/>
+                                            </div>
+                                            <div class="small mt-1">
+                                                <strong>In:</strong> <t t-esc="this.formatTime(att.check_in)"/><br/>
+                                                <strong>Out:</strong> <t t-if="att.check_out" t-esc="this.formatTime(att.check_out)"/><t t-else=""><span class="text-danger fw-bold">Active</span></t>
+                                            </div>
+                                        </button>
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- Main Map View Area -->
+            <div class="flex-grow-1 position-relative">
+                <t t-if="state.error">
+                    <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-light p-4 text-center">
+                        <i class="fa fa-exclamation-triangle fa-3x text-warning mb-3"/>
+                        <h4 class="fw-bold text-dark">Map Error</h4>
+                        <p class="text-muted" style="max-width: 500px;" t-esc="state.error"/>
+                    </div>
+                </t>
+                <t t-else="">
+                    <div t-ref="mapContainer" class="w-100 h-100 bg-white" style="z-index: 1;"/>
+                </t>
+                
+                <!-- Floating Route Info Stats -->
+                <t t-if="state.locationPoints.length > 0 &amp;&amp; !state.error">
+                    <div class="position-absolute bottom-0 start-0 m-3 p-3 bg-white border rounded shadow-sm" style="z-index: 999; min-width: 260px;">
+                        <!-- Session Summary -->
+                        <h6 class="m-0 pb-2 border-bottom fw-bold"><i class="fa fa-info-circle me-1 text-primary"/>Session Summary</h6>
+                        <div class="small pt-2 border-bottom pb-2">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Total Points:</span>
+                                <strong t-esc="state.locationPoints.length"/>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Stops/Visits (>5m):</span>
+                                <strong t-esc="state.locationPoints.filter(p => p.isStop).length"/>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Mock/Spoofed:</span>
+                                <strong>
+                                    <t t-esc="state.locationPoints.filter(p => p.is_mock).length"/>
+                                    <t t-if="state.locationPoints.filter(p => p.is_mock).length > 0">
+                                        <span class="text-danger fw-bold ms-1">(Fake!)</span>
+                                    </t>
+                                </strong>
+                            </div>
+                        </div>
+
+                        <!-- Map Legend -->
+                        <h6 class="m-0 mt-3 pb-2 border-bottom fw-bold"><i class="fa fa-map me-1 text-primary"/>Map Legend</h6>
+                        <div class="small pt-2" style="font-size: 11px;">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="rounded-circle me-2" style="width: 10px; height: 10px; background-color: #10b981; border: 1px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3); display: inline-block;"/>
+                                <span class="text-muted">Start Point</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="rounded-circle me-2" style="width: 10px; height: 10px; background-color: #1f2937; border: 1px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3); display: inline-block;"/>
+                                <span class="text-muted">End Point</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="rounded-circle me-2" style="width: 10px; height: 10px; background-color: #3b82f6; border: 1px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3); display: inline-block;"/>
+                                <span class="text-muted">Active Movement</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="rounded-circle me-2" style="width: 10px; height: 10px; background-color: #f59e0b; border: 1px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3); display: inline-block;"/>
+                                <span class="text-muted">Short Stop (5 - 15m)</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="rounded-circle me-2" style="width: 10px; height: 10px; background-color: #d97706; border: 1px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3); display: inline-block;"/>
+                                <span class="text-muted">Major Stop (>15m)</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="rounded-circle me-2" style="width: 10px; height: 10px; background-color: #ef4444; border: 1px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3); display: inline-block;"/>
+                                <span class="text-danger fw-bold">⚠️ Fake GPS Detected</span>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

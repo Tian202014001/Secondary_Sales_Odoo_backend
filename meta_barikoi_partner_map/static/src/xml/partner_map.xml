@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Partner Map View Template (Full Screen) -->
+    <t t-name="meta_barikoi_partner_map.PartnerMapView" owl="1">
+        <div class="o_barikoi_partner_map_view">
+            <div t-if="state.error" class="o_barikoi_map_error alert alert-warning m-3">
+                <i class="fa fa-exclamation-triangle me-2"/>
+                <span t-esc="state.error"/>
+            </div>
+            <div t-if="!state.error" class="o_barikoi_map_view_wrapper">
+                <div class="o_barikoi_map_header bg-light p-2 border-bottom">
+                    <span class="fw-bold">
+                        <i class="fa fa-map-marker me-2"/>
+                        Partners Map - <t t-esc="state.partners.length"/> locations
+                    </span>
+                </div>
+                <div t-ref="map" class="o_barikoi_map_view_canvas"/>
+            </div>
+        </div>
+    </t>
+
+    <!-- Partner Map Widget Template (Form View) -->
+    <t t-name="meta_barikoi_partner_map.BarikoiPartnerMap" owl="1">
+        <div class="o_barikoi_partner_map">
+            <div t-if="state.error" class="o_barikoi_map_error alert alert-warning">
+                <i class="fa fa-exclamation-triangle me-2"/>
+                <span t-esc="state.error"/>
+            </div>
+            <div t-if="!state.error" class="o_barikoi_map_wrapper">
+                <div t-if="!hasCoordinates and state.mapLoaded" class="o_barikoi_map_placeholder alert alert-info">
+                    <i class="fa fa-info-circle me-2"/>
+                    <span>Click on the map to set location, or use the autocomplete address field.</span>
+                </div>
+                <div t-ref="map" class="o_barikoi_map_canvas"/>
+            </div>
+        </div>
+    </t>
+</templates>

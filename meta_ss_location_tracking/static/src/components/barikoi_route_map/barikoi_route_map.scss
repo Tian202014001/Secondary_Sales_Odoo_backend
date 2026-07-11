@@ -1,0 +1,38 @@
+.bkoi-route-marker {
+    transition: transform 0.2s ease;
+    &:hover {
+        transform: scale(1.25);
+    }
+}
+
+@keyframes pulse-orange {
+    0% {
+        box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(217, 119, 6, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(217, 119, 6, 0);
+    }
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+.bkoi-route-marker-major-stop {
+    animation: pulse-orange 2s infinite;
+}
+
+.bkoi-route-marker-mock {
+    animation: pulse-red 1.5s infinite;
+}

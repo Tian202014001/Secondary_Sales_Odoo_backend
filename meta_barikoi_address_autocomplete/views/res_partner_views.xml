@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Partner Form View Extension -->
+        <record id="view_partner_form_inherit_barikoi" model="ir.ui.view">
+            <field name="name">res.partner.form.inherit.barikoi</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <!-- Add Barikoi autocomplete widget to street field -->
+                <xpath expr="//field[@name='street']" position="attributes">
+                    <attribute name="widget">barikoi_autocomplete</attribute>
+                    <attribute name="options">{'placeholder': 'Start typing address...'}</attribute>
+                </xpath>
+                
+                <!-- Add Bangladesh-specific address fields as a new page in the notebook -->
+                <xpath expr="//page[@name='sales_purchases']" position="after">
+                    <page string="Bangladesh Address Details" name="barikoi_address">
+                        <group>
+                            <group>
+                                <field name="barikoi_division"/>
+                                <field name="barikoi_district"/>
+                                <field name="barikoi_place_id" readonly="1"/>
+                                <field name="barikoi_ucode" readonly="1"/>
+                            </group>
+                            <group>
+                                <field name="barikoi_upazila"/>
+                                <field name="barikoi_union"/>
+                                <field name="partner_latitude" string="Latitude"/>
+                                <field name="partner_longitude" string="Longitude"/>
+                            </group>
+                        </group>
+                    </page>
+                </xpath>
+                
+                <!-- Add geocoding buttons -->
+                <xpath expr="//div[@name='button_box']" position="inside">
+                    <button name="action_geocode_address" type="object" string="Geocode Address"
+                            class="oe_stat_button" icon="fa-map-marker"
+                            help="Get coordinates from address using Barikoi"/>
+                    <button name="action_reverse_geocode" type="object" string="Reverse Geocode"
+                            class="oe_stat_button" icon="fa-location-arrow"
+                            help="Get address from coordinates using Barikoi"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

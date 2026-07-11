@@ -1,0 +1,103 @@
+<section class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="text-center" style="color: #667eea;">Meta Barikoi Geolocalize</h2>
+            <p class="text-center lead">Partner geolocalization with batch processing and nearby search</p>
+        </div>
+    </div>
+    
+    <div class="row mt32">
+        <div class="col-md-6">
+            <h3>Features</h3>
+            <ul>
+                <li><strong>Auto Geocoding</strong> - Automatically geocode partners on create/update</li>
+                <li><strong>Manual Geocoding</strong> - Geocode addresses on demand</li>
+                <li><strong>Batch Processing</strong> - Geocode all partners without coordinates</li>
+                <li><strong>Nearby Search</strong> - Find partners within a distance threshold</li>
+                <li><strong>Status Tracking</strong> - Track geocoding status and history</li>
+                <li><strong>Haversine Formula</strong> - Accurate distance calculations</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h3>Geocoding Status</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="label label-default">Pending</span></td>
+                        <td>Not yet geocoded</td>
+                    </tr>
+                    <tr>
+                        <td><span class="label label-success">Success</span></td>
+                        <td>Successfully geocoded</td>
+                    </tr>
+                    <tr>
+                        <td><span class="label label-danger">Failed</span></td>
+                        <td>Geocoding failed</td>
+                    </tr>
+                    <tr>
+                        <td><span class="label label-info">Manual</span></td>
+                        <td>Manually set coordinates</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="row mt32">
+        <div class="col-md-12">
+            <h3>How to Use</h3>
+            
+            <h4>Manual Geocoding</h4>
+            <ol>
+                <li>Open a partner form</li>
+                <li>Enter the address</li>
+                <li>Click the <strong>Geocode Address</strong> button</li>
+                <li>Coordinates will be populated automatically</li>
+            </ol>
+            
+            <h4>Batch Geocoding</h4>
+            <ol>
+                <li>Go to <strong>Contacts → Batch Geocode Partners</strong></li>
+                <li>All partners without coordinates will be geocoded</li>
+                <li>A summary of results will be displayed</li>
+            </ol>
+            
+            <h4>Nearby Partners</h4>
+            <ol>
+                <li>Open a partner with coordinates</li>
+                <li>Click <strong>Find Nearby</strong> button</li>
+                <li>A list of partners within the distance threshold will open</li>
+            </ol>
+        </div>
+    </div>
+    
+    <div class="row mt32">
+        <div class="col-md-12">
+            <h3>Configuration</h3>
+            <p>Go to <strong>Settings → Barikoi Maps</strong> to configure:</p>
+            <ul>
+                <li><strong>Auto Geocode Partners</strong> - Enable automatic geocoding</li>
+                <li><strong>Nearby Distance Threshold</strong> - Set maximum distance in km (default: 10)</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="row mt32">
+        <div class="col-md-6">
+            <div class="alert alert-warning">
+                <strong>Requirements:</strong> Requires <code>meta_barikoi_base</code> and <code>meta_barikoi_address_autocomplete</code> modules.
+            </div>
+        </div>
+        <div class="col-md-6 text-center">
+            <p>
+                <a href="https://docs.barikoi.com/" target="_blank" class="btn btn-primary">Barikoi API Docs</a>
+            </p>
+        </div>
+    </div>
+</section>

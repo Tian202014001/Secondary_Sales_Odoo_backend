@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Extend General Settings with Barikoi Configuration -->
+        <record id="res_config_settings_view_form" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form.inherit.barikoi</field>
+            <field name="model">res.config.settings</field>
+            <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//block[@name='integration']" position="inside">
+                    <setting string="Barikoi Maps" 
+                             help="Use Barikoi Maps for Bangladesh address autocomplete and geolocation"
+                             id="barikoi_maps_setting">
+                        <field name="barikoi_enabled"/>
+                        <div class="content-group" invisible="not barikoi_enabled" id="barikoi_settings_content">
+                            <div class="mt16">
+                                <label for="barikoi_api_key" string="API Key" class="col-3 col-lg-3 o_light_label"/>
+                                <field name="barikoi_api_key" password="True" class="oe_inline"/>
+                            </div>
+                            <div class="mt8">
+                                <button name="action_test_barikoi_connection" string="Test Connection" type="object" class="btn btn-secondary" icon="fa-plug"/>
+                            </div>
+                            <div class="mt8">
+                                <label for="barikoi_default_provider" string="Default Provider" class="col-3 col-lg-3 o_light_label"/>
+                                <field name="barikoi_default_provider" class="oe_inline"/>
+                            </div>
+                            <div class="mt8">
+                                <label for="barikoi_map_style" string="Map Style" class="col-3 col-lg-3 o_light_label"/>
+                                <field name="barikoi_map_style" class="oe_inline"/>
+                            </div>
+                            <div class="mt8">
+                                <field name="barikoi_bangladesh_fields"/>
+                                <label for="barikoi_bangladesh_fields" string="Bangladesh Address Fields"/>
+                            </div>
+                            <div class="mt8 text-muted">
+                                Get your API key at <a href="https://barikoi.com" target="_blank">barikoi.com</a>
+                            </div>
+                        </div>
+                    </setting>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

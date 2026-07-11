@@ -168,6 +168,7 @@ def _serialize_sale_line(line):
         "product_uom_qty": ordered_qty,
         "qty_delivered": delivered_qty,
         "balance_qty": max(ordered_qty - delivered_qty, 0.0),
+        "damaged_qty": getattr(line, "damaged_qty", 0.0),
         "product_uom": {
             "id": line.product_uom.id,
             "name": line.product_uom.name,

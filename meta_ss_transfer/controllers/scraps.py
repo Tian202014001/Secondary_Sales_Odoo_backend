@@ -20,6 +20,8 @@ from odoo.addons.meta_ss_transfer.utils.scraps import (
     serialize_scrap_products,
     get_scrap_delivery_for_employee,
     update_scrap_delivery,
+    validate_scrap_delivery,
+    cancel_scrap_delivery,
 )
 from odoo.addons.meta_ss_rest_api.utils.routes import get_pagination
 
@@ -175,3 +177,39 @@ class MetaSSScrapController(http.Controller):
         except Exception:
             request.env.cr.rollback()
             return error_response("server_error", "An unexpected error occurred while updating scrap.")
+
+    @http.route(f"{API_PREFIX}/scraps/<int:picking_id>/action", type="json", auth="user", methods=["POST"])
+    def scrap_action(self, picking_id, **payload):
+        """Run a scrap transfer action such as validate or cancel."""
+        try:
+            _mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+            action = (payload.get("action") or "").strip().lower()
+            if action == "validate":
+                picking, result = validate_scrap_delivery(api_env, picking_id, payload)
+                return {
+                    "success": True,
+                    "api_version": "v1",
+                    "message": "Scrap delivery validated successfully.",
+                    "data": {
+                        "validation_result": True if result is True else result,
+                        "transfer": serialize_scrap_delivery(picking),
+                    },
+                }
+            if action == "cancel":
+                picking = cancel_scrap_delivery(api_env, picking_id, payload)
+                return {
+                    "success": True,
+                    "api_version": "v1",
+                    "message": "Scrap delivery cancelled successfully.",
+                    "data": serialize_scrap_delivery(picking),
+                }
+            raise ValidationError("Unsupported scrap action '%s'." % action)
+        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
+            return error_response("validation_error", str(exc))
+        except Exception:
+            request.env.cr.rollback()
+            return error_response(
+                "server_error",
+                "An unexpected error occurred while running the scrap action.",
+            )
+

@@ -28,6 +28,10 @@
             "meta_ss_location_tracking/static/src/components/route_map/route_map.xml",
             "meta_ss_location_tracking/static/src/components/route_map/route_map.scss",
             "meta_ss_location_tracking/static/src/components/route_map/route_map.js",
+            # Barikoi GL JS
+            "meta_ss_location_tracking/static/src/components/barikoi_route_map/barikoi_route_map.xml",
+            "meta_ss_location_tracking/static/src/components/barikoi_route_map/barikoi_route_map.scss",
+            "meta_ss_location_tracking/static/src/components/barikoi_route_map/barikoi_route_map.js",
         ],
     },
     "installable": True,

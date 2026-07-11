@@ -78,3 +78,12 @@ def update_scrap_delivery(env, picking_id, payload):
 
 def serialize_scrap_delivery(picking):
     return _tc.serialize_delivery(picking)
+
+
+def validate_scrap_delivery(env, picking_id, payload):
+    return _tc.validate_delivery(env, picking_id, payload, SCRAP)
+
+
+def cancel_scrap_delivery(env, picking_id, payload):
+    return _tc.cancel_delivery(env, picking_id, payload, SCRAP)
+

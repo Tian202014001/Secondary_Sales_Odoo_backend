@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Partner Form View Extension for Geolocalize -->
+        <record id="view_partner_form_inherit_barikoi_geolocalize" model="ir.ui.view">
+            <field name="name">res.partner.form.inherit.barikoi.geolocalize</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="meta_barikoi_address_autocomplete.view_partner_form_inherit_barikoi"/>
+            <field name="arch" type="xml">
+                <!-- Add geocoding status badge after coordinates -->
+                <xpath expr="//field[@name='barikoi_place_id']" position="after">
+                    <field name="geocoding_status" widget="badge" 
+                           decoration-success="geocoding_status == 'geocoded'"
+                           decoration-warning="geocoding_status == 'not_geocoded'"
+                           decoration-danger="geocoding_status == 'failed'"/>
+                    <field name="last_geocoding_date" readonly="1"/>
+                </xpath>
+                
+                <!-- Add geolocalize buttons -->
+                <xpath expr="//button[@name='action_reverse_geocode']" position="after">
+                    <button name="action_find_nearby_partners" type="object" string="Find Nearby"
+                            class="oe_stat_button" icon="fa-users"
+                            help="Find partners within a certain distance"/>
+                </xpath>
+            </field>
+        </record>
+        
+        <!-- Partner Tree View - Add Geocoding Status -->
+        <record id="view_partner_tree_inherit_barikoi_geolocalize" model="ir.ui.view">
+            <field name="name">res.partner.tree.inherit.barikoi.geolocalize</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='phone']" position="after">
+                    <field name="geocoding_status" optional="hide" widget="badge"
+                           decoration-success="geocoding_status == 'geocoded'"
+                           decoration-warning="geocoding_status == 'not_geocoded'"
+                           decoration-danger="geocoding_status == 'failed'"/>
+                </xpath>
+            </field>
+        </record>
+        
+        <!-- Server Action for Batch Geocoding -->
+        <record id="action_batch_geocode_partners" model="ir.actions.server">
+            <field name="name">Batch Geocode Partners</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="binding_model_id" ref="base.model_res_partner"/>
+            <field name="binding_view_types">list</field>
+            <field name="state">code</field>
+            <field name="code">
+if records:
+    records.action_batch_geocode()
+else:
+    model.action_batch_geocode()
+            </field>
+        </record>
+        
+        <!-- Add to Contacts Menu -->
+        <menuitem id="menu_batch_geocode_partners"
+            name="Batch Geocode Partners"
+            action="action_batch_geocode_partners"
+            parent="contacts.menu_contacts"
+            sequence="100"/>
+    </data>
+</odoo>

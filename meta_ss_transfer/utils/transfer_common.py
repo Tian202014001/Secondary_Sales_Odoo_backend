@@ -16,7 +16,7 @@ flavor and re-export the public names their controllers expect.
 
 from odoo.exceptions import ValidationError
 from odoo.osv import expression
-from odoo.tools.float_utils import float_compare
+from odoo.tools.float_utils import float_compare, float_is_zero
 
 from odoo.addons.meta_ss_rest_api.utils.helpers import (
     _create_move_line,
@@ -24,6 +24,19 @@ from odoo.addons.meta_ss_rest_api.utils.helpers import (
     _get_employee,
     _get_lot,
 )
+
+
+def _get_non_negative_float(value, field_name):
+    if value is None:
+        return 0.0
+    try:
+        val = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("'%s' must be a valid float." % field_name) from exc
+    if val < 0.0:
+        raise ValidationError("'%s' must be greater than or equal to 0." % field_name)
+    return val
+
 
 
 class TransferFlavor:
@@ -152,20 +165,23 @@ def serialize_product_lots(env, payload, product_id, flavor):
     product = _get_product(env, product_id)
     domain = [
         ("product_id", "=", product.id),
-        ("location_id", "child_of", source_location.id),
-        ("available_quantity", ">", 0),
+        ("location_id", "=", source_location.id),
         ("lot_id", "!=", False),
     ]
 
     quants = env["stock.quant"].sudo().search(domain, order="lot_id")
-    return {
-        "product": _serialize_product(product),
-        "source_location": _serialize_location(source_location),
-        "data": [
-            {
-                "lot_id": quant.lot_id.id,
-                "lot_name": quant.lot_id.name,
-                "available_qty": quant.available_quantity,
+    
+    lot_data = {}
+    for quant in quants:
+        lot = quant.lot_id
+        if not lot:
+            continue
+        avail_qty = quant.available_quantity
+        if lot.id not in lot_data:
+            lot_data[lot.id] = {
+                "lot_id": lot.id,
+                "lot_name": lot.name,
+                "available_qty": avail_qty,
                 "quantity": quant.quantity,
                 "reserved_quantity": quant.reserved_quantity,
                 "uom": {
@@ -174,8 +190,20 @@ def serialize_product_lots(env, payload, product_id, flavor):
                 } if quant.product_uom_id else None,
                 "location": _serialize_location(quant.location_id),
             }
-            for quant in quants
-        ],
+        else:
+            lot_data[lot.id]["available_qty"] += avail_qty
+            lot_data[lot.id]["quantity"] += quant.quantity
+            lot_data[lot.id]["reserved_quantity"] += quant.reserved_quantity
+
+    final_lots = [
+        data for data in lot_data.values()
+        if data["available_qty"] > 0
+    ]
+
+    return {
+        "product": _serialize_product(env, product, source_location),
+        "source_location": _serialize_location(source_location),
+        "data": final_lots,
     }
 
 
@@ -300,7 +328,7 @@ def create_delivery(env, payload, flavor):
                 {
                     "name": item["product"].display_name,
                     "product_id": item["product"].id,
-                    "product_uom_qty": item["quantity"],
+                    "product_uom_qty": item["product_uom_qty"],
                     "so_qty": item.get("so_qty", 0.0),
                     "qc_qty": item.get("qc_qty", 0.0),
                     "ss_scrap_qty": item.get("ss_scrap_qty", 0.0),
@@ -352,7 +380,11 @@ def update_delivery(env, picking_id, payload, flavor):
     if picking.state in ("done", "cancel"):
         raise ValidationError(f"Cannot update a {flavor.label.lower()} delivery in its current state.")
 
-    employee, distributor, source_location, dest_location, warehouse = get_employee_context(env, payload, flavor)
+    distributor = picking.ss_distributor_id or picking.partner_id
+    if not distributor:
+        raise ValidationError("No distributor is assigned to this transfer.")
+    source_location = picking.location_id
+    dest_location = picking.location_dest_id
 
     lines = payload.get("lines") or payload.get("move_lines") or []
     if not isinstance(lines, list) or not lines:
@@ -381,7 +413,7 @@ def update_delivery(env, picking_id, payload, flavor):
                 {
                     "name": item["product"].display_name,
                     "product_id": item["product"].id,
-                    "product_uom_qty": item["quantity"],
+                    "product_uom_qty": item["product_uom_qty"],
                     "so_qty": item.get("so_qty", 0.0),
                     "qc_qty": item.get("qc_qty", 0.0),
                     "ss_scrap_qty": item.get("ss_scrap_qty", 0.0),
@@ -422,7 +454,7 @@ def serialize_delivery(picking):
         "distributor": {"id": picking.partner_id.id, "name": picking.partner_id.name} if picking.partner_id else ({"id": picking.ss_distributor_id.id, "name": picking.ss_distributor_id.name} if picking.ss_distributor_id else None),
         "source_location": _serialize_location(picking.location_id),
         "destination_location": _serialize_location(picking.location_dest_id),
-        "lines": [_serialize_transfer_move(move) for move in picking.move_ids],
+        "lines": [_serialize_transfer_move(picking.env, move, picking.location_id) for move in picking.move_ids],
     }
 
 
@@ -438,7 +470,8 @@ def _prepare_transfer_lines(env, lines, source_location):
             raise ValidationError("Duplicate product lines are not allowed.")
         seen_products.add(product.id)
 
-        quantity = _get_positive_float(line.get("quantity", line.get("product_uom_qty")), "quantity")
+        quantity = _get_non_negative_float(line.get("quantity") or 0.0, "done quantity")
+        product_uom_qty = _get_positive_float(line.get("product_uom_qty") or quantity, "demand quantity")
         uom = _get_product_uom(env, line.get("uom_id"), product) if line.get("uom_id") else product.uom_id
         if not uom:
             raise ValidationError("Product '%s' has no unit of measure." % product.display_name)
@@ -447,10 +480,11 @@ def _prepare_transfer_lines(env, lines, source_location):
         prepared.append({
             "sequence": index * 10,
             "product": product,
+            "product_uom_qty": product_uom_qty,
             "quantity": quantity,
-            "so_qty": float(line.get("so_qty", quantity)),
+            "so_qty": float(line.get("so_qty", 0.0)),
             "qc_qty": float(line.get("qc_qty", 0.0)),
-            "ss_scrap_qty": float(line.get("ss_scrap_qty", line.get("scrap_qty", 0.0))),
+            "ss_scrap_qty": 0.0,
             "uom": uom,
             "lot_lines": lot_lines,
             "available_qty": _get_available_qty(env, product, source_location),
@@ -462,6 +496,8 @@ def _prepare_lot_lines(env, product, quantity, lot_lines):
     if product.tracking == "none":
         return []
     if not isinstance(lot_lines, list) or not lot_lines:
+        if float_compare(quantity, 0.0, precision_rounding=product.uom_id.rounding) == 0:
+            return []
         raise ValidationError("Lot allocation is required for product '%s'." % product.display_name)
 
     total = 0.0
@@ -470,27 +506,31 @@ def _prepare_lot_lines(env, product, quantity, lot_lines):
         if not isinstance(lot_line, dict):
             raise ValidationError("Each lot line must be an object.")
         lot = _get_lot(env, product, lot_line.get("lot_id"))
-        lot_qty = _get_positive_float(lot_line.get("quantity"), "lot quantity")
+        lot_qty = _get_non_negative_float(lot_line.get("quantity") or 0.0, "lot quantity")
         if product.tracking == "serial" and float_compare(
             lot_qty, 1.0, precision_rounding=product.uom_id.rounding
         ) > 0:
             raise ValidationError("Serial-tracked products must move one unit per serial.")
         total += lot_qty
         prepared.append({
-            "lot": lot, 
+            "lot": lot,
             "quantity": lot_qty,
-            "ss_scrap_qty": float(lot_line.get("ss_scrap_qty", lot_line.get("scrap_qty", 0.0)))
+            "so_qty": float(lot_line.get("so_qty", 0.0)),
+            "qc_qty": float(lot_line.get("qc_qty", 0.0)),
+            "ss_scrap_qty": 0.0
         })
 
-    if float_compare(total, quantity, precision_rounding=product.uom_id.rounding) != 0:
-        raise ValidationError("Total lot quantity must match transfer quantity.")
+    if quantity > 0.0:
+        if float_compare(total, quantity, precision_rounding=product.uom_id.rounding) != 0:
+            raise ValidationError("Total lot quantity must match transfer quantity.")
     return prepared
 
 
 def _validate_requested_quantities(env, prepared_lines, source_location):
     for item in prepared_lines:
+        max_item_qty = max(item["quantity"], item["so_qty"], item["qc_qty"])
         if float_compare(
-            item["quantity"],
+            max_item_qty,
             item["available_qty"],
             precision_rounding=item["uom"].rounding,
         ) > 0:
@@ -501,8 +541,9 @@ def _validate_requested_quantities(env, prepared_lines, source_location):
 
         for lot_line in item["lot_lines"]:
             lot_qty = _get_lot_available_qty(env, item["product"], lot_line["lot"], source_location)
+            max_lot_qty = max(lot_line["quantity"], lot_line["so_qty"], lot_line["qc_qty"])
             if float_compare(
-                lot_line["quantity"],
+                max_lot_qty,
                 lot_qty,
                 precision_rounding=item["uom"].rounding,
             ) > 0:
@@ -519,26 +560,47 @@ def _apply_move_lines(env, picking, move, item):
         move.move_line_ids.unlink()
 
     if item["product"].tracking == "none":
-        _create_move_line(env, picking, move, item["quantity"], ss_scrap_qty=item.get("ss_scrap_qty", 0.0))
+        _create_move_line(
+            env, 
+            picking, 
+            move, 
+            item["quantity"], 
+            so_qty=item.get("so_qty", 0.0),
+            qc_qty=item.get("qc_qty", 0.0),
+            ss_scrap_qty=item.get("ss_scrap_qty", 0.0)
+        )
     else:
         for lot_line in item["lot_lines"]:
-            _create_move_line(env, picking, move, lot_line["quantity"], lot=lot_line["lot"], ss_scrap_qty=lot_line.get("ss_scrap_qty", 0.0))
+            _create_move_line(
+                env, 
+                picking, 
+                move, 
+                lot_line["quantity"], 
+                lot=lot_line["lot"], 
+                so_qty=lot_line.get("so_qty", 0.0),
+                qc_qty=lot_line.get("qc_qty", 0.0),
+                ss_scrap_qty=lot_line.get("ss_scrap_qty", 0.0)
+            )
 
 
 def _get_available_product_ids(env, source_location):
     domain = [
-        ("location_id", "child_of", source_location.id),
-        ("available_quantity", ">", 0),
+        ("location_id", "=", source_location.id),
     ]
     quants = env["stock.quant"].sudo().search(domain)
-    return list(set(quants.mapped("product_id").ids))
+    
+    from collections import defaultdict
+    prod_avail = defaultdict(float)
+    for q in quants:
+        prod_avail[q.product_id.id] += q.available_quantity
+        
+    return [pid for pid, qty in prod_avail.items() if qty > 0]
 
 
 def _get_available_qty(env, product, source_location):
     domain = [
         ("product_id", "=", product.id),
-        ("location_id", "child_of", source_location.id),
-        ("available_quantity", ">", 0),
+        ("location_id", "=", source_location.id),
     ]
     quants = env["stock.quant"].sudo().search(domain)
     return sum(quants.mapped("available_quantity"))
@@ -548,8 +610,7 @@ def _get_lot_available_qty(env, product, lot, source_location):
     domain = [
         ("product_id", "=", product.id),
         ("lot_id", "=", lot.id),
-        ("location_id", "child_of", source_location.id),
-        ("available_quantity", ">", 0),
+        ("location_id", "=", source_location.id),
     ]
     quants = env["stock.quant"].sudo().search(domain)
     return sum(quants.mapped("available_quantity"))
@@ -591,8 +652,10 @@ def _serialize_location(location):
     } if location else None
 
 
-def _serialize_product(product):
-    return {
+def _serialize_product(env, product, source_location=None):
+    if not product:
+        return None
+    res = {
         "id": product.id,
         "name": product.display_name,
         "default_code": product.default_code or None,
@@ -601,33 +664,126 @@ def _serialize_product(product):
             "id": product.uom_id.id,
             "name": product.uom_id.name,
         } if product.uom_id else None,
-    } if product else None
+    }
+    if source_location:
+        res["available_qty"] = _get_available_qty(env, product, source_location)
+    return res
 
 
-def _serialize_transfer_move(move):
+def _serialize_transfer_move(env, move, source_location=None):
+    lot_lines = []
+    for line in move.move_line_ids:
+        avail_qty = 0.0
+        if line.lot_id and source_location:
+            quant = env["stock.quant"].sudo().search([
+                ("product_id", "=", move.product_id.id),
+                ("lot_id", "=", line.lot_id.id),
+                ("location_id", "=", source_location.id),
+            ], limit=1)
+            already_used = max(line.quantity, line.so_qty or 0.0, line.qc_qty or 0.0)
+            if quant:
+                avail_qty = quant.available_quantity + already_used
+            else:
+                avail_qty = already_used
+        else:
+            avail_qty = max(line.quantity, line.so_qty or 0.0, line.qc_qty or 0.0)
+
+        lot_lines.append({
+            "move_line_id": line.id,
+            "lot": {
+                "id": line.lot_id.id,
+                "name": line.lot_id.name,
+                "available_qty": avail_qty,
+            } if line.lot_id else None,
+            "quantity": line.quantity,
+            "so_qty": line.so_qty,
+            "qc_qty": line.qc_qty,
+            "source_location": _serialize_location(line.location_id),
+            "destination_location": _serialize_location(line.location_dest_id),
+        })
+
     return {
         "move_id": move.id,
         "state": move.state,
-        "product": _serialize_product(move.product_id),
+        "product": _serialize_product(env, move.product_id, source_location),
         "demand_qty": move.product_uom_qty,
         "quantity": move.quantity,
         "so_qty": move.so_qty,
         "qc_qty": move.qc_qty,
+        "scrap_qty": move.ss_scrap_qty,
         "uom": {
             "id": move.product_uom.id,
             "name": move.product_uom.name,
         } if move.product_uom else None,
-        "lot_lines": [
-            {
-                "move_line_id": line.id,
-                "lot": {
-                    "id": line.lot_id.id,
-                    "name": line.lot_id.name,
-                } if line.lot_id else None,
-                "quantity": line.quantity,
-                "source_location": _serialize_location(line.location_id),
-                "destination_location": _serialize_location(line.location_dest_id),
-            }
-            for line in move.move_line_ids
-        ],
+        "lot_lines": lot_lines,
     }
+
+
+def validate_delivery(env, picking_id, payload, flavor):
+    picking = get_delivery_for_employee(env, picking_id, payload, flavor)
+    if picking.state in ("done", "cancel"):
+        raise ValidationError("This transfer cannot be validated in its current state.")
+
+    if picking.state == "draft":
+        picking.action_confirm()
+
+    for move in picking.move_ids.filtered(lambda item: item.state not in ("done", "cancel")):
+        # Resolve target quantity based on the priority: qc_qty > product_uom_qty > so_qty > quantity
+        target_qty = move.qc_qty if move.qc_qty > 0.0 else (move.product_uom_qty if move.product_uom_qty > 0.0 else (move.so_qty if move.so_qty > 0.0 else move.quantity))
+        
+        if float_is_zero(target_qty, precision_rounding=move.product_uom.rounding):
+            raise ValidationError(
+                "Cannot validate transfer with zero done quantity for product '%s'."
+                % move.product_id.display_name
+            )
+
+        # Update the move's demand and done quantity to exactly match the target quantity.
+        # This prevents any backorders/receipts from being created.
+        move.write({
+            "product_uom_qty": target_qty,
+            "quantity": target_qty,
+            "picked": True,
+        })
+
+        if move.product_id.tracking == "none":
+            if not move.move_line_ids:
+                _create_move_line(env, picking, move, target_qty, ss_scrap_qty=move.ss_scrap_qty)
+            else:
+                move.move_line_ids.write({
+                    "quantity": target_qty,
+                    "picked": True,
+                })
+        else:
+            total_ml_qty = 0.0
+            for ml in list(move.move_line_ids):
+                ml_target_qty = ml.qc_qty if ml.qc_qty > 0.0 else (ml.so_qty if ml.so_qty > 0.0 else ml.quantity)
+                if float_is_zero(ml_target_qty, precision_rounding=move.product_uom.rounding):
+                    ml.unlink()
+                else:
+                    ml.write({
+                        "quantity": ml_target_qty,
+                        "picked": True,
+                    })
+                    total_ml_qty += ml_target_qty
+
+            if float_compare(total_ml_qty, target_qty, precision_rounding=move.product_uom.rounding) != 0:
+                raise ValidationError(
+                    "Total lot quantity (%s) must match transfer quantity (%s) for product '%s'."
+                    % (total_ml_qty, target_qty, move.product_id.display_name)
+                )
+
+    result = picking.with_context(
+        skip_backorder=True,
+        button_validate_picking_ids=picking.ids,
+    ).button_validate()
+    return picking, result
+
+
+def cancel_delivery(env, picking_id, payload, flavor):
+    picking = get_delivery_for_employee(env, picking_id, payload, flavor)
+    if picking.state == "done":
+        raise ValidationError("Done transfers cannot be cancelled.")
+    if picking.state != "cancel":
+        picking.action_cancel()
+    return picking
+

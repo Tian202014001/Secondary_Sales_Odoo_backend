@@ -80,3 +80,12 @@ def update_return_delivery(env, picking_id, payload):
 
 def serialize_return_delivery(picking):
     return _tc.serialize_delivery(picking)
+
+
+def validate_return_delivery(env, picking_id, payload):
+    return _tc.validate_delivery(env, picking_id, payload, RETURN)
+
+
+def cancel_return_delivery(env, picking_id, payload):
+    return _tc.cancel_delivery(env, picking_id, payload, RETURN)
+

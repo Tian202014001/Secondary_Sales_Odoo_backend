@@ -205,6 +205,7 @@ class MetaSSLocationApiController(http.Controller):
                     "checkpoints": checkpoints_list
                 })
 
+            barikoi_key = api_env["ir.config_parameter"].sudo().get_param("barikoi.api_key", "")
             return {
                 "success": True,
                 "api_version": API_VERSION,
@@ -215,6 +216,7 @@ class MetaSSLocationApiController(http.Controller):
                         "name": subordinate.name
                     },
                     "date": target_date,
+                    "barikoi_api_key": barikoi_key,
                     "attendances": attendances_data
                 }
             }
