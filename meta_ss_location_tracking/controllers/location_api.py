@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from odoo import http
+from odoo import http, fields
 from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
@@ -36,39 +36,67 @@ class MetaSSLocationApiController(http.Controller):
                 }
 
             employee = mobile_user.employee_id
-            vals_list = []
             discarded_count = 0
 
-            # Pre-search open or matching attendance records to minimize DB queries in loop
+            # Parse + validate every point once, tracking the covered time window.
+            points = []
             for loc in locations_data:
                 latitude = loc.get("latitude")
                 longitude = loc.get("longitude")
                 recorded_at = loc.get("recorded_at")
-
                 if latitude is None or longitude is None or not recorded_at:
                     discarded_count += 1
                     continue
-
-                # Query the attendance record covering the recorded timestamp
-                attendance = api_env["hr.attendance"].search([
-                    ("employee_id", "=", employee.id),
-                    ("check_in", "<=", recorded_at),
-                    "|",
-                    ("check_out", ">=", recorded_at),
-                    ("check_out", "=", False)
-                ], limit=1)
-
-                if not attendance:
+                try:
+                    recorded_dt = fields.Datetime.to_datetime(recorded_at)
+                except (ValueError, TypeError):
+                    recorded_dt = None
+                if not recorded_dt:
                     discarded_count += 1
                     continue
-
-                vals_list.append({
-                    "employee_id": employee.id,
-                    "attendance_id": attendance.id,
+                points.append({
                     "latitude": float(latitude),
                     "longitude": float(longitude),
                     "recorded_at": recorded_at,
+                    "recorded_dt": recorded_dt,
                     "is_mock": bool(loc.get("is_mock", False)),
+                })
+
+            # Fetch every attendance that could cover any point in ONE query,
+            # then match each point in memory (was one search per point).
+            attendances = api_env["hr.attendance"]
+            if points:
+                min_dt = min(p["recorded_dt"] for p in points)
+                max_dt = max(p["recorded_dt"] for p in points)
+                attendances = api_env["hr.attendance"].search([
+                    ("employee_id", "=", employee.id),
+                    ("check_in", "<=", max_dt),
+                    "|",
+                    ("check_out", ">=", min_dt),
+                    ("check_out", "=", False),
+                ], order="check_in")
+
+            def _covering_attendance(recorded_dt):
+                for att in attendances:
+                    if att.check_in and att.check_in <= recorded_dt and (
+                        not att.check_out or att.check_out >= recorded_dt
+                    ):
+                        return att
+                return None
+
+            vals_list = []
+            for point in points:
+                att = _covering_attendance(point["recorded_dt"])
+                if not att:
+                    discarded_count += 1
+                    continue
+                vals_list.append({
+                    "employee_id": employee.id,
+                    "attendance_id": att.id,
+                    "latitude": point["latitude"],
+                    "longitude": point["longitude"],
+                    "recorded_at": point["recorded_at"],
+                    "is_mock": point["is_mock"],
                 })
 
             if vals_list:
@@ -101,7 +129,6 @@ class MetaSSLocationApiController(http.Controller):
                 ("active", "=", True)
             ], order="name asc")
 
-            from odoo import fields
             # Parse target date from raw request.params because get_mobile_api_context doesn't pass/sanitize date
             target_date = request.params.get("date") or fields.Date.today().strftime("%Y-%m-%d")
             date_start = f"{target_date} 00:00:00"

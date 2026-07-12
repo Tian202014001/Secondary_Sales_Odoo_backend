@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import math
 from odoo import http, fields
 from odoo.http import request
@@ -45,38 +46,23 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return R * c
 
 
-import time
+_logger = logging.getLogger(__name__)
 
-_last_call_time = 0
 
 def _reverse_geocode(lat, lon):
-    global _last_call_time
+    """Resolve a human-readable address for coordinates via Barikoi.
+
+    Best-effort: any failure (missing key, network error, unexpected payload)
+    is swallowed and an empty string returned so geocoding never blocks or
+    fails attendance check-in/out.
+    """
     try:
-        import requests
-        elapsed = time.time() - _last_call_time
-        if elapsed < 1.0:
-            time.sleep(1.0 - elapsed)
-            
-        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
-        headers = {
-            # Nominatim Policy requires a valid app identifier (not a fake browser).
-            # Please replace "your-email@meta.com" with a real admin email to avoid blocks.
-            "User-Agent": "Secondary-Sales-Odoo-Backend/1.0 (info@metamorphosis.com.bd)",
-            "Accept-Language": "en-US,en;q=0.9"
-        }
-        
-        response = requests.get(url, headers=headers, timeout=5)
-        _last_call_time = time.time()
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("display_name", "")
-            
-    except Exception as e: 
-        import logging
-        logging.getLogger(__name__).warning("Geocoding Error: %s", e)
-        
-    return ""
+        result = request.env["barikoi.api"].sudo().reverse_geocode(lat, lon, timeout=5)
+        place = (result or {}).get("place") or {}
+        return place.get("address") or ""
+    except Exception as exc:
+        _logger.warning("Barikoi reverse geocode failed: %s", exc)
+        return ""
 
 
 class AttendanceAPI(http.Controller):
