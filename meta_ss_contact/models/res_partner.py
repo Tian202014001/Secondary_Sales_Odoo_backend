@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from odoo import api, fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import ValidationError
 
 class ResPartner(models.Model):
     _inherit = "res.partner"
+
+    _sql_constraints = [
+        ('db_code_unique', 'unique(db_code)', 'DB Code must be unique.'),
+    ]
 
     customer_type = fields.Selection(
         selection=[
@@ -21,6 +26,17 @@ class ResPartner(models.Model):
     )
 
     db_code = fields.Char(string='DB Code', required=True, store=True)
+
+    @api.constrains("db_code")
+    def _check_unique_db_code(self):
+        for partner in self:
+            if partner.db_code:
+                duplicate_count = self.search_count([
+                    ("db_code", "=ilike", partner.db_code.strip()),
+                    ("id", "!=", partner.id),
+                ])
+                if duplicate_count > 0:
+                    raise ValidationError(_("DB Code '%s' must be unique.") % partner.db_code)
 
     @api.depends('db_code')
     def _compute_display_name(self):

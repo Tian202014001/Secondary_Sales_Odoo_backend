@@ -418,6 +418,48 @@ class TestEndpointOperationAccessMatrix(TransactionCase):
         missing = sorted(set(constants.values()) - active_keys)
         self.assertFalse(missing, "AccessKey constants missing from active catalog: %s" % missing)
 
+    def test_access_key_constant_values_are_unique(self):
+        constants = access_key_values()
+        duplicate_values = sorted(
+            value
+            for value in set(constants.values())
+            if list(constants.values()).count(value) > 1
+        )
+        self.assertFalse(duplicate_values, "Duplicate AccessKey values: %s" % duplicate_values)
+
+    def test_endpoint_matrix_references_existing_access_key_constants(self):
+        constants = set(access_key_values())
+        missing_constants = []
+        for relative_path, expected_functions in PROTECTED_ENDPOINT_MATRIX.items():
+            for function_name, expected in expected_functions.items():
+                for key_name in sorted(expected["keys"]):
+                    if key_name not in constants:
+                        missing_constants.append("%s.%s -> %s" % (relative_path, function_name, key_name))
+        self.assertFalse(missing_constants, "Matrix references missing AccessKey constants: %s" % missing_constants)
+
+    def test_every_routed_function_in_matrix_files_is_classified(self):
+        all_paths = (
+            set(PROTECTED_ENDPOINT_MATRIX)
+            | set(INTENTIONALLY_UNGATED_MATRIX)
+            | set(NEEDS_REVIEW_MATRIX)
+        )
+        missing = []
+        for relative_path in sorted(all_paths):
+            functions = analyze_controller(relative_path)
+            classified = (
+                set(PROTECTED_ENDPOINT_MATRIX.get(relative_path, {}))
+                | set(INTENTIONALLY_UNGATED_MATRIX.get(relative_path, set()))
+                | set(NEEDS_REVIEW_MATRIX.get(relative_path, set()))
+            )
+            routed = {
+                name
+                for name, info in functions.items()
+                if info["route_count"]
+            }
+            for function_name in sorted(routed - classified):
+                missing.append("%s.%s" % (relative_path, function_name))
+        self.assertFalse(missing, "Routed endpoints missing from access-control matrix: %s" % missing)
+
 
 @tagged("post_install", "-at_install")
 class TestUiAccessHelpers(TransactionCase):

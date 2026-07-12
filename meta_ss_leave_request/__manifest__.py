@@ -1,6 +1,6 @@
 {
     "name": "Secondary Sales - Leave Request API",
-    "version": "1.0",
+    "version": "18.0.1.0.0",
     "category": "Human Resources",
     "summary": "API and Custom Logic for Mobile App Leave Requests",
     "description": "Provides leave request API for the mobile application and strict manager approval logic.",

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from typing import Required
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
@@ -14,7 +13,7 @@ class SSRoute(models.Model):
     ]
 
     name = fields.Char(string="Route Name", required=True)
-    code = fields.Char(string="Route Code")
+    code = fields.Char(string="Route Code", required=True)
     active = fields.Boolean(default=True)
     ss_employee_id = fields.Many2one(
         'hr.employee',
@@ -34,9 +33,20 @@ class SSRoute(models.Model):
         string="Route Outlets",
         help="Ordered outlet visit list for this route"
     )
+    @api.constrains("code")
+    def _check_unique_code(self):
+        for route in self:
+            if route.code:
+                duplicate_count = self.search_count([
+                    ("code", "=ilike", route.code.strip()),
+                    ("id", "!=", route.id),
+                ])
+                if duplicate_count > 0:
+                    raise ValidationError(_("Route Code '%s' must be unique.") % route.code)
 
     @api.constrains("distributor_contact_id")
     def _check_distributor_contact_id(self):
         for route in self:
             if route.distributor_contact_id and route.distributor_contact_id.customer_type != "distributor":
                 raise ValidationError(_("Distributor Contact must be a distributor contact."))
+

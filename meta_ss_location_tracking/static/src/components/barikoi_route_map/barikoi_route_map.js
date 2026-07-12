@@ -155,7 +155,12 @@ export class BarikoiRouteMapDashboard extends Component {
                     ["check_in", ">=", dateStart],
                     ["check_in", "<=", dateEnd],
                 ],
-                ["id", "check_in", "check_out", "check_in_address", "check_out_address"]
+                [
+                    "id", "check_in", "check_out", 
+                    "check_in_address", "check_out_address",
+                    "check_in_latitude", "check_in_longitude",
+                    "check_out_latitude", "check_out_longitude"
+                ]
             );
             this.state.attendances = attendances || [];
             
@@ -273,11 +278,88 @@ export class BarikoiRouteMapDashboard extends Component {
 
     plotPoints() {
         this.clearMap();
-        if (!this.map || !this.state.locationPoints || this.state.locationPoints.length === 0) {
+        if (!this.map) return;
+
+        const latlngs = [];
+        const selectedAtt = this.state.attendances.find(a => a.id === this.state.selectedAttendanceId);
+
+        // Plot Actual Check-In
+        if (selectedAtt && selectedAtt.check_in_latitude && selectedAtt.check_in_longitude) {
+            const latlng = [selectedAtt.check_in_longitude, selectedAtt.check_in_latitude];
+            latlngs.push(latlng);
+
+            const el = document.createElement('div');
+            el.className = 'bkoi-route-marker';
+            el.style.width = '30px';
+            el.style.height = '30px';
+            el.style.cursor = 'pointer';
+            el.innerHTML = `
+                <svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.3));">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" 
+                          fill="#059669" 
+                          stroke="white" 
+                          stroke-width="2"/>
+                </svg>
+            `;
+
+            const checkInHtml = `
+                <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4; padding: 4px;">
+                    <strong style="color: #059669">📍 Actual Check-In</strong><br/>
+                    <b>Time:</b> ${this.formatTime(selectedAtt.check_in)}<br/>
+                    <b>Address:</b> ${selectedAtt.check_in_address || 'N/A'}<br/>
+                </div>
+            `;
+
+            const marker = new bkoi.Marker({ element: el, anchor: 'bottom' })
+                .setLngLat(latlng)
+                .setPopup(new bkoi.Popup({ offset: [0, -15] }).setHTML(checkInHtml))
+                .addTo(this.map);
+            this.markers.push(marker);
+        }
+
+        // Plot Actual Check-Out
+        if (selectedAtt && selectedAtt.check_out_latitude && selectedAtt.check_out_longitude) {
+            const latlng = [selectedAtt.check_out_longitude, selectedAtt.check_out_latitude];
+            latlngs.push(latlng);
+
+            const el = document.createElement('div');
+            el.className = 'bkoi-route-marker';
+            el.style.width = '30px';
+            el.style.height = '30px';
+            el.style.cursor = 'pointer';
+            el.innerHTML = `
+                <svg viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.3));">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" 
+                          fill="#dc2626" 
+                          stroke="white" 
+                          stroke-width="2"/>
+                </svg>
+            `;
+
+            const checkOutHtml = `
+                <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4; padding: 4px;">
+                    <strong style="color: #dc2626">📍 Actual Check-Out</strong><br/>
+                    <b>Time:</b> ${this.formatTime(selectedAtt.check_out)}<br/>
+                    <b>Address:</b> ${selectedAtt.check_out_address || 'N/A'}<br/>
+                </div>
+            `;
+
+            const marker = new bkoi.Marker({ element: el, anchor: 'bottom' })
+                .setLngLat(latlng)
+                .setPopup(new bkoi.Popup({ offset: [0, -15] }).setHTML(checkOutHtml))
+                .addTo(this.map);
+            this.markers.push(marker);
+        }
+
+        if (!this.state.locationPoints || this.state.locationPoints.length === 0) {
+            if (latlngs.length > 0) {
+                const bounds = new bkoi.LngLatBounds();
+                latlngs.forEach(coord => bounds.extend(coord));
+                this.map.fitBounds(bounds, { padding: 50, maxZoom: 16 });
+            }
             return;
         }
 
-        const latlngs = [];
 
         this.state.locationPoints.forEach((pt, index) => {
             const latlng = [pt.longitude, pt.latitude]; // MapLibre/Barikoi GL uses [lng, lat]

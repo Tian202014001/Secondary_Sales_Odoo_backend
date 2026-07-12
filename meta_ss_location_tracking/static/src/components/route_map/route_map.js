@@ -107,7 +107,12 @@ export class RouteMapDashboard extends Component {
                     ["check_in", ">=", dateStart],
                     ["check_in", "<=", dateEnd],
                 ],
-                ["id", "check_in", "check_out", "check_in_address", "check_out_address"]
+                [
+                    "id", "check_in", "check_out", 
+                    "check_in_address", "check_out_address",
+                    "check_in_latitude", "check_in_longitude",
+                    "check_out_latitude", "check_out_longitude"
+                ]
             );
             this.state.attendances = attendances || [];
             
@@ -156,11 +161,63 @@ export class RouteMapDashboard extends Component {
 
     plotPoints() {
         this.clearMap();
-        if (!this.state.locationPoints || this.state.locationPoints.length === 0) {
-            return;
+        
+        const latlngs = [];
+        const selectedAtt = this.state.attendances.find(a => a.id === this.state.selectedAttendanceId);
+
+        // Plot Actual Check-In
+        if (selectedAtt && selectedAtt.check_in_latitude && selectedAtt.check_in_longitude) {
+            const checkInLatLng = [selectedAtt.check_in_latitude, selectedAtt.check_in_longitude];
+            latlngs.push(checkInLatLng);
+            const checkInMarker = L.circleMarker(checkInLatLng, {
+                radius: 10,
+                fillColor: "#059669",
+                color: "#ffffff",
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.9,
+            });
+            const checkInHtml = `
+                <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4;">
+                    <strong style="color: #059669">📍 Actual Check-In</strong><br/>
+                    <b>Time:</b> ${this.formatTime(selectedAtt.check_in)}<br/>
+                    <b>Address:</b> ${selectedAtt.check_in_address || 'N/A'}<br/>
+                </div>
+            `;
+            checkInMarker.bindPopup(checkInHtml);
+            this.markersGroup.addLayer(checkInMarker);
         }
 
-        const latlngs = [];
+        // Plot Actual Check-Out
+        if (selectedAtt && selectedAtt.check_out_latitude && selectedAtt.check_out_longitude) {
+            const checkOutLatLng = [selectedAtt.check_out_latitude, selectedAtt.check_out_longitude];
+            latlngs.push(checkOutLatLng);
+            const checkOutMarker = L.circleMarker(checkOutLatLng, {
+                radius: 10,
+                fillColor: "#dc2626",
+                color: "#ffffff",
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.9,
+            });
+            const checkOutHtml = `
+                <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4;">
+                    <strong style="color: #dc2626">📍 Actual Check-Out</strong><br/>
+                    <b>Time:</b> ${this.formatTime(selectedAtt.check_out)}<br/>
+                    <b>Address:</b> ${selectedAtt.check_out_address || 'N/A'}<br/>
+                </div>
+            `;
+            checkOutMarker.bindPopup(checkOutHtml);
+            this.markersGroup.addLayer(checkOutMarker);
+        }
+
+        if (!this.state.locationPoints || this.state.locationPoints.length === 0) {
+            if (latlngs.length > 0) {
+                const bounds = L.latLngBounds(latlngs);
+                this.map.fitBounds(bounds, { padding: [50, 50] });
+            }
+            return;
+        }
 
         this.state.locationPoints.forEach((pt, index) => {
             const latlng = [pt.latitude, pt.longitude];

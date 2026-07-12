@@ -115,7 +115,7 @@ class LeaveAPI(http.Controller):
         attachment_name = payload.get("attachment_name")
 
         if not all([employee_id, leave_type_id, date_from, date_to]):
-            return error_response(400, "employee_id, leave_type_id, date_from, and date_to are required")
+            return error_response("validation_error", "employee_id, leave_type_id, date_from, and date_to are required")
 
         leave_vals = {
             'employee_id': int(employee_id),
@@ -177,7 +177,7 @@ class LeaveAPI(http.Controller):
         search_query = payload.get("search_query")
 
         if not employee_id:
-            return error_response(400, "employee_id is required")
+            return error_response("validation_error", "employee_id is required")
 
         current_employee = api_env['hr.employee'].sudo().browse(int(employee_id))
 
@@ -245,23 +245,23 @@ class LeaveAPI(http.Controller):
         action = payload.get("action") # 'approve' or 'reject'
 
         if not all([employee_id, leave_id, action]):
-            return error_response(400, "employee_id, leave_id, and action are required")
+            return error_response("validation_error", "employee_id, leave_id, and action are required")
 
         leave = api_env['hr.leave'].sudo().browse(int(leave_id))
         if not leave.exists():
-            return error_response(404, "Leave request not found")
+            return error_response("validation_error", "Leave request not found")
 
         # Verify the current user is the manager
         current_employee = api_env['hr.employee'].sudo().browse(int(employee_id))
         if leave.employee_id.parent_id != current_employee:
-            return error_response(403, "You are not authorized to approve/reject this leave")
+            return error_response("access_denied", "You are not authorized to approve/reject this leave")
 
         if action == 'approve':
             leave.action_approve()
         elif action == 'reject':
             leave.action_refuse()
         else:
-            return error_response(400, "Invalid action. Use 'approve' or 'reject'")
+            return error_response("validation_error", "Invalid action. Use 'approve' or 'reject'")
 
         return {
             "success": True,
