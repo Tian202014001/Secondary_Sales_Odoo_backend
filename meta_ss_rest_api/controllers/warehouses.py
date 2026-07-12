@@ -9,6 +9,7 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     API_VERSION,
     error_response,
     get_mobile_api_context,
+    mobile_api_error_boundary,
 )
 from odoo.addons.meta_ss_rest_api.utils.warehouses import (
     build_available_lot_domain,
@@ -22,6 +23,7 @@ from odoo.addons.meta_ss_rest_api.utils.warehouses import (
 class MetaSSWarehouseController(http.Controller):
 
     @http.route(f"{API_PREFIX}/warehouses", type="json", auth="user", methods=["POST"])
+    @mobile_api_error_boundary
     def get_warehouses(self, **payload):
         """Return warehouses for delivery source selection.
 
@@ -43,7 +45,7 @@ class MetaSSWarehouseController(http.Controller):
                 "id": 1,
                 "result": {
                     "success": true,
-                    "api_version": "v1",
+                    "api_version": API_VERSION,
                     "message": "Warehouses fetched successfully.",
                     "data": [
                         {
@@ -61,33 +63,24 @@ class MetaSSWarehouseController(http.Controller):
                 }
             }
         """
-        try:
-            _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            domain = build_warehouse_domain(api_env, payload)
-            limit, offset, page, page_size = get_warehouse_pagination(payload)
-            Warehouse = api_env["stock.warehouse"]
-            warehouses = Warehouse.search(domain, limit=limit, offset=offset, order="name")
-            total = Warehouse.search_count(domain)
+        _mobile_user, api_env, payload = get_mobile_api_context(payload)
+        domain = build_warehouse_domain(api_env, payload)
+        limit, offset, page, page_size = get_warehouse_pagination(payload)
+        Warehouse = api_env["stock.warehouse"]
+        warehouses = Warehouse.search(domain, limit=limit, offset=offset, order="name")
+        total = Warehouse.search_count(domain)
 
-            return {
-                "success": True,
-                "api_version": API_VERSION,
-                "message": "Warehouses fetched successfully.",
-                "data": [serialize_warehouse(warehouse) for warehouse in warehouses],
-                "pagination": {
-                    "page": page,
-                    "page_size": page_size,
-                    "total": total,
-                },
-            }
-        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
-            return error_response("validation_error", str(exc))
-        except Exception:
-            request.env.cr.rollback()
-            return error_response(
-                "server_error",
-                "An unexpected error occurred while fetching warehouses.",
-            )
+        return {
+            "success": True,
+            "api_version": API_VERSION,
+            "message": "Warehouses fetched successfully.",
+            "data": [serialize_warehouse(warehouse) for warehouse in warehouses],
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+            },
+        }
 
     @http.route(
         f"{API_PREFIX}/products/<int:product_id>/available-lots",
@@ -95,6 +88,7 @@ class MetaSSWarehouseController(http.Controller):
         auth="user",
         methods=["POST"],
     )
+    @mobile_api_error_boundary
     def get_product_available_lots(self, product_id, **payload):
         """Return available lots for a product under a warehouse/location.
 
@@ -122,7 +116,7 @@ class MetaSSWarehouseController(http.Controller):
                 "id": 1,
                 "result": {
                     "success": true,
-                    "api_version": "v1",
+                    "api_version": API_VERSION,
                     "message": "Available lots fetched successfully.",
                     "product": {
                         "id": 25,
@@ -148,34 +142,26 @@ class MetaSSWarehouseController(http.Controller):
                 }
             }
         """
-        try:
-            _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            payload = dict(payload)
-            payload["product_id"] = product_id
-            product, location, domain = build_available_lot_domain(api_env, payload)
-            Quant = api_env["stock.quant"]
-            quants = Quant.search(domain, order="location_id, lot_id")
+        _mobile_user, api_env, payload = get_mobile_api_context(payload)
+        payload = dict(payload)
+        payload["product_id"] = product_id
+        product, location, domain = build_available_lot_domain(api_env, payload)
+        Quant = api_env["stock.quant"]
+        quants = Quant.search(domain, order="location_id, lot_id")
 
-            return {
-                "success": True,
-                "api_version": API_VERSION,
-                "message": "Available lots fetched successfully.",
-                "product": {
-                    "id": product.id,
-                    "name": product.display_name,
-                    "tracking": product.tracking,
-                },
-                "location": {
-                    "id": location.id,
-                    "name": location.display_name,
-                },
-                "data": serialize_available_lots(quants),
-            }
-        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
-            return error_response("validation_error", str(exc))
-        except Exception:
-            request.env.cr.rollback()
-            return error_response(
-                "server_error",
-                "An unexpected error occurred while fetching available lots.",
-            )
+        return {
+            "success": True,
+            "api_version": API_VERSION,
+            "message": "Available lots fetched successfully.",
+            "product": {
+                "id": product.id,
+                "name": product.display_name,
+                "tracking": product.tracking,
+            },
+            "location": {
+                "id": location.id,
+                "name": location.display_name,
+            },
+            "data": serialize_available_lots(quants),
+        }
+

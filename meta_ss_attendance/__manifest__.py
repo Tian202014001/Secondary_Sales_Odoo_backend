@@ -13,7 +13,8 @@
         'hr_attendance',
         'meta_ss_employee',
         'meta_ss_rest_api',
-        'meta_ss_route_management'
+        'meta_ss_route_management',
+        'meta_barikoi_base',
     ],
     'data': [
         'views/res_partner_views.xml',

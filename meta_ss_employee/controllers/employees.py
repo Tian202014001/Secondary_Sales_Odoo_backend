@@ -9,7 +9,10 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     API_VERSION,
     error_response,
     get_mobile_api_context,
+    mobile_api_error_boundary,
+    require_ui_access,
 )
+from odoo.addons.meta_ss_rest_api.utils.access_keys import AccessKey
 from odoo.addons.meta_ss_employee.utils.employees import (
     build_employee_domain,
     get_employee_for_payload,
@@ -23,6 +26,7 @@ from odoo.addons.meta_ss_employee.utils.employees import (
 class MetaSSEmployeeController(http.Controller):
 
     @http.route(f"{API_PREFIX}/employees", type="json", auth="user", methods=["POST"])
+    @mobile_api_error_boundary
     def get_employees(self, **payload):
         """Return employees for assignment dropdowns.
 
@@ -40,35 +44,28 @@ class MetaSSEmployeeController(http.Controller):
                 "id": 1
             }
         """
-        try:
-            _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            domain = build_employee_domain(api_env, payload)
-            limit, offset, page, page_size = get_employee_pagination(payload)
-            Employee = api_env["hr.employee"]
-            employees = Employee.search(domain, limit=limit, offset=offset, order="name")
-            total = Employee.search_count(domain)
+        _mobile_user, api_env, payload = get_mobile_api_context(payload)
+        require_ui_access(_mobile_user, AccessKey.DASHBOARD_SALES_OFFICERS_LIST)
+        domain = build_employee_domain(api_env, payload)
+        limit, offset, page, page_size = get_employee_pagination(payload)
+        Employee = api_env["hr.employee"]
+        employees = Employee.search(domain, limit=limit, offset=offset, order="name")
+        total = Employee.search_count(domain)
 
-            return {
-                "success": True,
-                "api_version": API_VERSION,
-                "message": "Employees fetched successfully.",
-                "data": [serialize_employee(employee) for employee in employees],
-                "pagination": {
-                    "page": page,
-                    "page_size": page_size,
-                    "total": total,
-                },
-            }
-        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
-            return error_response("validation_error", str(exc))
-        except Exception:
-            request.env.cr.rollback()
-            return error_response(
-                "server_error",
-                "An unexpected error occurred while fetching employees.",
-            )
+        return {
+            "success": True,
+            "api_version": API_VERSION,
+            "message": "Employees fetched successfully.",
+            "data": [serialize_employee(employee) for employee in employees],
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+            },
+        }
 
     @http.route(f"{API_PREFIX}/employees/create", type="json", auth="user", methods=["POST"])
+    @mobile_api_error_boundary
     def create_employee(self, **payload):
         """Create a new employee (Sales Officer) with distributor tagging and optional routes.
 
@@ -86,27 +83,20 @@ class MetaSSEmployeeController(http.Controller):
                 "id": 1
             }
         """
-        try:
-            _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            vals = prepare_employee_values(api_env, payload)
-            employee = api_env["hr.employee"].create(vals)
+        _mobile_user, api_env, payload = get_mobile_api_context(payload)
+        require_ui_access(_mobile_user, AccessKey.DASHBOARD_SALES_OFFICERS_CREATE)
+        vals = prepare_employee_values(api_env, payload)
+        employee = api_env["hr.employee"].create(vals)
 
-            return {
-                "success": True,
-                "api_version": API_VERSION,
-                "message": "Employee created successfully.",
-                "data": serialize_employee(employee),
-            }
-        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
-            return error_response("validation_error", str(exc))
-        except Exception:
-            request.env.cr.rollback()
-            return error_response(
-                "server_error",
-                "An unexpected error occurred while creating employee.",
-            )
+        return {
+            "success": True,
+            "api_version": API_VERSION,
+            "message": "Employee created successfully.",
+            "data": serialize_employee(employee),
+        }
 
     @http.route(f"{API_PREFIX}/employees/<int:employee_id>", type="json", auth="user", methods=["POST"])
+    @mobile_api_error_boundary
     def get_employee(self, employee_id, **payload):
         """Return one employee detail by id.
 
@@ -118,26 +108,19 @@ class MetaSSEmployeeController(http.Controller):
                 "id": 1
             }
         """
-        try:
-            _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            employee = get_employee_for_payload(api_env, employee_id, payload)
+        _mobile_user, api_env, payload = get_mobile_api_context(payload)
+        require_ui_access(_mobile_user, AccessKey.DASHBOARD_SALES_OFFICERS_DETAIL)
+        employee = get_employee_for_payload(api_env, employee_id, payload)
 
-            return {
-                "success": True,
-                "api_version": API_VERSION,
-                "message": "Employee details fetched successfully.",
-                "data": serialize_employee(employee),
-            }
-        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
-            return error_response("validation_error", str(exc))
-        except Exception:
-            request.env.cr.rollback()
-            return error_response(
-                "server_error",
-                "An unexpected error occurred while fetching employee details.",
-            )
+        return {
+            "success": True,
+            "api_version": API_VERSION,
+            "message": "Employee details fetched successfully.",
+            "data": serialize_employee(employee),
+        }
 
     @http.route(f"{API_PREFIX}/employees/<int:employee_id>/update", type="json", auth="user", methods=["POST"])
+    @mobile_api_error_boundary
     def update_employee(self, employee_id, **payload):
         """Update an existing employee details and route mappings.
 
@@ -152,25 +135,18 @@ class MetaSSEmployeeController(http.Controller):
                 "id": 1
             }
         """
-        try:
-            _mobile_user, api_env, payload = get_mobile_api_context(payload)
-            employee = get_employee_for_payload(api_env, employee_id, payload)
+        _mobile_user, api_env, payload = get_mobile_api_context(payload)
+        require_ui_access(_mobile_user, AccessKey.DASHBOARD_SALES_OFFICERS_CREATE)
+        employee = get_employee_for_payload(api_env, employee_id, payload)
 
-            vals = prepare_employee_update_values(api_env, payload, employee)
-            if vals:
-                employee.write(vals)
+        vals = prepare_employee_update_values(api_env, payload, employee)
+        if vals:
+            employee.write(vals)
 
-            return {
-                "success": True,
-                "api_version": API_VERSION,
-                "message": "Employee updated successfully.",
-                "data": serialize_employee(employee),
-            }
-        except (AccessDenied, AccessError, MissingError, UserError, ValidationError) as exc:
-            return error_response("validation_error", str(exc))
-        except Exception:
-            request.env.cr.rollback()
-            return error_response(
-                "server_error",
-                "An unexpected error occurred while updating employee.",
-            )
+        return {
+            "success": True,
+            "api_version": API_VERSION,
+            "message": "Employee updated successfully.",
+            "data": serialize_employee(employee),
+        }
+

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import functools
 import logging
 from odoo.http import request
 from odoo.exceptions import AccessDenied, AccessError, MissingError, UserError, ValidationError
@@ -93,6 +94,94 @@ def get_mobile_api_context(payload=None, require_employee=False):
     return mobile_user, api_env, trusted_payload
 
 
+def require_ui_access(mobile_user, key):
+    """Fail-closed API gate for a synced mobile UI resource key.
+
+    Unlike ``MobilePolicy.has_ui_access`` for UI visibility, endpoint
+    authorization must deny unknown or unmapped keys so a typo cannot become an
+    open endpoint.
+    """
+    key = (key or "").strip()
+    if not key:
+        raise AccessDenied("Missing access resource key.")
+
+    resource = mobile_user.env["mobile.ui.resource"].sudo().search([
+        ("key", "=", key),
+        ("active", "=", True),
+    ], limit=1)
+    if not resource:
+        raise AccessDenied("Unknown access resource '%s'." % key)
+    if not resource.module_ids:
+        raise AccessDenied("Access resource '%s' is not assigned to a module." % key)
+
+    group = mobile_user.sudo().group_id
+    if not group:
+        raise AccessDenied("The mobile user has no assigned mobile group.")
+    if resource not in group.sudo().effective_resource_ids:
+        raise AccessDenied("You do not have access to this operation.")
+    return True
+
+
+def require_any_ui_access(mobile_user, keys):
+    """Allow the endpoint when any one fail-closed resource key is granted."""
+    denied = []
+    for key in keys or []:
+        try:
+            require_ui_access(mobile_user, key)
+            return key
+        except AccessDenied as exc:
+            denied.append(str(exc))
+    if denied:
+        raise AccessDenied("You do not have access to this operation.")
+    raise AccessDenied("Missing access resource key.")
+
+
+def sale_type_from_payload(payload, default="primary"):
+    sale_type = (
+        (payload or {}).get("sale_type")
+        or (payload or {}).get("type")
+        or default
+        or ""
+    )
+    sale_type = sale_type.strip().lower() if isinstance(sale_type, str) else ""
+    if sale_type not in ("primary", "secondary"):
+        raise ValidationError("Invalid sale type. Must be 'primary' or 'secondary'.")
+    return sale_type
+
+
+def sale_type_key(payload, primary_key, secondary_key, default="primary"):
+    return secondary_key if sale_type_from_payload(payload, default) == "secondary" else primary_key
+
+
+def require_sale_type_access(mobile_user, payload, primary_key, secondary_key, default="primary"):
+    key = sale_type_key(payload, primary_key, secondary_key, default=default)
+    require_ui_access(mobile_user, key)
+    return key
+
+
+def contact_type_from_payload(payload, default=None):
+    customer_type = (
+        (payload or {}).get("customer_type")
+        or (payload or {}).get("type")
+        or default
+        or ""
+    )
+    customer_type = customer_type.strip().lower() if isinstance(customer_type, str) else ""
+    if customer_type not in ("distributor", "outlet"):
+        raise ValidationError("Invalid customer type. Must be 'distributor' or 'outlet'.")
+    return customer_type
+
+
+def contact_type_key(payload, distributor_key, outlet_key, default=None):
+    return outlet_key if contact_type_from_payload(payload, default) == "outlet" else distributor_key
+
+
+def require_contact_type_access(mobile_user, payload, distributor_key, outlet_key, default=None):
+    key = contact_type_key(payload, distributor_key, outlet_key, default=default)
+    require_ui_access(mobile_user, key)
+    return key
+
+
 def check_mobile_model_access(mobile_user, model_name, operation):
     """Check mobile-group model access using group + implied groups."""
     policy = MobilePolicy(mobile_user)
@@ -116,3 +205,29 @@ def mobile_rule_domain_allows_values(env, mobile_user, model_name, operation, va
     This is useful before create requests, where there is no saved record yet.
     """
     return MobilePolicy(mobile_user).allows_values(env, model_name, operation, values)
+
+
+def mobile_api_error_boundary(func):
+    """Wrap a JSON mobile endpoint in the standard error boundary.
+
+    The call is forwarded unchanged — the endpoint keeps its own signature
+    (URL path params included) and still calls :func:`get_mobile_api_context`
+    itself — while any exception is funnelled through
+    :func:`handle_api_exception`, which rolls back the cursor, maps known
+    Validation/Access/Missing/User errors to a client message, and hides
+    internal detail for everything else. This replaces the identical
+    ``try/except`` block every endpoint repeats. Apply it *below* ``@http.route``::
+
+        @http.route(...)
+        @mobile_api_error_boundary
+        def my_endpoint(self, **payload):
+            mobile_user, api_env, payload = get_mobile_api_context(payload)
+            ...
+    """
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as exc:
+            return handle_api_exception(exc)
+    return wrapper

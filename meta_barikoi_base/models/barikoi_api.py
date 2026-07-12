@@ -33,7 +33,7 @@ class BarikoiAPI(models.AbstractModel):
         """Check if Barikoi is the default map provider"""
         return self.env['ir.config_parameter'].sudo().get_param('barikoi.default_provider') == 'True'
 
-    def _make_request(self, endpoint, params=None, method='GET'):
+    def _make_request(self, endpoint, params=None, method='GET', timeout=30):
         """
         Make a request to Barikoi API
         
@@ -58,9 +58,9 @@ class BarikoiAPI(models.AbstractModel):
         
         try:
             if method == 'GET':
-                response = requests.get(url, params=params, timeout=30)
+                response = requests.get(url, params=params, timeout=timeout)
             else:
-                response = requests.post(url, json=params, timeout=30)
+                response = requests.post(url, json=params, timeout=timeout)
             
             response.raise_for_status()
             return response.json()
@@ -168,7 +168,7 @@ class BarikoiAPI(models.AbstractModel):
             'bangla': options.get('bangla', False),
         }
         
-        return self._make_request('/search/reverse/geocode', params)
+        return self._make_request('/search/reverse/geocode', params, timeout=options.get('timeout', 30))
 
     @api.model
     def geocode(self, address, city=None):
