@@ -38,16 +38,25 @@ def get_product_pagination(payload):
     return get_pagination(payload)
 
 
-def serialize_products(products):
+def serialize_products(products, partner=None):
     """Serialize product variants for the mobile app."""
     data = []
     for product in products:
+        # Determine list price based on partner's pricelist if any
+        list_price = product.list_price or 0.0
+        if partner and partner.property_product_pricelist:
+            pricelist = partner.property_product_pricelist
+            # Check if there is an applicable rule for this product in the pricelist
+            price, rule_id = pricelist._get_product_price_rule(product, 1.0)
+            if rule_id:
+                list_price = price
+
         data.append({
             "id": product.id,
             "name": product.display_name,
             "default_code": product.default_code or None,
             "barcode": product.barcode or None,
-            "list_price": product.list_price or 0.0,
+            "list_price": list_price,
             "standard_price": product.standard_price or 0.0,
             "uom": {
                 "id": product.uom_id.id,

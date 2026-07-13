@@ -54,9 +54,19 @@ class MetaSSProductController(http.Controller):
                 # If no van location, they cannot sell anything
                 domain.append(("id", "in", []))
 
+        partner_id = payload.get("partner_id")
+        partner = None
+        if partner_id:
+            try:
+                partner = api_env["res.partner"].sudo().browse(int(partner_id))
+                if not partner.exists():
+                    partner = None
+            except (ValueError, TypeError):
+                partner = None
+
         products = Product.search(domain, limit=limit, offset=offset, order="name")
         total = Product.search_count(domain)
-        data = serialize_products(products)
+        data = serialize_products(products, partner=partner)
 
         return {
             "success": True,

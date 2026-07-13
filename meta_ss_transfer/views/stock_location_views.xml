@@ -8,10 +8,10 @@
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='usage']" position="after">
                     <field name="ss_location_type"/>
-                    <field name="ss_employee_id" 
+                    <field name="ss_distributor_id" 
                            invisible="ss_location_type != 'van_loading'" 
                            required="ss_location_type == 'van_loading'"/>
-                    <field name="ss_distributor_id" 
+                    <field name="ss_employee_id" 
                            invisible="ss_location_type != 'van_loading'" 
                            required="ss_location_type == 'van_loading'"/>
                 </xpath>

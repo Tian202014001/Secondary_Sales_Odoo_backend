@@ -18,6 +18,7 @@ class StockLocation(models.Model):
     ss_employee_id = fields.Many2one(
         "hr.employee",
         string="Assigned Employee",
+        domain="[('distributor_contact_ids', 'in', ss_distributor_id)]",
     )
     ss_distributor_id = fields.Many2one(
         "res.partner",
@@ -33,6 +34,8 @@ class StockLocation(models.Model):
                     raise ValidationError(_("Assigned Employee is required for Van Loading locations."))
                 if not location.ss_distributor_id:
                     raise ValidationError(_("Assigned Distributor is required for Van Loading locations."))
+                if location.ss_distributor_id not in location.ss_employee_id.distributor_contact_ids:
+                    raise ValidationError(_("The assigned employee must be assigned to the selected distributor."))
 
     @api.onchange("ss_location_type", "ss_distributor_id")
     def _onchange_van_loading_parent(self):
@@ -40,6 +43,8 @@ class StockLocation(models.Model):
             if self.ss_distributor_id.property_stock_customer:
                 self.location_id = self.ss_distributor_id.property_stock_customer
                 self.usage = "customer"
+            if self.ss_employee_id and self.ss_distributor_id not in self.ss_employee_id.distributor_contact_ids:
+                self.ss_employee_id = False
 
     @api.model_create_multi
     def create(self, vals_list):
