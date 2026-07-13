@@ -15,12 +15,14 @@ class SSRoute(models.Model):
     name = fields.Char(string="Route Name", required=True)
     code = fields.Char(string="Route Code", required=True)
     active = fields.Boolean(default=True)
+    
     distributor_contact_id = fields.Many2one(
         'res.partner',
         string="Distributor Contact",
         domain="[('customer_type', '=', 'distributor')]",
         help="Distributor contact associated with this route",
     )
+
     ss_employee_id = fields.Many2one(
         'hr.employee',
         string="Route Employee",
@@ -34,6 +36,15 @@ class SSRoute(models.Model):
         string="Route Outlets",
         help="Ordered outlet visit list for this route"
     )
+
+    @api.depends('ss_employee_id.name', 'name')
+    def _compute_display_name(self):
+        for route in self:
+            if route.ss_employee_id:
+                route.display_name = f"[{route.ss_employee_id.name}] {route.name}"
+            else:
+                route.display_name = route.name
+
     @api.constrains("code")
     def _check_unique_code(self):
         for route in self:
