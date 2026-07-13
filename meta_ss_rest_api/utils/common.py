@@ -154,7 +154,32 @@ def sale_type_key(payload, primary_key, secondary_key, default="primary"):
 
 
 def require_sale_type_access(mobile_user, payload, primary_key, secondary_key, default="primary"):
-    key = sale_type_key(payload, primary_key, secondary_key, default=default)
+    sale_type = (payload or {}).get("sale_type") or (payload or {}).get("type")
+    if not sale_type:
+        env = mobile_user.env
+        picking_id = (payload or {}).get("picking_id")
+        sale_order_id = (payload or {}).get("sale_order_id") or (payload or {}).get("order_id")
+        if not sale_order_id and picking_id:
+            try:
+                picking = env["stock.picking"].sudo().browse(int(picking_id)).exists()
+                if picking and picking.sale_id:
+                    sale_order_id = picking.sale_id.id
+            except Exception:
+                pass
+        if sale_order_id:
+            try:
+                order = env["sale.order"].sudo().browse(int(sale_order_id)).exists()
+                if order:
+                    sale_type = order.sale_type
+            except Exception:
+                pass
+    if not sale_type:
+        sale_type = default
+    if payload is not None and isinstance(payload, dict):
+        payload["sale_type"] = sale_type
+        payload["type"] = sale_type
+
+    key = secondary_key if sale_type == "secondary" else primary_key
     require_ui_access(mobile_user, key)
     return key
 

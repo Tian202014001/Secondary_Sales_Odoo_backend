@@ -30,6 +30,12 @@ class StockPicking(models.Model):
         required=True,
     )
 
+    ss_transfer_category = fields.Selection(
+        [("delivery", "Delivery"), ("return", "Return"), ("scrap", "Scrap")],
+        string="Transfer Category",
+        help="Denotes the purpose of this stock picking.",
+    )
+
     db_code = fields.Char(related="ss_distributor_id.db_code", readonly=True, string='DB Code', store=True)
 
     challan_number = fields.Char(string='Challan Number')
@@ -206,6 +212,7 @@ class StockPicking(models.Model):
         return res
 
     def button_validate(self):
+        self._assign_secondary_damaged_receipt_lots()
         if self.env.context.get("skip_auto_scrap_transfer"):
             return super().button_validate()
 
@@ -213,6 +220,48 @@ class StockPicking(models.Model):
         res = super().button_validate()
         self._create_auto_scrap_transfers(scrap_data)
         return res
+
+    def _assign_secondary_damaged_receipt_lots(self):
+        for picking in self:
+            if (
+                picking.picking_type_id.code == "incoming"
+                and picking.ss_picking_type == "secondary"
+                and picking.sale_id
+                and picking.sale_id.sale_type == "secondary"
+            ):
+                for move in picking.move_ids.filtered(lambda m: m.state not in ("done", "cancel")):
+                    if move.product_id.tracking == "none":
+                        continue
+
+                    # Find corresponding outgoing delivery picking for this sale order
+                    delivery = picking.sale_id.picking_ids.filtered(
+                        lambda p: p.picking_type_id.code == "outgoing" and p.state == "done"
+                    )
+                    delivery_lines = delivery.move_line_ids.filtered(
+                        lambda l: l.product_id == move.product_id and l.lot_id
+                    )
+
+                    qty_to_assign = move.product_uom_qty
+                    move.move_line_ids.unlink()
+
+                    for dl in delivery_lines:
+                        if qty_to_assign <= 0:
+                            break
+                        take = min(dl.quantity, qty_to_assign)
+                        self.env["stock.move.line"].sudo().create({
+                            "picking_id": picking.id,
+                            "move_id": move.id,
+                            "product_id": move.product_id.id,
+                            "lot_id": dl.lot_id.id,
+                            "quantity": take,
+                            "location_id": move.location_id.id,
+                            "location_dest_id": move.location_dest_id.id,
+                            "picked": True,
+                        })
+                        qty_to_assign -= take
+
+                    if qty_to_assign <= 0:
+                        move.write({"picked": True})
 
     def _prepare_auto_scrap_data(self):
         scrap_pickings_to_create = []
@@ -299,6 +348,7 @@ class StockPicking(models.Model):
                 "origin": f"Auto Scrap for {origin_picking.name}",
                 "van_operation_type": "unload",
                 "ss_transfer_type": "unload",
+                "ss_transfer_category": "scrap",
                 "so_employee_id": item["employee"].id,
                 "ss_picking_type": "secondary",
                 "move_ids": [

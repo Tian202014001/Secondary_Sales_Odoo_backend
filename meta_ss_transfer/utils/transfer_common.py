@@ -299,7 +299,7 @@ def create_delivery(env, payload, flavor):
 
     # Step 2: Validation
     # strictly checks if those exact products and lots actually exist in the distributor's stock
-    prepared_lines = _prepare_transfer_lines(env, lines, source_location)
+    prepared_lines = _prepare_transfer_lines(env, lines, source_location, flavor=flavor)
     _validate_requested_quantities(env, prepared_lines, source_location)
 
     picking_type = warehouse.in_type_id
@@ -321,6 +321,7 @@ def create_delivery(env, payload, flavor):
         "damage_type": payload.get("damage_type") or False,
         "origin": f"{flavor.label} from {distributor.name}",
         "ss_picking_type": payload.get("picking_type") or payload.get("type") or payload.get("sale_type") or "primary",
+        "ss_transfer_category": flavor.label.lower(),
         "move_ids": [
             (
                 0,
@@ -390,7 +391,7 @@ def update_delivery(env, picking_id, payload, flavor):
     if not isinstance(lines, list) or not lines:
         raise ValidationError("'lines' must be a non-empty list.")
 
-    prepared_lines = _prepare_transfer_lines(env, lines, source_location)
+    prepared_lines = _prepare_transfer_lines(env, lines, source_location, flavor=flavor)
     _validate_requested_quantities(env, prepared_lines, source_location)
 
     # Cancel existing moves
@@ -458,7 +459,7 @@ def serialize_delivery(picking):
     }
 
 
-def _prepare_transfer_lines(env, lines, source_location):
+def _prepare_transfer_lines(env, lines, source_location, flavor=None):
     prepared = []
     seen_products = set()
     for index, line in enumerate(lines, start=1):
@@ -471,12 +472,12 @@ def _prepare_transfer_lines(env, lines, source_location):
         seen_products.add(product.id)
 
         quantity = _get_non_negative_float(line.get("quantity") or 0.0, "done quantity")
-        product_uom_qty = _get_positive_float(line.get("product_uom_qty") or quantity, "demand quantity")
+        product_uom_qty = _get_non_negative_float(line.get("product_uom_qty") or 0.0, "demand quantity")
         uom = _get_product_uom(env, line.get("uom_id"), product) if line.get("uom_id") else product.uom_id
         if not uom:
             raise ValidationError("Product '%s' has no unit of measure." % product.display_name)
 
-        lot_lines = _prepare_lot_lines(env, product, quantity, line.get("lot_lines") or [])
+        lot_lines = _prepare_lot_lines(env, product, quantity, line.get("lot_lines") or [], flavor, source_location)
         prepared.append({
             "sequence": index * 10,
             "product": product,
@@ -492,13 +493,26 @@ def _prepare_transfer_lines(env, lines, source_location):
     return prepared
 
 
-def _prepare_lot_lines(env, product, quantity, lot_lines):
+def _prepare_lot_lines(env, product, quantity, lot_lines, flavor=None, source_location=None):
     if product.tracking == "none":
         return []
     if not isinstance(lot_lines, list) or not lot_lines:
         if float_compare(quantity, 0.0, precision_rounding=product.uom_id.rounding) == 0:
             return []
-        raise ValidationError("Lot allocation is required for product '%s'." % product.display_name)
+        if flavor and flavor.label == "Scrap":
+            from odoo.addons.meta_ss_rest_api.utils.helpers import _auto_assign_lots
+            try:
+                assigned = _auto_assign_lots(env, product, quantity, source_location)
+                lot_lines = [{
+                    "lot_id": item["lot_id"],
+                    "quantity": item["quantity"],
+                    "so_qty": 0.0,
+                    "qc_qty": 0.0,
+                } for item in assigned]
+            except ValidationError as e:
+                raise ValidationError("FIFO lot auto-assignment failed: %s" % e.message)
+        else:
+            raise ValidationError("Lot allocation is required for product '%s'." % product.display_name)
 
     total = 0.0
     prepared = []
@@ -739,11 +753,13 @@ def validate_delivery(env, picking_id, payload, flavor):
 
         # Update the move's demand and done quantity to exactly match the target quantity.
         # This prevents any backorders/receipts from being created.
-        move.write({
-            "product_uom_qty": target_qty,
+        vals = {
             "quantity": target_qty,
             "picked": True,
-        })
+        }
+        if move.product_uom_qty > 0.0:
+            vals["product_uom_qty"] = target_qty
+        move.write(vals)
 
         if move.product_id.tracking == "none":
             if not move.move_line_ids:

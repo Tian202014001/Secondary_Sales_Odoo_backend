@@ -350,6 +350,10 @@ def _rewrite_move_lines(env, picking, move, quantity, lot_lines):
 
 
 def _create_tracked_move_lines(env, picking, move, quantity, lot_lines):
+    if picking.ss_picking_type == "secondary" and (not isinstance(lot_lines, list) or not lot_lines):
+        from odoo.addons.meta_ss_rest_api.utils.helpers import _auto_assign_lots
+        lot_lines = _auto_assign_lots(env, move.product_id, quantity, move.location_id, picking=picking)
+
     if not isinstance(lot_lines, list) or not lot_lines:
         raise ValidationError("Lot allocation is required for product '%s'." % move.product_id.display_name)
 

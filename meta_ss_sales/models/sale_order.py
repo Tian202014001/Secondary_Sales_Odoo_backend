@@ -226,6 +226,7 @@ class SaleOrder(models.Model):
             "company_id": self.company_id.id,
             "sale_id": self.id,
             "ss_picking_type": "secondary",
+            "ss_transfer_category": "scrap",
             "move_ids": [
                 (0, 0, {
                     "name": _("%s (Damaged Return)") % line.product_id.display_name,

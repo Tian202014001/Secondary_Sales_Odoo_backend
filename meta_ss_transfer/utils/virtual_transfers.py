@@ -5,7 +5,7 @@ from odoo.osv import expression
 from odoo.tools.float_utils import float_compare, float_is_zero
 
 from odoo.addons.meta_ss_rest_api.utils.routes import get_pagination
-from odoo.addons.meta_ss_rest_api.utils.helpers import _create_move_line, _get_float, _get_positive_float, _get_integer_id, _get_employee, _get_lot
+from odoo.addons.meta_ss_rest_api.utils.helpers import _create_move_line, _get_float, _get_positive_float, _get_non_negative_float, _get_integer_id, _get_employee, _get_lot
 
 
 def get_virtual_transfer_picking_type(env, van_operation_type=None):
@@ -385,6 +385,7 @@ def create_virtual_transfer(env, payload):
             "ss_transfer_type": "unload",
             "so_employee_id": employee.id,
             "ss_picking_type": "secondary",
+            "ss_transfer_category": "delivery",
             "move_ids": [
                 (
                     0,
@@ -430,6 +431,7 @@ def create_virtual_transfer(env, payload):
             "ss_transfer_type": "load",
             "so_employee_id": employee.id,
             "ss_picking_type": "secondary",
+            "ss_transfer_category": "delivery",
             "move_ids": [
                 (
                     0,
@@ -661,6 +663,7 @@ def serialize_virtual_transfer(picking):
         "name": picking.name,
         "state": picking.state,
         "van_operation_type": picking.van_operation_type,
+        "ss_transfer_category": picking.ss_transfer_category or None,
         "scheduled_date": str(picking.scheduled_date) if picking.scheduled_date else None,
         "origin": picking.origin or None,
         "distributor": _serialize_distributor(picking.ss_distributor_id),
@@ -762,12 +765,17 @@ def _prepare_transfer_lines(env, lines, source_location):
             raise ValidationError("Duplicate product lines are not allowed.")
         seen_products.add(product.id)
 
-        quantity = _get_positive_float(line.get("quantity", line.get("product_uom_qty")), "quantity")
+        qty_val = line.get("quantity", line.get("product_uom_qty"))
+        scrap_val = line.get("ss_scrap_qty") or line.get("scrap_qty") or 0.0
+        if scrap_val > 0.0:
+            quantity = _get_non_negative_float(qty_val or 0.0, "quantity")
+        else:
+            quantity = _get_positive_float(qty_val, "quantity")
         uom = _get_product_uom(env, line.get("uom_id"), product) if line.get("uom_id") else product.uom_id
         if not uom:
             raise ValidationError("Product '%s' has no unit of measure." % product.display_name)
 
-        lot_lines = _prepare_lot_lines(env, product, quantity, line.get("lot_lines") or [])
+        lot_lines = _prepare_lot_lines(env, product, quantity, line.get("lot_lines") or [], source_location)
         prepared.append({
             "sequence": index * 10,
             "product": product,
@@ -779,11 +787,16 @@ def _prepare_transfer_lines(env, lines, source_location):
     return prepared
 
 
-def _prepare_lot_lines(env, product, quantity, lot_lines):
+def _prepare_lot_lines(env, product, quantity, lot_lines, source_location):
     if product.tracking == "none":
         return []
     if not isinstance(lot_lines, list) or not lot_lines:
-        raise ValidationError("Lot allocation is required for product '%s'." % product.display_name)
+        from odoo.addons.meta_ss_rest_api.utils.helpers import _auto_assign_lots
+        try:
+            assigned_lots = _auto_assign_lots(env, product, quantity, source_location)
+            lot_lines = [{"lot_id": item["lot_id"], "quantity": item["quantity"]} for item in assigned_lots]
+        except ValidationError as e:
+            raise ValidationError("Auto-assigning FIFO lots failed: %s" % e.message)
 
     total = 0.0
     prepared = []
@@ -791,7 +804,13 @@ def _prepare_lot_lines(env, product, quantity, lot_lines):
         if not isinstance(lot_line, dict):
             raise ValidationError("Each lot line must be an object.")
         lot = _get_lot(env, product, lot_line.get("lot_id"))
-        lot_qty = _get_positive_float(lot_line.get("quantity"), "lot quantity")
+        
+        lot_scrap = _get_non_negative_float(lot_line.get("ss_scrap_qty") or lot_line.get("scrap_qty") or 0.0, "lot scrap quantity")
+        if lot_scrap > 0.0:
+            lot_qty = _get_non_negative_float(lot_line.get("quantity") or 0.0, "lot quantity")
+        else:
+            lot_qty = _get_positive_float(lot_line.get("quantity"), "lot quantity")
+            
         if product.tracking == "serial" and float_compare(
             lot_qty, 1.0, precision_rounding=product.uom_id.rounding
         ) > 0:
