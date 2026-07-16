@@ -79,6 +79,7 @@ def perform_sale_order_action(env, order_id, payload):
 def serialize_sale_order_detail(order):
     """Serialize the order detail screen payload."""
     order = order.sudo()
+    distributor_stock = {}
     if order.sale_type == "secondary" and order.so_employee_id:
         van_locations = order.env["stock.location"].search([
             ("ss_location_type", "=", "van_loading"),
@@ -87,7 +88,17 @@ def serialize_sale_order_detail(order):
             ("active", "=", True),
         ])
         if van_locations:
-            order = order.with_context(location=van_locations[0].id)
+            van_location = van_locations[0]
+            order = order.with_context(location=van_location.id)
+            if van_location.location_id:
+                product_ids = order.order_line.mapped("product_id").ids
+                if product_ids:
+                    quants = order.env['stock.quant'].sudo().search([
+                        ('location_id', '=', van_location.location_id.id),
+                        ('product_id', 'in', product_ids),
+                    ])
+                    for quant in quants:
+                        distributor_stock[quant.product_id.id] = distributor_stock.get(quant.product_id.id, 0.0) + quant.available_quantity
     elif order.sale_type == "primary" or not order.sale_type:
         warehouse = order.warehouse_id or order.env["stock.warehouse"].search([
             ("company_id", "=", order.company_id.id)
@@ -132,7 +143,7 @@ def serialize_sale_order_detail(order):
             "name": order.so_employee_id.name,
         } if order.so_employee_id else None,
         "amounts": _serialize_order_amounts(order),
-        "lines": [_serialize_sale_line(line) for line in order.order_line],
+        "lines": [_serialize_sale_line(line, distributor_stock=distributor_stock) for line in order.order_line],
         "delivery_orders": [_serialize_picking_summary(picking) for picking in order.picking_ids],
     }
 
@@ -170,16 +181,13 @@ def _serialize_order_amounts(order):
     }
 
 
-def _serialize_sale_line(line):
+def _serialize_sale_line(line, distributor_stock=None):
     delivered_qty = line.qty_delivered
     ordered_qty = line.product_uom_qty
 
     distributor_qty_available = 0.0
-    location_id = line.env.context.get('location')
-    if location_id:
-        location = line.env["stock.location"].sudo().browse(location_id)
-        if location and location.location_id:
-            distributor_qty_available = line.product_id.with_context(location=location.location_id.id).qty_available
+    if distributor_stock and line.product_id:
+        distributor_qty_available = distributor_stock.get(line.product_id.id, 0.0)
 
     return {
         "id": line.id,

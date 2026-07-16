@@ -40,6 +40,15 @@ def get_product_pagination(payload):
 
 def serialize_products(products, partner=None, distributor_location_id=None):
     """Serialize product variants for the mobile app."""
+    distributor_stock = {}
+    if distributor_location_id and products:
+        quants = products.env['stock.quant'].sudo().search([
+            ('location_id', '=', distributor_location_id),
+            ('product_id', 'in', products.ids),
+        ])
+        for quant in quants:
+            distributor_stock[quant.product_id.id] = distributor_stock.get(quant.product_id.id, 0.0) + quant.available_quantity
+
     data = []
     for product in products:
         # Determine list price based on partner's pricelist if any
@@ -64,7 +73,7 @@ def serialize_products(products, partner=None, distributor_location_id=None):
             } if product.uom_id else None,
             "uom_name": product.uom_id.name if product.uom_id else None,
             "qty_available": product.qty_available,
-            "distributor_qty_available": product.with_context(location=distributor_location_id).qty_available if distributor_location_id else None,
+            "distributor_qty_available": distributor_stock.get(product.id, 0.0),
             "type": product.type or None,
             "active": product.active,
         })
