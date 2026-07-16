@@ -84,7 +84,7 @@ class MetaSSContactController(http.Controller):
                 raise AccessDenied(f"You do not have permission to view {customer_type} contacts.")
 
         domain = build_contact_domain(api_env, payload, customer_type)
-        domain = apply_mobile_rule_domain(mobile_user, "res.partner", "read", domain)
+        # domain = apply_mobile_rule_domain(mobile_user, "res.partner", "read", domain)
         limit, offset, page, page_size = get_contact_pagination(payload)
 
         order_by = "name"
@@ -192,14 +192,14 @@ class MetaSSContactController(http.Controller):
             AccessKey.SECONDARY_OUTLETS_EDIT,
         )
         contact = get_contact_for_payload(api_env, contact_id, payload, customer_type)
-        rule_domain = apply_mobile_rule_domain(
-            mobile_user,
-            "res.partner",
-            "write",
-            [("id", "=", contact.id)],
-        )
-        if not api_env["res.partner"].sudo().search_count(rule_domain):
-            raise AccessDenied("You do not have access to update this contact.")
+        # rule_domain = apply_mobile_rule_domain(
+        #     mobile_user,
+        #     "res.partner",
+        #     "write",
+        #     [("id", "=", contact.id)],
+        # )
+        # if not api_env["res.partner"].sudo().search_count(rule_domain):
+        #     raise AccessDenied("You do not have access to update this contact.")
 
         vals = prepare_contact_update_values(payload, customer_type)
         if "customer_type" in vals and vals["customer_type"] != contact.customer_type:

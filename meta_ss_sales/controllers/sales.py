@@ -47,7 +47,7 @@ class MetaSSSalesController(http.Controller):
         # check_mobile_model_access(_mobile_user, "sale.order", "read")
 
         domain = build_sale_order_domain(payload)
-        domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", domain)
+        # domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", domain)
 
         limit, offset, page, page_size = get_sales_pagination(payload)
 
@@ -110,8 +110,8 @@ class MetaSSSalesController(http.Controller):
 
         order_values = prepare_sale_order_values(api_env, payload)
 
-        if not mobile_rule_domain_allows_values(api_env, _mobile_user, "sale.order", "create", order_values):
-            raise AccessDenied("You do not have access to create this sale order based on your mobile rules.")
+        # if not mobile_rule_domain_allows_values(api_env, _mobile_user, "sale.order", "create", order_values):
+        #     raise AccessDenied("You do not have access to create this sale order based on your mobile rules.")
 
         order = api_env["sale.order"].create(order_values)
 
@@ -143,9 +143,9 @@ class MetaSSSalesController(http.Controller):
 
         order = get_sale_order_for_employee(api_env, order_id, payload)
 
-        rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "write", [("id", "=", order.id)])
-        if not api_env["sale.order"].sudo().search_count(rule_domain):
-            raise AccessDenied("You do not have access to update this sale order.")
+        # rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "write", [("id", "=", order.id)])
+        # if not api_env["sale.order"].sudo().search_count(rule_domain):
+        #     raise AccessDenied("You do not have access to update this sale order.")
 
         if order.state == "cancel":
             raise ValidationError("Cannot edit cancelled sale order.")

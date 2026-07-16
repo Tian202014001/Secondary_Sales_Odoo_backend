@@ -142,7 +142,22 @@ def serialize_picking_detail(picking):
     }
 
 
+def save_delivery(env, order, picking, payload):
+    if picking.state in ("done", "cancel"):
+        raise ValidationError("This delivery cannot be edited in its current state.")
+
+    _apply_warehouse_to_picking(env, picking, payload)
+    _apply_delivery_lines(env, picking, payload.get("lines") or [])
+    return {
+        "validation_result": True,
+        "order": serialize_sale_order_detail(order),
+    }
+
+
 def validate_delivery(env, order, picking, payload):
+    if picking.ss_picking_type == "primary":
+        raise ValidationError("Primary sales deliveries cannot be validated from the mobile app.")
+
     if picking.state in ("done", "cancel"):
         raise ValidationError("This delivery cannot be validated in its current state.")
 
@@ -171,6 +186,9 @@ def perform_delivery_action(env, picking_id, payload):
         raise ValidationError("'action' is required.")
 
     order, picking = get_delivery_context_by_picking(env, picking_id, payload)
+    if action == "save":
+        return save_delivery(env, order, picking, payload)
+
     if action == "validate":
         return validate_delivery(env, order, picking, payload)
 
@@ -215,6 +233,7 @@ def _get_deliverable_moves(picking):
 def _serialize_move(move):
     ordered_qty = move.product_uom_qty
     current_done_qty = move.quantity
+    available_qty = move.product_id.with_context(location=move.location_id.id).qty_available
     return {
         "move_id": move.id,
         "sale_line_id": move.sale_line_id.id if move.sale_line_id else None,
@@ -228,6 +247,7 @@ def _serialize_move(move):
         "quantity_done": current_done_qty,
         "remaining_qty": ordered_qty,
         "default_delivery_qty": current_done_qty,
+        "available_qty": available_qty,
         "product_uom": {
             "id": move.product_uom.id,
             "name": move.product_uom.name,

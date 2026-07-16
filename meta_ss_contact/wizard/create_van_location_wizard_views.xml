@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_create_van_location_wizard_form" model="ir.ui.view">
+            <field name="name">create.van.location.wizard.form</field>
+            <field name="model">create.van.location.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Create Van Location">
+                    <group>
+                        <group>
+                            <field name="distributor_id" readonly="1" options="{'no_open': True}"/>
+                            <field name="employee_id" options="{'no_create': True, 'no_open': True}"/>
+                        </group>
+                        <group>
+                            <field name="name"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_create_van_location" string="Create" type="object" class="btn-primary"/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_create_van_location_wizard" model="ir.actions.act_window">
+            <field name="name">Create Van Location</field>
+            <field name="res_model">create.van.location.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+    </data>
+</odoo>

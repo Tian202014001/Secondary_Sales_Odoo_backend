@@ -38,9 +38,9 @@ class MetaSSSaleOrderDetailsController(http.Controller):
         )
         # check_mobile_model_access(_mobile_user, "sale.order", "read")
 
-        rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", [("id", "=", order_id)])
-        if not api_env["sale.order"].sudo().search_count(rule_domain):
-            raise AccessDenied("You do not have access to view this sale order.")
+        # rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", [("id", "=", order_id)])
+        # if not api_env["sale.order"].sudo().search_count(rule_domain):
+        #     raise AccessDenied("You do not have access to view this sale order.")
 
         order = get_sale_order_for_employee(api_env, order_id, payload)
         return {
@@ -92,9 +92,9 @@ class MetaSSSaleOrderDetailsController(http.Controller):
             )
         # check_mobile_model_access(_mobile_user, "sale.order", "write")
 
-        rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "write", [("id", "=", order_id)])
-        if not api_env["sale.order"].sudo().search_count(rule_domain):
-            raise AccessDenied("You do not have access to perform actions on this sale order.")
+        # rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "write", [("id", "=", order_id)])
+        # if not api_env["sale.order"].sudo().search_count(rule_domain):
+        #     raise AccessDenied("You do not have access to perform actions on this sale order.")
 
         order = perform_sale_order_action(api_env, order_id, payload)
         return {
@@ -121,9 +121,9 @@ class MetaSSSaleOrderDetailsController(http.Controller):
         )
         # check_mobile_model_access(_mobile_user, "sale.order", "read")
 
-        rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", [("id", "=", order_id)])
-        if not api_env["sale.order"].sudo().search_count(rule_domain):
-            raise AccessDenied("You do not have access to print this sale order.")
+        # rule_domain = apply_mobile_rule_domain(_mobile_user, "sale.order", "read", [("id", "=", order_id)])
+        # if not api_env["sale.order"].sudo().search_count(rule_domain):
+        #     raise AccessDenied("You do not have access to print this sale order.")
 
         order = get_sale_order_for_employee(api_env, order_id, payload)
 

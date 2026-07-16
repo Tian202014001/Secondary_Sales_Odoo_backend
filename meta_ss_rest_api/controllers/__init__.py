@@ -5,3 +5,4 @@ from . import warehouses
 from . import locations
 from . import van_loading
 from . import access_control
+from . import dashboard

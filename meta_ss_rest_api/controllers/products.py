@@ -53,6 +53,12 @@ class MetaSSProductController(http.Controller):
             else:
                 # If no van location, they cannot sell anything
                 domain.append(("id", "in", []))
+        elif sale_type == "primary" or not sale_type:
+            warehouse = api_env["stock.warehouse"].sudo().search([
+                ("company_id", "=", api_env.company.id)
+            ], limit=1)
+            if warehouse and warehouse.lot_stock_id:
+                Product = Product.with_context(location=warehouse.lot_stock_id.id)
 
         partner_id = payload.get("partner_id")
         partner = None

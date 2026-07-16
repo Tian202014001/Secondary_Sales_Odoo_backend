@@ -12,6 +12,8 @@
     "license": "LGPL-3",
     "depends": ["meta_ss_rest_api", "base", "stock", "contacts"],
     "data": [
+        "security/ir.model.access.csv",
+        "wizard/create_van_location_wizard_views.xml",
         "views/res_contact.xml",
     ],
     "installable": True,

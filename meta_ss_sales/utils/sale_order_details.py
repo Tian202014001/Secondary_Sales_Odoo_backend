@@ -79,6 +79,21 @@ def perform_sale_order_action(env, order_id, payload):
 def serialize_sale_order_detail(order):
     """Serialize the order detail screen payload."""
     order = order.sudo()
+    if order.sale_type == "secondary" and order.so_employee_id:
+        van_locations = order.env["stock.location"].search([
+            ("ss_location_type", "=", "van_loading"),
+            ("ss_employee_id", "child_of", order.so_employee_id.id),
+            ("scrap_location", "=", False),
+            ("active", "=", True),
+        ])
+        if van_locations:
+            order = order.with_context(location=van_locations[0].id)
+    elif order.sale_type == "primary" or not order.sale_type:
+        warehouse = order.warehouse_id or order.env["stock.warehouse"].search([
+            ("company_id", "=", order.company_id.id)
+        ], limit=1)
+        if warehouse and warehouse.lot_stock_id:
+            order = order.with_context(location=warehouse.lot_stock_id.id)
     
     delivery_status = "no"
     try:
@@ -102,8 +117,9 @@ def serialize_sale_order_detail(order):
         "expected_delivery_date": str(order.commitment_date) if order.commitment_date else None,
         "client_order_ref": order.client_order_ref or None,
         "can_cancel": order.state not in ("cancel", "done"),
-        "can_validate_delivery": any(
-            picking.state not in ("done", "cancel") for picking in order.picking_ids
+        "can_validate_delivery": (
+            order.sale_type != "primary"
+            and any(picking.state not in ("done", "cancel") for picking in order.picking_ids)
         ),
         "distributor": {
             "id": order.partner_id.id,
@@ -164,6 +180,7 @@ def _serialize_sale_line(line):
             "name": line.product_id.display_name,
             "default_code": line.product_id.default_code or None,
             "tracking": line.product_id.tracking,
+            "qty_available": line.product_id.qty_available,
         } if line.product_id else None,
         "product_uom_qty": ordered_qty,
         "qty_delivered": delivered_qty,

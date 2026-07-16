@@ -38,7 +38,7 @@ class StockPicking(models.Model):
             if picking.sale_id and picking.sale_id.so_employee_id:
                 picking.so_employee_id = picking.sale_id.so_employee_id
             else:
-                picking.so_employee_id = picking.so_employee_id
+                picking.so_employee_id = picking.so_employee_id or False
 
     @api.depends("sale_id.sale_type")
     def _compute_ss_picking_type(self):
