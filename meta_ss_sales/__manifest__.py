@@ -12,6 +12,7 @@
     "license": "LGPL-3",
     "depends": ["meta_ss_rest_api", "sale_stock", "meta_ss_contact", "meta_ss_route_management", "meta_ss_transfer"],
     "data": [
+        "security/meta_ss_sales_security.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
         "views/sale_order_views.xml",

@@ -5,14 +5,20 @@
             <field name="name">create.van.location.wizard.form</field>
             <field name="model">create.van.location.wizard</field>
             <field name="arch" type="xml">
-                <form string="Create Van Location">
+                <form string="Create Location">
                     <group>
                         <group>
                             <field name="distributor_id" readonly="1" options="{'no_open': True}"/>
-                            <field name="employee_id" options="{'no_create': True, 'no_open': True}"/>
+                            <field name="ss_location_type" required="1"/>
+                            <field name="employee_id" 
+                                   invisible="ss_location_type != 'van_loading'" 
+                                   required="ss_location_type == 'van_loading'"
+                                   options="{'no_create': True, 'no_open': True}"/>
                         </group>
                         <group>
-                            <field name="name"/>
+                            <field name="name" 
+                                   readonly="ss_location_type == 'van_loading'" 
+                                   force_save="1"/>
                         </group>
                     </group>
                     <footer>

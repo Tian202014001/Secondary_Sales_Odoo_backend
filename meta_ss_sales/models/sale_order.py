@@ -119,8 +119,6 @@ class SaleOrder(models.Model):
         result = super()._action_confirm()
         for order in self.filtered(lambda o: o.sale_type == "secondary"):
             order._ss_build_secondary_documents()
-        for order in self.filtered(lambda o: o.sale_type == "primary"):
-            order._ss_create_demand_invoice()
         return result
 
     def _ss_build_secondary_documents(self):

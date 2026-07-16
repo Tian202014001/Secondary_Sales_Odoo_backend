@@ -24,6 +24,21 @@
                         <field name="damaged_picking_count" widget="statinfo" string="Damaged Returns"/>
                     </button>
                 </xpath>
+                <!-- Restrict Confirm buttons to Finance Team group -->
+                <xpath expr="//button[@name='action_confirm'][@id='action_confirm']" position="attributes">
+                    <attribute name="groups">meta_ss_sales.group_ss_finance_team</attribute>
+                </xpath>
+                <xpath expr="//button[@name='action_confirm'][not(@id)]" position="attributes">
+                    <attribute name="groups">meta_ss_sales.group_ss_finance_team</attribute>
+                </xpath>
+
+                <!-- Restrict Create Invoice buttons to Supply Chain Coordinator group -->
+                <xpath expr="//button[@name='%(sale.action_view_sale_advance_payment_inv)d'][1]" position="attributes">
+                    <attribute name="groups">meta_ss_sales.group_ss_supply_chain_coordinator</attribute>
+                </xpath>
+                <xpath expr="//button[@name='%(sale.action_view_sale_advance_payment_inv)d'][2]" position="attributes">
+                    <attribute name="groups">meta_ss_sales.group_ss_supply_chain_coordinator</attribute>
+                </xpath>
             </field>
         </record>
 
@@ -67,5 +82,20 @@
                   parent="sale.sale_order_menu"
                   action="action_secondary_sales_order"
                   sequence="16"/>
+
+        <!-- Restrict stock.picking Validate buttons by Group -->
+        <record id="view_picking_form_inherit_meta_ss_sales_security" model="ir.ui.view">
+            <field name="name">stock.picking.form.inherit.meta.ss.sales.security</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='button_validate'][@class='oe_highlight']" position="attributes">
+                    <attribute name="groups">meta_ss_sales.group_ss_supply_chain_coordinator</attribute>
+                </xpath>
+                <xpath expr="//button[@name='button_validate'][not(contains(@class, 'oe_highlight'))]" position="attributes">
+                    <attribute name="groups">meta_ss_sales.group_ss_supply_chain_coordinator</attribute>
+                </xpath>
+            </field>
+        </record>
     </data>
 </odoo>

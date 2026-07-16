@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Module Category -->
+        <record id="module_category_secondary_sales" model="ir.module.category">
+            <field name="name">Secondary Sales</field>
+            <field name="sequence">26</field>
+        </record>
+
+        <!-- Finance Team Group -->
+        <record id="group_ss_finance_team" model="res.groups">
+            <field name="name">Finance Team</field>
+            <field name="category_id" ref="meta_ss_sales.module_category_secondary_sales"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        </record>
+
+        <!-- Supply Chain Coordinator Group -->
+        <record id="group_ss_supply_chain_coordinator" model="res.groups">
+            <field name="name">Supply Chain Coordinator</field>
+            <field name="category_id" ref="meta_ss_sales.module_category_secondary_sales"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        </record>
+    </data>
+</odoo>
