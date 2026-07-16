@@ -31,6 +31,7 @@ class MetaSSProductController(http.Controller):
         Product = api_env["product.product"]
         sale_type = payload.get("sale_type")
         employee_id = payload.get("employee_id")
+        distributor_location_id = None
 
         if sale_type == "secondary" and employee_id:
             employee = api_env["hr.employee"].browse(int(employee_id))
@@ -42,6 +43,7 @@ class MetaSSProductController(http.Controller):
             ])
             if van_locations:
                 van_location = van_locations[0]
+                distributor_location_id = van_location.location_id.id if van_location.location_id else None
                 Product = Product.with_context(location=van_location.id)
                 # Restrict products to those with available stock in the van
                 quants = api_env["stock.quant"].search([
@@ -72,7 +74,7 @@ class MetaSSProductController(http.Controller):
 
         products = Product.search(domain, limit=limit, offset=offset, order="name")
         total = Product.search_count(domain)
-        data = serialize_products(products, partner=partner)
+        data = serialize_products(products, partner=partner, distributor_location_id=distributor_location_id)
 
         return {
             "success": True,

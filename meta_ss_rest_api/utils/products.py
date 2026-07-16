@@ -38,7 +38,7 @@ def get_product_pagination(payload):
     return get_pagination(payload)
 
 
-def serialize_products(products, partner=None):
+def serialize_products(products, partner=None, distributor_location_id=None):
     """Serialize product variants for the mobile app."""
     data = []
     for product in products:
@@ -64,6 +64,7 @@ def serialize_products(products, partner=None):
             } if product.uom_id else None,
             "uom_name": product.uom_id.name if product.uom_id else None,
             "qty_available": product.qty_available,
+            "distributor_qty_available": product.with_context(location=distributor_location_id).qty_available if distributor_location_id else None,
             "type": product.type or None,
             "active": product.active,
         })

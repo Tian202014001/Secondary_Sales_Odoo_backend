@@ -173,6 +173,14 @@ def _serialize_order_amounts(order):
 def _serialize_sale_line(line):
     delivered_qty = line.qty_delivered
     ordered_qty = line.product_uom_qty
+
+    distributor_qty_available = 0.0
+    location_id = line.env.context.get('location')
+    if location_id:
+        location = line.env["stock.location"].sudo().browse(location_id)
+        if location and location.location_id:
+            distributor_qty_available = line.product_id.with_context(location=location.location_id.id).qty_available
+
     return {
         "id": line.id,
         "product": {
@@ -181,6 +189,7 @@ def _serialize_sale_line(line):
             "default_code": line.product_id.default_code or None,
             "tracking": line.product_id.tracking,
             "qty_available": line.product_id.qty_available,
+            "distributor_qty_available": distributor_qty_available,
         } if line.product_id else None,
         "product_uom_qty": ordered_qty,
         "qty_delivered": delivered_qty,
