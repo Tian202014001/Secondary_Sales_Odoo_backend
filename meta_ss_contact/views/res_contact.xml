@@ -49,6 +49,20 @@
             <field name="context">{'default_customer_type': 'outlet'}</field>
         </record>
 
+        <record id="view_res_partner_filter_inherit_meta_ss_contact" model="ir.ui.view">
+            <field name="name">res.partner.select.inherit.meta.ss.contact</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_res_partner_filter"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='name']" position="attributes">
+                    <attribute name="filter_domain">['|', '|', '|', '|', ('name', 'ilike', self), ('parent_id', 'ilike', self), ('email', 'ilike', self), ('vat', 'ilike', self), ('db_code', 'ilike', self)]</attribute>
+                </xpath>
+                <xpath expr="//field[@name='name']" position="after">
+                    <field name="db_code" string="DB Code"/>
+                </xpath>
+            </field>
+        </record>
+
         <!-- Menus under Contacts App -> Contacts submenu -->
         <menuitem id="menu_distributors" name="Distributors" parent="contacts.res_partner_menu_contacts" action="action_distributors" sequence="10"/>
         <menuitem id="menu_outlets" name="Outlets" parent="contacts.res_partner_menu_contacts" action="action_outlets" sequence="20"/>

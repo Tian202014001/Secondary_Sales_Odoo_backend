@@ -97,5 +97,19 @@
                 </xpath>
             </field>
         </record>
+
+        <record id="view_sales_order_filter_inherit_meta_ss_sales" model="ir.ui.view">
+            <field name="name">sale.order.list.select.inherit.meta.ss.sales</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='name']" position="attributes">
+                    <attribute name="filter_domain">['|', '|', '|', ('name', 'ilike', self), ('client_order_ref', 'ilike', self), ('partner_id', 'child_of', self), ('partner_id.db_code', 'ilike', self)]</attribute>
+                </xpath>
+                <xpath expr="//field[@name='partner_id']" position="after">
+                    <field name="partner_id" string="Distributor Code" filter_domain="[('partner_id.db_code', 'ilike', self)]"/>
+                </xpath>
+            </field>
+        </record>
     </data>
 </odoo>

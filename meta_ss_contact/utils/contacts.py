@@ -104,6 +104,7 @@ def build_contact_domain(env, payload, customer_type=None):
             [("mobile", "ilike", search)],
             [("email", "ilike", search)],
             [("ref", "ilike", search)],
+            [("db_code", "ilike", search)],
         ])
         domain = expression.AND([domain, search_domain])
 

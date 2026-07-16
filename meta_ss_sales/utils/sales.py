@@ -67,6 +67,7 @@ def build_sale_order_domain(payload):
             [("partner_id.name", "ilike", search)],
             [("partner_id.phone", "ilike", search)],
             [("partner_id.mobile", "ilike", search)],
+            [("partner_id.db_code", "ilike", search)],
             [("name", "ilike", search)],
         ])
         domain = expression.AND([domain, search_domain])

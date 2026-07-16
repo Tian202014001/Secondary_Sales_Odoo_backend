@@ -45,6 +45,23 @@ class ResPartner(models.Model):
             if partner.db_code:
                 partner.display_name = f"[{partner.db_code}] {partner.display_name}"
 
+    @api.model
+    def _name_search(self, name, domain=None, operator='ilike', limit=100, order=None):
+        domain = domain or []
+        if name:
+            partners = self.search([('db_code', operator, name)] + domain, limit=limit, order=order)
+            ids = list(partners.ids)
+            if len(ids) < limit:
+                sub_domain = [('id', 'not in', ids)] + domain
+                search_ids = super()._name_search(name, domain=sub_domain, operator=operator, limit=limit - len(ids), order=order)
+                if search_ids:
+                    if isinstance(search_ids, models.BaseModel):
+                        ids.extend(search_ids.ids)
+                    else:
+                        ids.extend(list(search_ids))
+            return ids
+        return super()._name_search(name, domain=domain, operator=operator, limit=limit, order=order)
+
     
     @api.model_create_multi
     def create(self, vals_list):
