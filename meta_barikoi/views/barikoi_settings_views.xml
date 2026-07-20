@@ -4,7 +4,7 @@
         <!-- Menu Items for Barikoi App -->
         <menuitem id="menu_barikoi_root"
                   name="Barikoi Maps"
-                  sequence="100"
+                  sequence="83"
                   web_icon="meta_barikoi,static/description/icon.png"/>
 
         <menuitem id="menu_barikoi_config"

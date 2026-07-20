@@ -47,7 +47,7 @@
         </record>
 
         <!-- Menus -->
-        <menuitem id="menu_mobile_app_root" name="Mobile Devices" sequence="60" web_icon="meta_firebase_push_notification,static/description/icon.png"/>
+        <menuitem id="menu_mobile_app_root" name="Mobile Devices" sequence="81" web_icon="meta_firebase_push_notification,static/description/icon.png"/>
 
         <menuitem id="menu_res_mobile_device" name="Registered Devices" parent="menu_mobile_app_root" action="action_res_mobile_device" sequence="10"/>
         <menuitem id="menu_mobile_push_notification" name="Push Notification Queue" parent="menu_mobile_app_root" action="action_mobile_push_notification" sequence="20"/>
