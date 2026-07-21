@@ -88,6 +88,13 @@ class MetaSSVisitController(http.Controller):
         if search:
             domain.append(("outlet_id.name", "ilike", search))
 
+        date_from = payload.get("date_from") or payload.get("start_date")
+        if date_from:
+            domain.append(("check_in_time", ">=", "%s 00:00:00" % date_from))
+        date_to = payload.get("date_to") or payload.get("end_date")
+        if date_to:
+            domain.append(("check_in_time", "<=", "%s 23:59:59" % date_to))
+
         limit, offset, page, page_size = get_pagination(payload)
         Visit = api_env["outlet.visit"].sudo()
 

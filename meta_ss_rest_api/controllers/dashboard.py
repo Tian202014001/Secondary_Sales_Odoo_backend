@@ -8,7 +8,11 @@ from odoo.addons.meta_ss_rest_api.utils.common import (
     get_mobile_api_context,
     mobile_api_error_boundary,
 )
-from odoo.addons.meta_ss_rest_api.utils.dashboard import build_dashboard_summary
+from odoo.addons.meta_ss_rest_api.utils.mtd_summary import (
+    build_mtd_summary,
+    resolve_dashboard_range,
+    resolve_scoped_employee,
+)
 
 
 class DashboardController(http.Controller):
@@ -31,10 +35,23 @@ class DashboardController(http.Controller):
     )
     @mobile_api_error_boundary
     def dashboard_summary(self, **payload):
-        mobile_user, api_env, _payload = get_mobile_api_context(
+        mobile_user, api_env, payload = get_mobile_api_context(
             payload, require_employee=True
         )
-        data = build_dashboard_summary(api_env, mobile_user.employee_id)
+        preset, date_from, date_to = resolve_dashboard_range(payload)
+        scoped_employee = resolve_scoped_employee(
+            api_env,
+            mobile_user.employee_id.id,
+            payload.get("scope_employee_id"),
+        )
+        data = build_mtd_summary(
+            api_env,
+            scoped_employee,
+            mobile_user,
+            date_from,
+            date_to,
+            preset=preset,
+        )
         return {
             "success": True,
             "api_version": API_VERSION,

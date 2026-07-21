@@ -61,6 +61,14 @@ def build_sale_order_domain(payload):
             raise ValidationError("'outlet_id' must be a valid integer id.") from exc
         domain.append(("partner_id", "=", outlet_id))
 
+    visit_id = payload.get("visit_id")
+    if visit_id:
+        try:
+            visit_id = int(visit_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("'visit_id' must be a valid integer id.") from exc
+        domain.append(("visit_id", "=", visit_id))
+
     search = (payload.get("search") or payload.get("customer") or "").strip()
     if search:
         search_domain = expression.OR([
