@@ -14,6 +14,7 @@
                     </div>
                     <group>
                         <group>
+                            <field name="distributor_id"/>
                             <field name="month"/>
                             <field name="year"/>
                         </group>
@@ -26,7 +27,7 @@
                         <page string="Target Lines" name="target_lines">
                             <field name="target_line_ids">
                                 <list editable="bottom">
-                                    <field name="employee_id"/>
+                                    <field name="employee_id" domain="[('distributor_contact_ids', 'in', parent.distributor_id)]"/>
                                     <field name="product_id"/>
                                     <field name="product_uom"/>
                                     <field name="target_qty"/>
@@ -48,6 +49,7 @@
         <field name="arch" type="xml">
             <list string="Sale Targets">
                 <field name="name"/>
+                <field name="distributor_id"/>
                 <field name="month"/>
                 <field name="year"/>
                 <field name="date_from"/>

@@ -62,7 +62,7 @@
                         <group string="Login">
                             <field name="phone"/>
                             <field name="email"/>
-                            <field name="password" password="True"/>
+                            <field name="password" password="True" required="1"/>
                             <field name="password_hash" invisible="1" groups="base.group_system" readonly="1"/>
                         </group>
                         <group string="Profile">

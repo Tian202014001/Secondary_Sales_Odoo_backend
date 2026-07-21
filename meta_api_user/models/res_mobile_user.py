@@ -49,7 +49,7 @@ class ResMobileUser(models.Model):
         required=True,
         default=lambda self: self.env.company,
     )
-    employee_id = fields.Many2one("hr.employee", ondelete="set null")
+    employee_id = fields.Many2one("hr.employee", ondelete="restrict", required=True)
     last_login = fields.Datetime(readonly=True, copy=False)
     session_ids = fields.One2many("mobile.auth.session", "mobile_user_id")
     session_count = fields.Integer(compute="_compute_session_counts")
@@ -84,6 +84,19 @@ class ResMobileUser(models.Model):
         for user in self:
             if not user.phone and not user.email:
                 raise ValidationError("Set at least one login identifier: phone or email.")
+
+    @api.constrains("employee_id")
+    def _check_employee_id_unique(self):
+        for user in self:
+            if user.employee_id:
+                duplicate = self.search([
+                    ("employee_id", "=", user.employee_id.id),
+                    ("id", "!=", user.id),
+                ], limit=1)
+                if duplicate:
+                    raise ValidationError(
+                        f"Employee '{user.employee_id.name}' is already assigned to another mobile user ('{duplicate.name}')."
+                    )
 
     @api.depends("session_ids", "session_ids.is_revoked", "session_ids.refresh_token_expiry")
     def _compute_session_counts(self):

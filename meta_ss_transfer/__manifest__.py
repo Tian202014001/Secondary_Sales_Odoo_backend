@@ -16,6 +16,7 @@
         "data/stock_picking_type_data.xml",
         "views/stock_picking_views.xml",
         "views/stock_location_views.xml",
+        "views/res_partner_views.xml",
     ],
     "installable": True,
     "application": False,

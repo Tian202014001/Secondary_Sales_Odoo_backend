@@ -4,7 +4,7 @@
         <div class="o_meta_api_dashboard h-100 overflow-auto">
             <div class="o_meta_api_dashboard__header">
                 <div>
-                    <h1>Mobile API</h1>
+                    <h1>Mobile User</h1>
                     <p>JWT access token and refresh session operations.</p>
                 </div>
                 <div class="o_meta_api_dashboard__actions">

@@ -15,6 +15,7 @@
         "hr_attendance",
         "meta_api_user",
         "meta_ss_rest_api",
+        "meta_barikoi_base",
     ],
     "data": [
         "security/ir.model.access.csv",

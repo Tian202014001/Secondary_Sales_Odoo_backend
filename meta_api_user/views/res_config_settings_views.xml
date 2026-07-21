@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="base.res_config_settings_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//form" position="inside">
-                <app string="Mobile API" name="meta_api_user" groups="base.group_system">
+                <app string="Mobile User" name="meta_api_user" groups="base.group_system">
                     <block title="JWT Authentication">
                         <setting>
                             <label for="meta_api_jwt_secret"/>

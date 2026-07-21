@@ -259,3 +259,41 @@ class MetaSSLocationApiController(http.Controller):
                 "attendances": attendances_data
             }
         }
+
+    @http.route(f"{API_PREFIX}/location/reverse_geocode", type="json", auth="user", methods=["POST"])
+    @mobile_api_error_boundary
+    def reverse_geocode(self, **payload):
+        """Resolve a human-readable address for coordinates via Barikoi.
+
+        Exists so the mobile app never calls a third-party geocoder directly:
+        Barikoi returns far better Bangladeshi addresses, and keeping the call
+        server-side means the API key is never spent from an unmetered client.
+        """
+        mobile_user, api_env, payload = get_mobile_api_context(payload)
+        require_ui_access(mobile_user, AccessKey.DASHBOARD_MODULE)
+
+        latitude = request.params.get("latitude")
+        longitude = request.params.get("longitude")
+        if latitude is None or longitude is None:
+            raise ValidationError("Both 'latitude' and 'longitude' parameters are required.")
+
+        try:
+            latitude = float(latitude)
+            longitude = float(longitude)
+        except (TypeError, ValueError):
+            raise ValidationError("'latitude' and 'longitude' must be numeric.")
+
+        result = api_env["barikoi.api"].sudo().reverse_geocode(latitude, longitude, timeout=5)
+        place = (result or {}).get("place") or {}
+
+        return {
+            "success": True,
+            "api_version": API_VERSION,
+            "message": "Address resolved successfully.",
+            "data": {
+                "address": place.get("address") or "",
+                "area": place.get("area") or "",
+                "city": place.get("city") or "",
+                "district": place.get("district") or "",
+            },
+        }

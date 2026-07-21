@@ -8,5 +8,6 @@ class HrEmployee(models.Model):
     mobile_user_group_id = fields.Many2one(
         'res.mobile.user.group',
         string="Mobile User Group",
-        help="The mobile role/group assigned to this employee."
+        help="The mobile role/group assigned to this employee.",
+        required=True,
     )

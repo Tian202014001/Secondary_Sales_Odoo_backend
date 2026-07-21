@@ -287,6 +287,7 @@ INTENTIONALLY_UNGATED_MATRIX = {
     "meta_ss_rest_api/controllers/locations.py": {"get_locations"},
     "meta_ss_rest_api/controllers/warehouses.py": {"get_warehouses", "get_product_available_lots"},
     "meta_ss_rest_api/controllers/access_control.py": {"get_permissions", "sync_catalog"},
+    "meta_ss_rest_api/controllers/dashboard.py": {"dashboard_summary"},
     "meta_firebase_push_notification/controllers/device.py": {"register_device", "unregister_device"},
     "meta_api_user/controllers/mobile_auth_controller.py": {"bootstrap_session", "login", "refresh", "logout"},
 }

@@ -213,6 +213,7 @@ def build_list_domain(env, payload, flavor):
 
     domain = [
         ("picking_type_id.code", "in", ["incoming", "internal"]),
+        ("ss_transfer_category", "=", flavor.label.lower()),
         flavor.list_dest_leaf,
     ]
 
