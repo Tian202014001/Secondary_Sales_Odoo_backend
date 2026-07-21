@@ -9,6 +9,11 @@ class MobilePushNotification(models.Model):
 
     notification_type = fields.Selection([
         ('sale_order_confirmed', 'Sale Order Confirmed'),
+        ('sale_order_cancelled', 'Sale Order Cancelled'),
+        ('sale_order_created', 'Sale Order Created'),
+        ('primary_order_submitted', 'Primary Order Submitted'),
+        ('delivery_validation_required', 'Delivery Validation Required'),
+        ('delivery_order_validated', 'Delivery Order Validated'),
     ], default='sale_order_confirmed', required=True, index=True)
     mobile_user_id = fields.Many2one('res.mobile.user', required=True, index=True)
     sale_order_id = fields.Many2one('sale.order', index=True)
