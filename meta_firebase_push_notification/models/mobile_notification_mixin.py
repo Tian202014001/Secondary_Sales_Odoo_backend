@@ -89,3 +89,43 @@ class MobileNotificationMixin(models.AbstractModel):
             existing = Notification.search(domain, limit=1)
             
         return existing or Notification.create(vals)
+
+    def _notify_group_by_email(self, group_xml_id, template_xml_id, action_link=None):
+        """Send an email notification to each user's employee work_email in an Odoo security group using a mail template."""
+        self.ensure_one()
+        group = self.env.ref(group_xml_id, raise_if_not_found=False)
+        template = self.env.ref(template_xml_id, raise_if_not_found=False)
+        if not group or not template:
+            _logger.warning("Group '%s' or Template '%s' not found.", group_xml_id, template_xml_id)
+            return
+
+        # Collect work_email of each employee linked to users in the group
+        recipient_emails = set()
+        for user in group.users:
+            # Prioritize employee work_email
+            work_email = user.employee_id.work_email if user.employee_id else False
+            email_to_use = work_email or user.email or (user.partner_id and user.partner_id.email)
+            if email_to_use:
+                recipient_emails.add(email_to_use.strip())
+
+        if not recipient_emails:
+            _logger.info("No recipient employee work_emails found for group '%s'.", group_xml_id)
+            return
+
+        record_url = action_link or f"{self.get_base_url()}/web#id={self.id}&model={self._name}&view_type=form"
+        ctx = dict(self.env.context, action_link=record_url)
+
+        # Send email to each recipient's employee work_email
+        for email in recipient_emails:
+            try:
+                template.with_context(ctx).send_mail(
+                    self.id,
+                    email_values={'email_to': email},
+                    force_send=True
+                )
+                _logger.info("Sent email notification using '%s' to employee work_email %s for %s %s", template_xml_id, email, self._name, self.display_name)
+            except Exception as e:
+                _logger.exception("Failed to send email to %s: %s", email, e)
+
+
+
