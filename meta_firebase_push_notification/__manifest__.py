@@ -9,10 +9,11 @@
     'author': "Meta",
     'category': 'Sales',
     'version': '18.0.1.0.0',
-    'depends': ['base', 'sale', 'meta_ss_rest_api'],
+    'depends': ['base', 'sale', 'mail', 'meta_ss_rest_api'],
     'data': [
         'security/ir.model.access.csv',
         'data/cron.xml',
+        'data/mail_template_data.xml',
         'views/menu.xml',
     ],
     'installable': True,

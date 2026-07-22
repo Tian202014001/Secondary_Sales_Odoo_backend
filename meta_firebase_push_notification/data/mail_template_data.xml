@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Primary Order Submitted Template -->
+        <record id="email_template_primary_order_submitted" model="mail.template">
+            <field name="name">Primary Sale Order: Submitted Notification</field>
+            <field name="model_id" ref="sale.model_sale_order"/>
+            <field name="subject">New Primary Order Submitted: {{ object.name }}</field>
+            <field name="description">Email notification sent when a new Primary Sale Order is submitted</field>
+            <field name="body_html" type="html">
+                <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; background-color: #ffffff;">
+                    <h2 style="color: #111827; margin-top: 0;">New Primary Order Submitted</h2>
+                    <p style="line-height: 1.6; color: #4b5563;">
+                        Primary Sale Order <strong><t t-out="object.name or ''">SO001</t></strong> for customer <strong><t t-out="object.partner_id.name or ''">Customer Name</t></strong> has been submitted and is awaiting confirmation.
+                    </p>
+                    <div style="margin: 20px 0; padding: 15px; background-color: #f9fafb; border-radius: 6px; border-left: 4px solid #7c7bad;">
+                        <p style="margin: 0 0 8px 0;"><strong>Order Number:</strong> <t t-out="object.name"/></p>
+                        <p style="margin: 0 0 8px 0;"><strong>Customer:</strong> <t t-out="object.partner_id.name"/></p>
+                        <p style="margin: 0 0 8px 0;"><strong>Total Amount:</strong> <t t-out="object.amount_total"/> <t t-out="object.currency_id.name"/></p>
+                        <p style="margin: 0;"><strong>Status:</strong> Awaiting Confirmation</p>
+                    </div>
+                    <t t-if="ctx.get('action_link')">
+                        <div style="margin-top: 20px;">
+                            <a t-att-href="ctx.get('action_link')" style="background-color: #7c7bad; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                                View Order
+                            </a>
+                        </div>
+                    </t>
+                    <hr style="border: none; border-top: 1px solid #eeeeee; margin-top: 30px; margin-bottom: 10px;" />
+                    <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                        Automated Notification from Secondary Sales Odoo Backend.
+                    </p>
+                </div>
+            </field>
+        </record>
+
+        <!-- Delivery Validation Required Template -->
+        <record id="email_template_delivery_validation_required" model="mail.template">
+            <field name="name">Primary Sale Order: Delivery Validation Required</field>
+            <field name="model_id" ref="sale.model_sale_order"/>
+            <field name="subject">Delivery Validation Required: {{ object.name }}</field>
+            <field name="description">Email notification sent to Supply Chain Coordinators when delivery validation is required</field>
+            <field name="body_html" type="html">
+                <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; background-color: #ffffff;">
+                    <h2 style="color: #111827; margin-top: 0;">Delivery Validation Required</h2>
+                    <p style="line-height: 1.6; color: #4b5563;">
+                        Order <strong><t t-out="object.name or ''">SO001</t></strong> is approved. Please validate delivery and inventory dispatch.
+                    </p>
+                    <t t-if="ctx.get('action_link')">
+                        <div style="margin-top: 20px;">
+                            <a t-att-href="ctx.get('action_link')" style="background-color: #7c7bad; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                                Validate Delivery
+                            </a>
+                        </div>
+                    </t>
+                    <hr style="border: none; border-top: 1px solid #eeeeee; margin-top: 30px; margin-bottom: 10px;" />
+                    <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                        Automated Notification from Secondary Sales Odoo Backend.
+                    </p>
+                </div>
+            </field>
+        </record>
+
+        <!-- Sale Order Confirmed Template -->
+        <record id="email_template_sale_order_confirmed" model="mail.template">
+            <field name="name">Sale Order: Confirmed Notification</field>
+            <field name="model_id" ref="sale.model_sale_order"/>
+            <field name="subject">Sale Order Confirmed: {{ object.name }}</field>
+            <field name="description">Email notification sent when a Sale Order is confirmed</field>
+            <field name="body_html" type="html">
+                <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; background-color: #ffffff;">
+                    <h2 style="color: #111827; margin-top: 0;">Sale Order Confirmed</h2>
+                    <p style="line-height: 1.6; color: #4b5563;">
+                        Your sale order <strong><t t-out="object.name or ''">SO001</t></strong> has been confirmed.
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #eeeeee; margin-top: 30px; margin-bottom: 10px;" />
+                    <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                        Automated Notification from Secondary Sales Odoo Backend.
+                    </p>
+                </div>
+            </field>
+        </record>
+
+        <!-- Sale Order Cancelled Template -->
+        <record id="email_template_sale_order_cancelled" model="mail.template">
+            <field name="name">Sale Order: Cancelled Notification</field>
+            <field name="model_id" ref="sale.model_sale_order"/>
+            <field name="subject">Sale Order Cancelled: {{ object.name }}</field>
+            <field name="description">Email notification sent when a Sale Order is cancelled</field>
+            <field name="body_html" type="html">
+                <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; background-color: #ffffff;">
+                    <h2 style="color: #dc2626; margin-top: 0;">Sale Order Cancelled</h2>
+                    <p style="line-height: 1.6; color: #4b5563;">
+                        Sale order <strong><t t-out="object.name or ''">SO001</t></strong> has been cancelled.
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #eeeeee; margin-top: 30px; margin-bottom: 10px;" />
+                    <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                        Automated Notification from Secondary Sales Odoo Backend.
+                    </p>
+                </div>
+            </field>
+        </record>
+
+    </data>
+</odoo>
