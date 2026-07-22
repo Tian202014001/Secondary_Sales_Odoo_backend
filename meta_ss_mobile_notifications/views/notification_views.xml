@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add the read flag to the base "Push Notification Queue" list -->
+    <record id="view_mobile_push_notification_tree_read" model="ir.ui.view">
+        <field name="name">mobile.push.notification.tree.read</field>
+        <field name="model">mobile.push.notification</field>
+        <field name="inherit_id" ref="meta_firebase_push_notification.view_mobile_push_notification_tree"/>
+        <field name="arch" type="xml">
+            <field name="state" position="before">
+                <field name="is_read" widget="boolean_toggle"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Search view so admins can filter read/unread and the linked record -->
+    <record id="view_mobile_push_notification_search" model="ir.ui.view">
+        <field name="name">mobile.push.notification.search</field>
+        <field name="model">mobile.push.notification</field>
+        <field name="arch" type="xml">
+            <search string="Push Notifications">
+                <field name="mobile_user_id"/>
+                <field name="notification_type"/>
+                <field name="res_model"/>
+                <filter name="unread" string="Unread" domain="[('is_read', '=', False)]"/>
+                <filter name="read" string="Read" domain="[('is_read', '=', True)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_type" string="Type" context="{'group_by': 'notification_type'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo>

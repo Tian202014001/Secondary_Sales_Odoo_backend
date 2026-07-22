@@ -113,9 +113,12 @@ class MobileAuthSession(models.Model):
         params = self.env["ir.config_parameter"].sudo()
         secret = params.get_param("meta_api_user.jwt_secret")
         if not secret or len(secret.encode("utf-8")) < 32:
-            secret = secrets.token_urlsafe(64)
+            secret = params.get_param("database.secret")
+            if not secret or len(secret.encode("utf-8")) < 32:
+                secret = "meta_api_secondary_sales_jwt_secret_key_v1_secure_stable_32bytes"
             params.set_param("meta_api_user.jwt_secret", secret)
         return secret
+
 
     @api.model
     def _get_jwt_algorithm(self):
@@ -169,12 +172,18 @@ class MobileAuthSession(models.Model):
         return user
 
     @api.model
-    def get_integration_env(self):
+    def get_integration_env(self, mobile_user=None):
+        if mobile_user:
+            m_user = mobile_user.sudo()
+            if m_user.employee_id and m_user.employee_id.user_id and m_user.employee_id.user_id.active:
+                return self.env(user=m_user.employee_id.user_id)
         return self.env(user=self._get_integration_user())
 
     @api.model
-    def get_integration_model(self, model_name):
-        return self.env[model_name].with_user(self._get_integration_user())
+    def get_integration_model(self, model_name, mobile_user=None):
+        env = self.get_integration_env(mobile_user=mobile_user)
+        return env[model_name]
+
 
     @api.model
     def generate_refresh_token(self):

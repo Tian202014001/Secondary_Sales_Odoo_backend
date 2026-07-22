@@ -9,5 +9,5 @@ class HrEmployee(models.Model):
         'res.mobile.user.group',
         string="Mobile User Group",
         help="The mobile role/group assigned to this employee.",
-        required=True,
     )
+

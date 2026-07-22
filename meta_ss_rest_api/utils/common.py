@@ -89,8 +89,9 @@ def get_mobile_api_context(payload=None, require_employee=False):
     if mobile_user.employee_id:
         trusted_payload["employee_id"] = mobile_user.employee_id.id
 
-    api_env = request.env["mobile.auth.session"].sudo().get_integration_env()
+    api_env = request.env["mobile.auth.session"].sudo().get_integration_env(mobile_user=mobile_user)
     api_env = api_env(context=dict(api_env.context, mobile_api_user_id=mobile_user.id))
+
     return mobile_user, api_env, trusted_payload
 
 

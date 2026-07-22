@@ -7,3 +7,5 @@ from . import res_mobile_user
 from . import mobile_auth_session
 from . import res_config_settings
 from . import hr_employee
+from . import res_users
+
