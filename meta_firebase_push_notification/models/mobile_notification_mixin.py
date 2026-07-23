@@ -45,6 +45,47 @@ class MobileNotificationMixin(models.AbstractModel):
             )
         _logger.info("Successfully dispatched notifications to group '%s' for %s %s.", group_xml_id, self._name, self.display_name)
 
+    def _notify_employee_manager(self, employee, notification_type, title, body, action_link=None):
+        """Notify the mobile users of an employee's direct manager (parent_id).
+
+        A manager with no mobile user — or an employee with no manager — is not an
+        error: the record simply has nobody to notify, so it is logged and skipped.
+        """
+        self.ensure_one()
+        manager = employee.parent_id
+        if not manager:
+            _logger.info(
+                "Employee %s has no manager (parent_id); skipping %s notification for %s %s.",
+                employee.display_name, notification_type, self._name, self.display_name,
+            )
+            return self.env['mobile.push.notification']
+
+        manager_users = self.env['res.mobile.user'].sudo().search([('employee_id', '=', manager.id)])
+        if not manager_users:
+            _logger.info(
+                "Manager %s has no mobile user; skipping %s notification for %s %s.",
+                manager.display_name, notification_type, self._name, self.display_name,
+            )
+            return self.env['mobile.push.notification']
+
+        notifications = self.env['mobile.push.notification'].sudo()
+        for manager_user in manager_users:
+            created = self._create_mobile_notification(
+                notification_type=notification_type,
+                title=title,
+                body=body,
+                target_user=manager_user,
+                action_link=action_link,
+            )
+            if created:
+                notifications |= created
+
+        _logger.info(
+            "Queued %s notification(s) of type %s to manager %s for %s %s.",
+            len(notifications), notification_type, manager.display_name, self._name, self.display_name,
+        )
+        return notifications
+
     def _create_mobile_notification(self, notification_type, title, body, target_user=None, action_link=None):
         self.ensure_one()
         user_to_notify = target_user or getattr(self, 'mobile_user_id', False)

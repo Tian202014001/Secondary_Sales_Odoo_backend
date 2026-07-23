@@ -72,12 +72,12 @@ class AttendanceAPI(http.Controller):
         if not employee_id:
             raise ValidationError("employee_id is required.")
 
-        employee = api_env["hr.employee"].browse(int(employee_id))
+        employee = api_env["hr.employee"].sudo().browse(int(employee_id))
         if not employee.exists():
             raise ValidationError("Employee not found.")
 
         # Get the current open attendance record
-        active_attendance = api_env["hr.attendance"].search([
+        active_attendance = api_env["hr.attendance"].sudo().search([
             ("employee_id", "=", employee.id),
             ("check_out", "=", False)
         ], limit=1)
@@ -129,7 +129,7 @@ class AttendanceAPI(http.Controller):
         if not employee_id:
             raise ValidationError("employee_id is required.")
 
-        employee = api_env["hr.employee"].browse(int(employee_id))
+        employee = api_env["hr.employee"].sudo().browse(int(employee_id))
         if not employee.exists():
             raise ValidationError("Employee not found.")
 
@@ -138,11 +138,11 @@ class AttendanceAPI(http.Controller):
         page_size = int(payload.get("page_size", 20))
         offset = (page - 1) * page_size
 
-        history = api_env["hr.attendance"].search([
+        history = api_env["hr.attendance"].sudo().search([
             ("employee_id", "=", employee.id)
         ], order="check_in desc", limit=page_size, offset=offset)
 
-        total = api_env["hr.attendance"].search_count([("employee_id", "=", employee.id)])
+        total = api_env["hr.attendance"].sudo().search_count([("employee_id", "=", employee.id)])
 
         logs = []
         for rec in history:
@@ -193,7 +193,7 @@ class AttendanceAPI(http.Controller):
         if not address:
             address = _reverse_geocode(lat, lon)
 
-        employee = api_env["hr.employee"].browse(int(employee_id))
+        employee = api_env["hr.employee"].sudo().browse(int(employee_id))
         if not employee.exists():
             raise ValidationError("Employee not found.")
 
@@ -236,7 +236,7 @@ class AttendanceAPI(http.Controller):
                 raise ValidationError("You must be within the assigned distributor's radius to check in/out.")
 
         # 3. Create or Update Attendance Record
-        attendance_obj = api_env["hr.attendance"]
+        attendance_obj = api_env["hr.attendance"].sudo()
 
         if action == "check_in":
             # Ensure not already checked in

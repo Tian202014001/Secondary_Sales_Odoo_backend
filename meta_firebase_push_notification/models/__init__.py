@@ -6,3 +6,5 @@ from . import mobile_notification_mixin
 from . import sale_order
 from . import mobile_notification_service
 from . import stock_picking
+from . import hr_leave
+from . import hr_expense_sheet

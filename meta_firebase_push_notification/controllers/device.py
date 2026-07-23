@@ -30,8 +30,12 @@ class MobileDeviceController(http.Controller):
 
         Device = api_env['res.mobile.device'].sudo()
 
-        # Check if token exists
-        existing_device = Device.search([('fcm_token', '=', fcm_token)], limit=1)
+        # Check if token exists. active_test=False so a token that was archived (by an
+        # unregister or the invalid-token sweep) is revived instead of piling up a
+        # duplicate row that leaves the old one stranded.
+        existing_device = Device.with_context(active_test=False).search(
+            [('fcm_token', '=', fcm_token)], limit=1
+        )
 
         vals = {
             'mobile_user_id': _mobile_user.id,
