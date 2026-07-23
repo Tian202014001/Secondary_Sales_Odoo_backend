@@ -25,7 +25,7 @@ class ResPartner(models.Model):
         help='Scrap location for the partner'
     )
 
-    db_code = fields.Char(string='DB Code', required=True, store=True)
+    db_code = fields.Char(string='DB Code', store=True)
 
     @api.constrains("db_code")
     def _check_unique_db_code(self):
