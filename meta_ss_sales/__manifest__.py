@@ -8,7 +8,7 @@
         and adds them to the order form view.
     """,
     "category": "Sales",
-    "author": "Meta",
+    "author": "Abrar Ahmed Tian",
     "license": "LGPL-3",
     "depends": ["meta_ss_rest_api", "sale_stock", "meta_ss_contact", "meta_ss_route_management", "meta_ss_transfer"],
     "data": [

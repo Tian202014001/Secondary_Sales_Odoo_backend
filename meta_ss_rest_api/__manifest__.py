@@ -7,7 +7,7 @@
         Public JSON API endpoints for secondary sales mobile and integration flows.
     """,
     "category": "Tools",
-    "author": "Meta",
+    "author": "Abrar Ahmed Tian",
     "license": "LGPL-3",
     "depends": [
         "base",

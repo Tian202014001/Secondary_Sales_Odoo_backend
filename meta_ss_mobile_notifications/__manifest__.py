@@ -9,7 +9,7 @@
         REST endpoints for the Flutter app to list notifications, fetch the unread count,
         and mark notifications read.
     """,
-    'author': "Meta",
+    'author': "Abrar Ahmed Tian",
     'category': 'Sales',
     'version': '18.0.1.0.0',
     'depends': ['meta_firebase_push_notification', 'meta_ss_rest_api'],

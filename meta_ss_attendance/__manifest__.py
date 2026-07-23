@@ -7,7 +7,7 @@
         This module provides API endpoints and logic for mobile app users to check in/out.
         It adds geo-fencing logic based on distributor location radius.
     """,
-    'author': 'Meta',
+    'author': 'Abrar Ahmed Tian',
     'depends': [
         'base',
         'hr_attendance',

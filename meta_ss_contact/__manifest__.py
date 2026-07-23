@@ -8,7 +8,7 @@
         and adds them to the partner form view.
     """,
     "category": "Contacts",
-    "author": "Meta",
+    "author": "Abrar Ahmed Tian",
     "license": "LGPL-3",
     "depends": ["meta_ss_rest_api", "base", "stock", "contacts"],
     "data": [

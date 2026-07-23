@@ -7,7 +7,7 @@
         Provides route planning and management features for the sales team.
     """,
     "category": "Sales",
-    "author": "Meta",
+    "author": "Abrar Ahmed Tian",
     "license": "LGPL-3",
     "depends": ["meta_ss_rest_api", "base", "hr", "meta_ss_contact", "meta_api_user"],
     "data": [

@@ -4,7 +4,7 @@
     "category": "Human Resources",
     "summary": "API and Custom Logic for Mobile App Leave Requests",
     "description": "Provides leave request API for the mobile application and strict manager approval logic.",
-    "author": "Metamorphosis",
+    "author": "Abrar Ahmed Tian",
     "depends": [
         "base",
         "hr",

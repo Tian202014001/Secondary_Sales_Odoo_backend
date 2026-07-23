@@ -269,4 +269,69 @@ class LeaveAPI(http.Controller):
             "new_status": leave.state
         }
 
+    @http.route(f"{API_PREFIX}/hr/leave/details", type="json", auth="user", methods=["POST"])
+    @mobile_api_error_boundary
+    def leave_details(self, **payload):
+        """Fetch a single leave request by id.
+
+        Backs deep-linking from the notification centre: a push carries
+        {"model": "hr.leave", "id": N}, and the app resolves it here. Mirrors the
+        item shape of /hr/leave/list so the client can reuse the same model.
+        """
+        # require_employee: the visibility check below is meaningless without a
+        # trusted employee, and it guarantees employee_id comes from the token
+        # rather than the request body.
+        mobile_user, api_env, payload = get_mobile_api_context(payload, require_employee=True)
+        require_ui_access(mobile_user, AccessKey.HR_LEAVE)
+
+        employee_id = payload.get("employee_id")
+        leave_id = payload.get("leave_id")
+
+        if not leave_id:
+            return error_response("validation_error", "leave_id is required")
+
+        leave = api_env['hr.leave'].sudo().browse(int(leave_id))
+        if not leave.exists():
+            return error_response("validation_error", "Leave request not found")
+
+        # Same visibility rule as /hr/leave/list: your own request, or one from a
+        # direct report. Enforced here because the id arrives from a notification
+        # rather than from a list the caller was already allowed to see.
+        current_employee = api_env['hr.employee'].sudo().browse(int(employee_id))
+        is_owner = leave.employee_id == current_employee
+        is_manager = leave.employee_id.parent_id == current_employee
+        if not (is_owner or is_manager):
+            return error_response("access_denied", "You are not authorized to view this leave request")
+
+        attachments = api_env['ir.attachment'].sudo().search([
+            ('res_model', '=', 'hr.leave'),
+            ('res_id', '=', leave.id),
+        ])
+
+        return {
+            "success": True,
+            "api_version": API_VERSION,
+            "data": {
+                "leave_id": leave.id,
+                "reference_id": f"#{leave.id}",
+                "employee_name": leave.employee_id.name,
+                "department": leave.employee_id.department_id.name or "",
+                "leave_type": leave.holiday_status_id.name,
+                "date_from": str(leave.request_date_from),
+                "date_to": str(leave.request_date_to),
+                "duration": f"{leave.number_of_days} days",
+                "applied_on": str(leave.create_date.date()),
+                "status": leave.state,
+                "pending_approver": leave.employee_id.parent_id.name if leave.state in ['confirm', 'validate1'] else "",
+                "reason": leave.name or "",
+                "has_attachment": bool(attachments),
+                "attachments": [
+                    {"id": att.id, "name": att.name, "mimetype": att.mimetype or ""}
+                    for att in attachments
+                ],
+                "is_my_request": is_owner,
+                "can_approve": is_manager and leave.state in ['confirm', 'validate1'],
+            },
+        }
+
 

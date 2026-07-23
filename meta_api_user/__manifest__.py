@@ -10,7 +10,7 @@
         opaque refresh-token sessions.
     """,
     "category": "Technical",
-    "author": "Meta",
+    "author": "Abrar Ahmed Tian",
     "license": "LGPL-3",
     "depends": ["base", "base_setup", "hr", "web"],
     "data": [

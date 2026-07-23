@@ -8,7 +8,7 @@
         distributor and sales officer virtual locations.
     """,
     "category": "Inventory",
-    "author": "Meta",
+    "author": "Abrar Ahmed Tian",
     "license": "LGPL-3",
     "depends": ["meta_ss_rest_api", "stock", "meta_ss_contact", "hr"],
     "data": [

@@ -6,7 +6,7 @@
         This module provides model storage, APIs, and dashboard maps for tracking
         sales employee coordinates during active attendance shifts.
     """,
-    "author": "Antigravity",
+    "author": "Abrar Ahmed Tian",
     "category": "Sales/Secondary Sales",
     "version": "18.0.1.0.0",
     "depends": [

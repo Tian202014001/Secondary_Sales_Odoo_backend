@@ -5,7 +5,7 @@
     "category": "Human Resources",
     "summary": "API and Custom Logic for Mobile App Expense Submission and Approval",
     "description": "Provides expense API endpoints for the mobile application.",
-    "author": "Metamorphosis",
+    "author": "Abrar Ahmed Tian",
     "depends": [
         "base",
         "hr",
