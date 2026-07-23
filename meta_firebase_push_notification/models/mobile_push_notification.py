@@ -15,7 +15,9 @@ class MobilePushNotification(models.Model):
         ('delivery_validation_required', 'Delivery Validation Required'),
         ('delivery_order_validated', 'Delivery Order Validated'),
         ('leave_request_created', 'Leave Request Created'),
+        ('leave_request_approved', 'Leave Request Approved'),
         ('expense_created', 'Expense Created'),
+        ('expense_approved', 'Expense Approved'),
     ], default='sale_order_confirmed', required=True, index=True)
     mobile_user_id = fields.Many2one('res.mobile.user', required=True, index=True)
     sale_order_id = fields.Many2one('sale.order', index=True)
